@@ -15,7 +15,7 @@ export default function Home() {
 
       if (!session) {
         // Not logged in → go to login
-        router.replace('/login')
+        router.replace('/auth/login')
         return
       }
 

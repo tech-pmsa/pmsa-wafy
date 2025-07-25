@@ -2,6 +2,7 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
+import clg from '../../../../public/college3d.png'
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ export default function LoginPage() {
       {/* Left Image Side */}
       <div className="w-1/2 bg-gray-100 flex items-center justify-center p-8">
         <Image
-          src="./college3d.png" // move image to /public folder if not using dynamic import
+          src={clg}// move image to /public folder if not using dynamic import
           alt="College 3D Image"
           width={400}
           height={400}

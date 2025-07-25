@@ -13,8 +13,8 @@ export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
   // Protect all routes except /auth
-  if (!pathname.startsWith('/(auth)') && !session) {
-    return NextResponse.redirect(new URL('/(auth)/login', req.url))
+  if (!pathname.startsWith('/login') && !session) {
+    return NextResponse.redirect(new URL('/login', req.url))
   }
 
   if (session) {

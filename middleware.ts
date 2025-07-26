@@ -21,21 +21,21 @@ export async function middleware(req: NextRequest) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('id', session.user.id)
+      .eq('uid', session.user.id)
       .single()
 
     const role = profile?.role
 
-    if (pathname.startsWith('/(officer)') && role !== 'officer') {
+    if (pathname.startsWith('/officer') && role !== 'officer') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/(class)') && role !== 'class') {
+    if (pathname.startsWith('/classroom') && role !== 'class') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/(class-leader)') && role !== 'class-leader') {
+    if (pathname.startsWith('/classleader') && role !== 'class-leader') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/(student)') && role !== 'student') {
+    if (pathname.startsWith('/student') && role !== 'student') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
   }

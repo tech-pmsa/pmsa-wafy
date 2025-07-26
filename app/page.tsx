@@ -23,7 +23,7 @@ export default function Home() {
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('uid', session.user.id)
         .single()
 
       if (!profile) {
@@ -34,16 +34,16 @@ export default function Home() {
       // Redirect based on role
       switch (profile.role) {
         case 'officer':
-          router.replace('/dashboard')
+          router.replace('officer/officer-dashboard')
           break
         case 'class':
-          router.replace('/dashboard')
+          router.replace('classroom/class-dashboard')
           break
         case 'class-leader':
-          router.replace('/dashboard')
+          router.replace('classleader/class-leader-dashboard')
           break
         case 'student':
-          router.replace('/dashboard')
+          router.replace('students/student-dashboard')
           break
         default:
           router.replace('/unauthorized')

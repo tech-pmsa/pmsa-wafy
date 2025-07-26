@@ -4,10 +4,10 @@ import WithNavbarLayout from '@/components/WithNavbarLayout'
 
 export default function OfficerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <div>
+      <div>
         <WithNavbarLayout>{children}</WithNavbarLayout>
-      </body>
-    </html>
+      </div>
+    </div>
   )
 }

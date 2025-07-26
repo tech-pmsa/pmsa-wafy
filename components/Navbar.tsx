@@ -1,18 +1,27 @@
-// components/Navbar.tsx
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export default function Navbar() {
+  const router = useRouter()
+  const supabase = createClientComponentClient()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return (
     <nav className="bg-blue-600 text-white p-4 shadow-md">
-      <div className="container mx-auto flex justify-between">
-        <span className="font-bold text-lg">College Portal</span>
-        <div className="space-x-4">
-          <Link href="/">Home</Link>
-          <Link href="/(officer)/dashboard">Dashboard</Link>
-          <Link href="/logout">Logout</Link>
-        </div>
+      <div className="flex justify-end container mx-auto">
+        <h1>Pmsa Wafy College</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-white text-blue-600 px-4 py-2 rounded hover:bg-gray-100 transition"
+        >
+          Logout
+        </button>
       </div>
     </nav>
   )

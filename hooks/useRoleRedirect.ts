@@ -22,7 +22,7 @@ export function useRoleRedirect(requiredRole: string) {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', session.user.id)
+        .eq('uid', session.user.id)
         .single()
 
       if (error || !profile || profile.role !== requiredRole) {

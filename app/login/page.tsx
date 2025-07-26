@@ -25,22 +25,50 @@ export default function LoginPage() {
       return;
     }
 
-    // ✅ Fetch user profile to check role
-    const { data: profile, error: profileError } = await supabase
+    const uid = signInData.user.id;
+
+    // Check 'profiles' table (officer, class, class-leader)
+    let { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("role")
-      .eq("uid", signInData.user.id)
+      .eq("uid", uid)
       .single();
 
-    if (profileError || !profile || profile.role !== "officer") {
-      setError("Access denied: Not an officer.");
-      await supabase.auth.signOut(); // sign out non-officer
+    if (profileData) {
+      switch (profileData.role) {
+        case "officer":
+          router.push("/officer/officer-dashboard");
+          return;
+        case "class":
+          router.push("/classroom/class-dashboard");
+          return;
+        case "class-leader":
+          router.push("/classleader/class-leader-dashboard");
+          return;
+        default:
+          setError("Access denied: Invalid role.");
+          await supabase.auth.signOut();
+          return;
+      }
+    }
+
+    // If not in profiles, check 'students' table
+    const { data: studentData, error: studentError } = await supabase
+      .from("students")
+      .select("role")
+      .eq("uid", uid)
+      .single();
+
+    if (studentData?.role === "student") {
+      router.push("/students/student-dashboard");
       return;
     }
 
-    // ✅ Officer verified, redirect
-    router.push("/officer/officer-dashboard"); // or wherever your officer dashboard is
+    // No matching role
+    setError("Access denied: No valid role found.");
+    await supabase.auth.signOut();
   };
+  ;
 
   return (
     <div className="flex min-h-screen w-full bg-[url('/sm.svg')] bg-cover">
@@ -55,7 +83,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-4xl font-semibold mb-8 text-heading-text-black font-body">
-            Officer Login
+            Login
           </h2>
 
           <form onSubmit={handleLogin} className="w-full max-w-md space-y-6">
@@ -64,7 +92,7 @@ export default function LoginPage() {
               <label className="block mb-1 text-text-grey">Email</label>
               <div className="flex items-center border border-primary-dark-grey bg-transparent rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-button-yellow">
                 <Image
-                  src="/profile.png"
+                  src="/email.png"
                   alt="Email"
                   width={35}
                   height={35}

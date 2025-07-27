@@ -37,13 +37,13 @@ export default function LoginPage() {
     if (profileData) {
       switch (profileData.role) {
         case "officer":
-          router.push("/officer/officer-dashboard");
+          router.push("/admins/officer/officer-dashboard");
           return;
         case "class":
-          router.push("/classroom/class-dashboard");
+          router.push("/admins/classroom/class-dashboard");
           return;
         case "class-leader":
-          router.push("/classleader/class-leader-dashboard");
+          router.push("/admins/classleader/class-leader-dashboard");
           return;
         default:
           setError("Access denied: Invalid role.");

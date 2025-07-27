@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import Loader from '@/components/Loader'
 
 export default function Home() {
   const router = useRouter()
@@ -43,7 +44,7 @@ export default function Home() {
           router.replace('/admins/classleader/class-leader-dashboard')
           break
         case 'student':
-          router.replace('/students/student-dashboard')
+          router.replace('students/student-dashboard')
           break
         default:
           router.replace('/unauthorized')
@@ -53,7 +54,7 @@ export default function Home() {
     redirectUser().finally(() => setLoading(false))
   }, [router, supabase])
 
-  if (loading) return <div className="text-center mt-10 text-lg">🔄 Redirecting...</div>
+  if (loading) return <div className="text-center mt-10 text-lg"><Loader/></div>
 
   return null
 }

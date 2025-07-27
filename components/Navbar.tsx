@@ -5,16 +5,24 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { IoIosLogOut } from 'react-icons/io'
+import { CiSettings } from 'react-icons/ci'
+import { MdOutlineDashboard } from 'react-icons/md'
+import Link from 'next/link'
+
+type Role = 'officer' | 'class' | 'class-leader'
 
 export default function Navbar() {
   const supabase = createClientComponentClient()
   const router = useRouter()
 
-  const [userData, setUserData] = useState<{ name: string; img_url: string } | null>(null)
+  const [userData, setUserData] = useState<{
+    name: string
+    img_url: string
+    role: Role
+  } | null>(null)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Fetch user data
   useEffect(() => {
     const fetchUserData = async () => {
       const {
@@ -27,26 +35,25 @@ export default function Navbar() {
 
       let { data, error } = await supabase
         .from('profiles')
-        .select('name, img_url')
+        .select('name, img_url, role')
         .eq('uid', uid)
         .single()
 
       if (!data && !error) {
         const res = await supabase
           .from('students')
-          .select('name, img_url')
+          .select('name, img_url, role')
           .eq('uid', uid)
           .single()
         data = res.data
       }
 
-      if (data) setUserData(data)
+      if (data) setUserData(data as any)
     }
 
     fetchUserData()
   }, [supabase])
 
-  // Close dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -69,10 +76,32 @@ export default function Navbar() {
     router.push('/login')
   }
 
+  const getDashboardLink = (role: Role) => {
+    switch (role) {
+      case 'officer':
+        return '/admins/officer/officer-dashboard'
+      case 'class':
+        return '/admins/classroom/class-dashboard'
+      case 'class-leader':
+        return '/admins/classleader/class-leader-dashboard'
+      default:
+        return '/'
+    }
+  }
+
   return (
-    <nav className="bg-dark-green text-white pt-3 pb-3 pl-2 pr-2 shadow-md">
+    <nav className="bg-dark-green text-white pt-3 pb-3 px-4 shadow-md">
       <div className="container mx-auto flex justify-between items-center">
-        <span className="font-bold">PMSA Wafy</span>
+        <div className="flex items-center gap-2">
+          <Image
+            src="/college3d.png"
+            alt="College Logo"
+            width={36}
+            height={36}
+            className="rounded-full object-cover"
+          />
+          <span className="font-bold text-lg">PMSA Wafy</span>
+        </div>
 
         {userData && (
           <div className="relative" ref={dropdownRef}>
@@ -91,13 +120,29 @@ export default function Navbar() {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-32 bg-white text-black rounded-md shadow-lg py-2 z-50">
+              <div className="absolute right-0 mt-2 w-44 bg-white text-black rounded-md shadow-lg py-2 z-50">
+                <Link
+                  href={getDashboardLink(userData.role)}
+                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <MdOutlineDashboard size={20} className="text-gray-600" />
+                  <span>Dashboard</span>
+                </Link>
+                <Link
+                  href="/admins/admin-settings"
+                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
+                  onClick={() => setDropdownOpen(false)}
+                >
+                  <CiSettings size={20} className="text-gray-600" />
+                  <span>Settings</span>
+                </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100"
+                  className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
                 >
+                  <IoIosLogOut size={20} className="text-gray-600" />
                   <span>Logout</span>
-                  <IoIosLogOut size={20} />
                 </button>
               </div>
             )}

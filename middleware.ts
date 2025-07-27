@@ -26,16 +26,16 @@ export async function middleware(req: NextRequest) {
 
     const role = profile?.role
 
-    if (pathname.startsWith('/officer') && role !== 'officer') {
+    if (pathname.startsWith('/admins/officer') && role !== 'officer') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/classroom') && role !== 'class') {
+    if (pathname.startsWith('/admins/classroom') && role !== 'class') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/classleader') && role !== 'class-leader') {
+    if (pathname.startsWith('/admins/classleader') && role !== 'class-leader') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
-    if (pathname.startsWith('/student') && role !== 'student') {
+    if (pathname.startsWith('/students') && role !== 'student') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }
   }
@@ -45,6 +45,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next|favicon.ico|api|lock.png|college3d.png|sm.svg|email.png).*)',
+    '/((?!_next|favicon.ico|api|lock.png|college3d.png|sm.svg|email.png|class.png|off.png|profile.png).*)',
   ],
 }

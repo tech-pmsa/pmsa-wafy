@@ -34,16 +34,16 @@ export default function Home() {
       // Redirect based on role
       switch (profile.role) {
         case 'officer':
-          router.replace('officer/officer-dashboard')
+          router.replace('/admins/officer/officer-dashboard')
           break
         case 'class':
-          router.replace('classroom/class-dashboard')
+          router.replace('/admins/classroom/class-dashboard')
           break
         case 'class-leader':
-          router.replace('classleader/class-leader-dashboard')
+          router.replace('/admins/classleader/class-leader-dashboard')
           break
         case 'student':
-          router.replace('students/student-dashboard')
+          router.replace('/students/student-dashboard')
           break
         default:
           router.replace('/unauthorized')

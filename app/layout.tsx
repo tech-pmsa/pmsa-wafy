@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { inter, playfair, anekMal } from "./fonts";
+import { mullerB, mullerH, anekMal } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${playfair.variable} ${anekMal.variable} antialiased`}
+      className={`${mullerB.variable} ${mullerH.variable} ${anekMal.variable} antialiased`}
       >
         <head></head>
       <body className='font-body'>

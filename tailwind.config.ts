@@ -24,8 +24,8 @@ const config: Config = {
         'link-text-green': '#016501',
       },
       fontFamily: {
-        body: "var(--font-inter)",
-        heading: "var(--font-playfair)",
+        body: "var(--font-mullerB)",
+        heading: "var(--font-mullerH)",
         malayalam: "var(--font-anek)"
       },
     },

@@ -76,13 +76,13 @@ export default function LoginPage() {
       <div className="w-full md:w-1/2 flex justify-center items-center px-6 py-12">
         <div className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 shadow-lg">
           <div className="text-center mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold uppercase font-heading text-gray-800 mb-2">
               Welcome to
             </h1>
-            <p className="text-lg text-gray-600">PMSA Wafy College</p>
+            <p className="text-lg text-gray-600 uppercase font-heading">PMSA Wafy College</p>
           </div>
 
-          <h2 className="text-4xl font-semibold mb-8 text-heading-text-black font-body">
+          <h2 className="text-4xl uppercase font-heading mb-8 text-heading-text-black">
             Login
           </h2>
 

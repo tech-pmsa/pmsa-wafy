@@ -1,15 +1,15 @@
 // app/fonts.ts
 import localFont from "next/font/local";
 
-export const inter = localFont({
-  src: "./fonts/Inter-Variable.ttf",
-  variable: "--font-inter",
+export const mullerB = localFont({
+  src: "./fonts/MullerMedium.ttf",
+  variable: "--font-mullerB",
   display: "swap",
 });
 
-export const playfair = localFont({
-  src: "./fonts/playfair-regular.ttf",
-  variable: "--font-playfair",
+export const mullerH = localFont({
+  src: "./fonts/MullerBold.ttf",
+  variable: "--font-mullerH",
   display: "swap",
 });
 export const anekMal = localFont({

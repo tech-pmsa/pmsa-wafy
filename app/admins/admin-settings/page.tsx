@@ -45,7 +45,7 @@ export default function AdminSettingsPage() {
   if (!user) return <p className="text-center mt-10">Loading...</p>
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-[95dvw] mx-auto p-6 flex">
       {/* Card 1: User Info */}
       <div className="bg-white shadow-md rounded p-4 text-center">
         <h2 className="text-xl font-semibold">Settings</h2>

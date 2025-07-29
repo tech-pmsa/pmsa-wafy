@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CiLogin } from "react-icons/ci";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -10,25 +10,73 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClientComponentClient<Database>();
 
+  // Redirect if session already exists
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("uid", session.user.id)
+          .single();
+
+        if (profile) {
+          switch (profile.role) {
+            case "officer":
+              router.replace("/admins/officer/officer-dashboard");
+              return;
+            case "class":
+              router.replace("/admins/classroom/class-dashboard");
+              return;
+            case "class-leader":
+              router.replace("/admins/classleader/class-leader-dashboard");
+              return;
+          }
+        }
+
+        const { data: student } = await supabase
+          .from("students")
+          .select("role")
+          .eq("uid", session.user.id)
+          .single();
+
+        if (student?.role === "student") {
+          router.replace("/students/student-dashboard");
+          return;
+        }
+
+        // No valid role
+        await supabase.auth.signOut();
+      }
+    };
+
+    checkSession();
+  }, [router, supabase]);
+
+  // Handle Login Submit
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     const { data: signInData, error: signInError } =
       await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
       setError("Invalid email or password.");
+      setLoading(false);
       return;
     }
 
     const uid = signInData.user.id;
 
-    // Check 'profiles' table (officer, class, class-leader)
-    let { data: profileData, error: profileError } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("role")
       .eq("uid", uid)
@@ -47,13 +95,13 @@ export default function LoginPage() {
           return;
         default:
           setError("Access denied: Invalid role.");
+          setLoading(false);
           await supabase.auth.signOut();
           return;
       }
     }
 
-    // If not in profiles, check 'students' table
-    const { data: studentData, error: studentError } = await supabase
+    const { data: studentData } = await supabase
       .from("students")
       .select("role")
       .eq("uid", uid)
@@ -64,11 +112,11 @@ export default function LoginPage() {
       return;
     }
 
-    // No matching role
+    // No role found
     setError("Access denied: No valid role found.");
+    setLoading(false);
     await supabase.auth.signOut();
   };
-  ;
 
   return (
     <div className="flex min-h-screen w-full bg-[url('/sm.svg')] bg-cover">
@@ -87,7 +135,7 @@ export default function LoginPage() {
           </h2>
 
           <form onSubmit={handleLogin} className="w-full max-w-md space-y-6">
-            {/* Email Field */}
+            {/* Email */}
             <div>
               <label className="block mb-1 text-text-grey">Email</label>
               <div className="flex items-center border border-primary-dark-grey bg-transparent rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-button-yellow">
@@ -108,7 +156,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password Field */}
+            {/* Password */}
             <div>
               <label className="block mb-1 text-text-grey">Password</label>
               <div className="flex items-center border border-primary-dark-grey bg-transparent rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-button-yellow">
@@ -129,23 +177,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
               <p className="text-red-500 text-sm text-center">{error}</p>
             )}
 
+            {/* Login Button */}
             <button
               type="submit"
+              disabled={loading}
               className="w-full bg-button-yellow text-button-text-black py-2 rounded-xl hover:bg-primary-dark-grey transition duration-200 flex items-center justify-center gap-2"
             >
-              <span>Login</span>
-              <CiLogin size={22} />
+              <span>{loading ? "Logging in..." : "Login"}</span>
+              {!loading && <CiLogin size={22} />}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Right: Full Image Side */}
+      {/* Right: Image Side */}
       <div className="hidden md:flex md:w-1/2 h-screen relative">
         <Image
           src="/college3d.png"

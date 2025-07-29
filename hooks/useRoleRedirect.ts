@@ -1,4 +1,3 @@
-// hooks/useRoleRedirect.ts
 'use client'
 
 import { useEffect } from 'react'
@@ -19,13 +18,30 @@ export function useRoleRedirect(requiredRole: string) {
         return
       }
 
-      const { data: profile, error } = await supabase
+      const uid = session.user.id
+      let role: string | null = null
+
+      const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('uid', session.user.id)
+        .eq('uid', uid)
         .single()
 
-      if (error || !profile || profile.role !== requiredRole) {
+      if (profile) {
+        role = profile.role
+      } else {
+        const { data: studentProfile } = await supabase
+          .from('students')
+          .select('role')
+          .eq('uid', uid)
+          .single()
+
+        if (studentProfile) {
+          role = studentProfile.role
+        }
+      }
+
+      if (role !== requiredRole) {
         router.push('/unauthorized')
       }
     }

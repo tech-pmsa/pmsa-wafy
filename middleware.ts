@@ -12,20 +12,42 @@ export async function middleware(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname
 
-  // Protect all routes except /auth
+  // Protect all routes except login
   if (!pathname.startsWith('/login') && !session) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
   if (session) {
-    const { data: profile } = await supabase
+    const uid = session.user.id
+    let role: string | null = null
+
+    // First, check profiles table (admins)
+    const { data: adminProfile } = await supabase
       .from('profiles')
       .select('role')
-      .eq('uid', session.user.id)
+      .eq('uid', uid)
       .single()
 
-    const role = profile?.role
+    if (adminProfile) {
+      role = adminProfile.role
+    } else {
+      // If not found in profiles, check students table
+      const { data: studentProfile } = await supabase
+        .from('students')
+        .select('role')
+        .eq('uid', uid)
+        .single()
 
+      if (studentProfile) {
+        role = studentProfile.role
+      }
+    }
+
+    if (!role) {
+      return NextResponse.redirect(new URL('/unauthorized', req.url))
+    }
+
+    // Route-specific access control
     if (pathname.startsWith('/admins/officer') && role !== 'officer') {
       return NextResponse.redirect(new URL('/unauthorized', req.url))
     }

@@ -9,7 +9,7 @@ import { CiSettings } from 'react-icons/ci'
 import { MdOutlineDashboard } from 'react-icons/md'
 import Link from 'next/link'
 
-type Role = 'officer' | 'class' | 'class-leader'
+type Role = 'officer' | 'class' | 'class-leader' | 'student'
 
 export default function Navbar() {
   const supabase = createClientComponentClient()
@@ -33,22 +33,24 @@ export default function Navbar() {
 
       const uid = user.id
 
-      let { data, error } = await supabase
+      let { data: profileData } = await supabase
         .from('profiles')
         .select('name, img_url, role')
         .eq('uid', uid)
         .single()
 
-      if (!data && !error) {
-        const res = await supabase
+      // If not found in profiles, try students
+      if (!profileData) {
+        const { data: studentData } = await supabase
           .from('students')
           .select('name, img_url, role')
           .eq('uid', uid)
           .single()
-        data = res.data
+
+        profileData = studentData
       }
 
-      if (data) setUserData(data as any)
+      if (profileData) setUserData(profileData as any)
     }
 
     fetchUserData()
@@ -84,6 +86,8 @@ export default function Navbar() {
         return '/admins/classroom/class-dashboard'
       case 'class-leader':
         return '/admins/classleader/class-leader-dashboard'
+      case 'student':
+        return '/students/student-dashboard'
       default:
         return '/'
     }
@@ -110,7 +114,7 @@ export default function Navbar() {
               onClick={() => setDropdownOpen((prev) => !prev)}
             >
               <Image
-                src={userData.img_url}
+                src={userData.img_url || '/profile.png'}
                 alt="Profile"
                 width={36}
                 height={36}

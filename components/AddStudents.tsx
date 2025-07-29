@@ -53,7 +53,7 @@ export default function AddStudents() {
 
         if (!uploadRes.ok) throw new Error('Image upload failed')
         const { url } = await uploadRes.json()
-        img_url = url
+        img_url = url || '/profile.png'
       }
 
       // Call secure backend API to create user and insert student

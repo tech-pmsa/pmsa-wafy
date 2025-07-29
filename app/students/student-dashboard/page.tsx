@@ -1,8 +1,14 @@
+'use client'
+
 import React from 'react'
+import StudentAttendanceCard from '@/components/StudentAttendanceCard'
 
 const Student = () => {
   return (
-    <div>Student</div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">My Attendance</h1>
+      <StudentAttendanceCard />
+    </div>
   )
 }
 

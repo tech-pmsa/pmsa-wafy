@@ -79,26 +79,29 @@ const AttendanceForm = () => {
   }, [])
 
   useEffect(() => {
-    const checkLockedStatus = async () => {
-      if (!selectedDate) return
-      const date = format(selectedDate, 'yyyy-MM-dd')
+  const checkLockedStatus = async () => {
+    if (!selectedDate || students.length === 0) return
+    const date = format(selectedDate, 'yyyy-MM-dd')
+    const studentUids = students.map((s) => s.uid)
 
-      const { data, error } = await supabase
-        .from('attendance')
-        .select('status_locked')
-        .eq('date', date)
-        .limit(1)
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('student_uid, status_locked')
+      .in('student_uid', studentUids)
+      .eq('date', date)
 
-      if (error) {
-        console.error('Error checking lock status:', error)
-        return
-      }
-
-      setIsLocked(data?.[0]?.status_locked || false)
+    if (error) {
+      console.error('Error checking lock status:', error)
+      return
     }
 
-    checkLockedStatus()
-  }, [selectedDate])
+    // If all student entries are locked, consider it submitted
+    const allLocked = data.length > 0 && data.every((entry) => entry.status_locked)
+    setIsLocked(allLocked)
+  }
+
+  checkLockedStatus()
+}, [selectedDate, students])
 
   const togglePeriod = (uid: string, period: string) => {
     if (isLocked || holidayType !== 'none') return

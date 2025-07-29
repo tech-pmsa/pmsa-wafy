@@ -61,7 +61,7 @@ export async function POST(req: Request) {
           const { data: publicUrlData } = supabaseAdmin.storage
             .from('student-photos')
             .getPublicUrl(`${uid}.${imageName.split('.').pop()}`)
-          img_url = publicUrlData.publicUrl
+          img_url = publicUrlData.publicUrl || '/profile.png'
         }
       }
 

@@ -1,37 +1,16 @@
-"use client";
+// app/admins/officer/officer-dashboard/page.tsx
+'use client'
 
-import React, { useEffect, useState } from "react";
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import React from 'react'
+import ClassAttendanceTabs from '@/components/ClassAttendanceTabs'
 
-function page() {
-  const supabase = createClientComponentClient();
-
-  const [user, setUser] = useState<{ name: string; role: string } | null>(null);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("name, role")
-        .eq("uid", user.id)
-        .single();
-
-      if (profile) {
-        setUser(profile);
-      }
-    };
-
-    fetchUser();
-  }, [supabase]);
-
-  if (!user) return <p className="text-center mt-10">Loading...</p>;
-
-  return <div>{user.role} Login</div>;
+const Officer = () => {
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-semibold mb-4">Officer Dashboard</h1>
+      <ClassAttendanceTabs />
+    </div>
+  )
 }
 
-export default page;
+export default Officer

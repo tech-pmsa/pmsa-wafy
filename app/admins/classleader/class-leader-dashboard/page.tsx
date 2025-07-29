@@ -1,8 +1,12 @@
-import React from 'react'
+
+import AttendanceForm from '@/components/AttendanceForm'
 
 const Leader = () => {
   return (
-    <div>Leader</div>
+    <div className="max-w-7xl mx-auto mt-6">
+      <h1 className="text-2xl font-bold mb-4">Class Attendance Panel</h1>
+      <AttendanceForm />
+    </div>
   )
 }
 

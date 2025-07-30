@@ -1,19 +1,20 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useUserRoleData } from '@/hooks/useUserRoleData'
 import {
   Tabs,
   TabsList,
   TabsTrigger,
-  TabsContent
-} from "@/components/ui/tabs"
+  TabsContent,
+} from '@/components/ui/tabs'
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from '@/components/ui/table'
 
 type SheetData = Record<
@@ -24,97 +25,93 @@ type SheetData = Record<
   }
 >
 
-interface FeeTableProps {
-  role: string
-  cic?: string
-  classId?: string
-}
-
-export default function FeeTable({ role, cic, classId }: FeeTableProps) {
+export default function FeeTable() {
+  const { loading, role, cic, classId, batch } = useUserRoleData()
   const [sheetData, setSheetData] = useState<SheetData>({})
   const [tab, setTab] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/fees')
-      .then((res) => res.json())
-      .then((data: SheetData) => {
-        console.log('[RAW DATA]', data)
-        const cleanedData: SheetData = {}
+    if (!role || loading) return
 
-        for (const sheetName in data) {
-          const { headers, rows } = data[sheetName]
+    const fetchData = async () => {
+      const res = await fetch('/api/fees')
+      const data: SheetData = await res.json()
+      const cleanedData: SheetData = {}
 
-          const monthStartIndex = headers.findIndex((h) => {
-            const str = String(h).toUpperCase().trim()
-            return (
-              /^[A-Z]{3}-\d{2}$/.test(str) ||               // e.g., Sep-24
-              /^[A-Z][a-z]+[- ]\d{2,4}$/.test(str) ||       // e.g., September 24, September-2024
-              /^[A-Z]+$/.test(str)                          // e.g., JUNE
-            )
-          })
+      for (const sheetName in data) {
+        const { headers, rows } = data[sheetName]
 
-          if (monthStartIndex === -1 || !rows.length) {
-            console.warn(`⛔ Skipping ${sheetName} — no month headers or rows`)
-            continue
-          }
-
-          const validRows = rows.filter(row =>
-            Array.isArray(row) &&
-            typeof row[1] === 'string' &&
-            typeof row[2] === 'string' &&
-            row[1].trim() &&
-            row[2].trim()
+        const monthStartIndex = headers.findIndex((h) => {
+          const str = String(h).toUpperCase().trim()
+          return (
+            /^[A-Z]{3}-\d{2}$/.test(str) ||
+            /^[A-Z][a-z]+[- ]\d{2,4}$/.test(str) ||
+            /^[A-Z]+$/.test(str)
           )
+        })
 
-          cleanedData[sheetName] = {
-            headers,
-            rows: validRows,
-          }
-        }
+        if (monthStartIndex === -1 || !rows.length) continue
 
-        console.log('[CLEANED DATA]', cleanedData)
-        setSheetData(cleanedData)
-        const firstTab = Object.keys(cleanedData)[0]
-        setTab(firstTab || null)
-      })
-  }, [])
+        const validRows = rows.filter(row =>
+          Array.isArray(row) &&
+          typeof row[1] === 'string' &&
+          typeof row[2] === 'string' &&
+          row[1].trim() &&
+          row[2].trim()
+        )
+
+        cleanedData[sheetName] = { headers, rows: validRows }
+      }
+
+      setSheetData(cleanedData)
+
+      // Role-based default tab
+      if (role === 'officer') {
+        setTab(Object.keys(cleanedData)[0] || null)
+      } else if ((role === 'class' || role === 'student') && batch) {
+        const matched = Object.keys(cleanedData).find(
+          name => name.toLowerCase().trim() === batch.toLowerCase().trim()
+        )
+        if (matched) setTab(matched)
+        else setTab(null)
+      }
+    }
+
+    fetchData()
+  }, [role, loading])
 
   const sheets = Object.keys(sheetData)
 
-  const getRelevantRows = (rows: string[][]): string[][] => {
-    if (role === 'student') return rows.filter(row => row[1] === cic)
-    if (role === 'class-leader') return rows.filter(row =>
-      row[2]?.toLowerCase().includes(classId?.toLowerCase() || '')
-    )
+  const getFilteredRows = (rows: string[][]): string[][] => {
+    if (role === 'student' && cic) return rows.filter(row => row[1] === cic)
+    if (role === 'class' && batch) return rows // No need to filter by classId anymore
     return rows
   }
 
-  const renderSheet = (name: string) => {
-    const { headers, rows } = sheetData[name]
+  const renderSheet = (sheetName: string) => {
+    const { headers, rows } = sheetData[sheetName]
     const monthStartIndex = headers.findIndex((h) => {
       const str = String(h).toUpperCase().trim()
       return (
-        /^[A-Z]{3}-\d{2}$/.test(str) ||               // e.g., Sep-24
-        /^[A-Z][a-z]+[- ]\d{2,4}$/.test(str) ||       // e.g., September 24, September-2024
-        /^[A-Z]+$/.test(str)                          // e.g., JUNE
+        /^[A-Z]{3}-\d{2}$/.test(str) ||
+        /^[A-Z][a-z]+[- ]\d{2,4}$/.test(str) ||
+        /^[A-Z]+$/.test(str)
       )
     })
 
     const monthHeaders = headers.slice(monthStartIndex)
-    const filteredRows = getRelevantRows(rows)
+    const filteredRows = getFilteredRows(rows)
 
     return (
-      <TabsContent key={name} value={name}>
+      <TabsContent key={sheetName} value={sheetName}>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>CIC</TableHead>
                 <TableHead>Name</TableHead>
-                {monthHeaders.map((h, i) => (
-                  <TableHead key={i} className="text-nowrap">
-                    {h}
-                  </TableHead>
+                {monthHeaders.map((month, i) => (
+                  <TableHead key={i}>{month}</TableHead>
                 ))}
               </TableRow>
             </TableHeader>
@@ -123,14 +120,11 @@ export default function FeeTable({ role, cic, classId }: FeeTableProps) {
                 <TableRow key={idx}>
                   <TableCell>{row[1]}</TableCell>
                   <TableCell>{row[2]}</TableCell>
-                  {monthHeaders.map((_, i) => {
-                    const value = row[monthStartIndex + i]?.trim()
-                    return (
-                      <TableCell key={i} className="text-center whitespace-nowrap">
-                        {value || 'NA'}
-                      </TableCell>
-                    )
-                  })}
+                  {monthHeaders.map((_, i) => (
+                    <TableCell key={i}>
+                      {row[monthStartIndex + i]?.trim() || 'NA'}
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))}
             </TableBody>
@@ -140,18 +134,30 @@ export default function FeeTable({ role, cic, classId }: FeeTableProps) {
     )
   }
 
-  if (!tab) return <p className="text-center p-6">Loading...</p>
+  if (loading) return <p className="text-center p-6">Loading...</p>
+  if (!role) return <p className="text-center p-6">No role assigned.</p>
+  if (!tab)
+    return (
+      <p className="text-center p-6 text-red-500">
+        No matching batch sheet found for this user.
+      </p>
+    )
+  if (!['officer', 'class', 'student'].includes(role))
+    return <p className="text-center p-6">Unauthorized role.</p>
 
   return (
     <Tabs value={tab} onValueChange={setTab}>
-      <TabsList className="flex flex-wrap justify-center mb-4">
-        {sheets.map((name: string) => (
-          <TabsTrigger key={name} value={name}>
-            {name}
-          </TabsTrigger>
-        ))}
-      </TabsList>
-      {sheets.map(renderSheet)}
+      {role === 'officer' && (
+        <TabsList className="flex flex-wrap justify-center mb-4">
+          {sheets.map(name => (
+            <TabsTrigger key={name} value={name}>
+              {name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      )}
+      {(role === 'class' || role === 'student') && tab && renderSheet(tab)}
+      {role === 'officer' && sheets.map(renderSheet)}
     </Tabs>
   )
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabaseClient'
+import FeeTable from '@/components/FeeTable'
 
 type Student = {
   uid: string
@@ -106,6 +107,9 @@ const Class = () => {
           })}
         </div>
       )}
+      <div>
+        <FeeTable/>
+      </div>
     </div>
   )
 }

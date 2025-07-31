@@ -97,13 +97,13 @@ export default function Navbar() {
     <nav className="bg-dark-green text-white pt-3 pb-3 px-4 shadow-md">
       <div className="container mx-auto flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Image
+          {/* <Image
             src="/college3d.png"
             alt="College Logo"
             width={36}
             height={36}
             className="rounded-full object-cover"
-          />
+          /> */}
           <span className="font-bold text-lg">PMSA Wafy</span>
         </div>
 
@@ -113,14 +113,16 @@ export default function Navbar() {
               className="flex items-center gap-2 focus:outline-none"
               onClick={() => setDropdownOpen((prev) => !prev)}
             >
-              <Image
-                src={userData.img_url || '/profile.png'}
-                alt="Profile"
-                width={36}
-                height={36}
-                className="rounded-full object-cover"
-              />
-              <span className="text-white font-medium">{userData.name}</span>
+              <div className="w-[45px] h-[45px] rounded-full overflow-hidden">
+                <Image
+                  src={userData.img_url || '/profile.png'}
+                  alt="Profile"
+                  width={45}
+                  height={45}
+                  className="object-cover object-center"
+                />
+              </div>
+              <span className="text-white font-medium font-heading uppercase">{userData.name}</span>
             </button>
 
             {dropdownOpen && (

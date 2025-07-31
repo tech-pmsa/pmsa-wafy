@@ -130,7 +130,7 @@ export default function LoginPage() {
             <p className="text-lg text-gray-600 uppercase font-heading">PMSA Wafy College</p>
           </div>
 
-          <h2 className="text-4xl uppercase font-heading mb-8 text-heading-text-black">
+          <h2 className="text-2xl md:text-3xl uppercase font-heading mb-8 text-heading-text-black">
             Login
           </h2>
 

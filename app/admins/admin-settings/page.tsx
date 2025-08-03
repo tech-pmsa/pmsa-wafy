@@ -8,6 +8,7 @@ import StudentDetails from '@/components/StudentDetails'
 import AddBulkStudents from '@/components/AddBulkStudents'
 import Notifications from '@/components/Notifications'
 import AddAdmin from '@/components/AddAdmin'
+import ProfileSection from '@/components/ProfileSection'
 
 export default function AdminSettingsPage() {
   const supabase = createClientComponentClient()
@@ -45,36 +46,40 @@ export default function AdminSettingsPage() {
   if (!user) return <p className="text-center mt-10">Loading...</p>
 
   return (
-    <div className="max-w-[95dvw] mx-auto p-6 flex flex-col gap-4 md:flex-row">
+    <div className="max-w-[95dvw] mx-auto p-6 flex flex-col gap-4">
       {/* Card 1: User Info */}
-      <div className="bg-white shadow-md rounded p-4 text-center">
-        <h2 className="text-xl font-semibold">Settings</h2>
-        <p className="text-gray-700 mt-2">
-          Logged in as: <span className="font-bold capitalize">{user.role}</span> - {user.name}
-        </p>
-      </div>
-
-      {/* Card 2: Role-based Components */}
-      <div className="bg-white shadow-md rounded p-4">
-        {user.role === 'officer' && <AddStudents />}
-        {user.role === 'class' && <ClassCouncil />}
-        {user.role === 'class-leader' && <StudentDetails />}
-      </div>
-
-      {/* Card 3: Role-based Components */}
-      {(user.role === 'officer' || user.role === 'class') && (
-        <div className="bg-white shadow-md rounded p-4">
-          {user.role === 'officer' && <AddBulkStudents />}
-          {user.role === 'class' && <Notifications />}
+      <div className=''>
+        <h2 className="text-xl font-semibold p-5">Settings</h2>
+        <div className="bg-white shadow-md rounded p-4 w-full">
+          <ProfileSection />
         </div>
-      )}
+      </div>
+      <div className='md:flex-row'>
+        {/* Card 2: Role-based Components */}
+        {(user.role === 'officer' || user.role === 'class' || user.role === 'class-leader') && (
+          <div className="bg-white shadow-md rounded p-4">
+            {user.role === 'officer' && <AddStudents />}
+            {user.role === 'class' && <ClassCouncil />}
+            {user.role === 'class-leader' && <StudentDetails />}
+          </div>
+        )}
 
-      {/* Card 4: Officer Only */}
-      {user.role === 'officer' && (
-        <div className="bg-white shadow-md rounded p-4">
-          <AddAdmin />
-        </div>
+        {/* Card 3: Role-based Components */}
+        {(user.role === 'officer' || user.role === 'class') && (
+          <div className="bg-white shadow-md rounded p-4">
+            {user.role === 'officer' && <AddBulkStudents />}
+            {user.role === 'class' && <Notifications />}
+          </div>
+        )}
+
+        {/* Card 4: Officer Only */}
+        {user.role === 'officer' && (
+          <div className="bg-white shadow-md rounded p-4">
+            <AddAdmin />
+          </div>
       )}
+      </div>
     </div>
+
   )
 }

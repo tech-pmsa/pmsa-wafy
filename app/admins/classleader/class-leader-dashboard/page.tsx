@@ -1,6 +1,5 @@
 
 import AttendanceForm from '@/components/AttendanceForm'
-import FeeTable from '@/components/FeeTable'
 
 const Leader = () => {
   return (

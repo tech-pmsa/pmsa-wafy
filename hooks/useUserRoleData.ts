@@ -9,6 +9,8 @@ interface RoleData {
   cic?: string
   classId?: string
   batch?: string
+  uid?: string
+  name?: string
 }
 
 export function useUserRoleData(): RoleData {
@@ -35,13 +37,15 @@ export function useUserRoleData(): RoleData {
         // Try profiles table
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('role, designation, batch')
+          .select('role, designation, batch, uid, name')
           .eq('uid', uid)
           .single()
 
         if (profile && !profileError) {
           setData({
             loading: false,
+            uid: profile.uid,
+            name: profile.name,
             role: profile.role,
             classId: profile.designation || undefined,
             batch: profile.batch || undefined,
@@ -52,13 +56,15 @@ export function useUserRoleData(): RoleData {
         // Try students table
         const { data: student, error: studentError } = await supabase
           .from('students')
-          .select('role, cic, class_id, batch')
+          .select('role, cic, name, class_id, batch, uid')
           .eq('uid', uid)
           .single()
 
         if (student && !studentError) {
           setData({
             loading: false,
+            uid,
+            name: student.name,
             role: student.role,
             cic: student.cic,
             classId: student.class_id,

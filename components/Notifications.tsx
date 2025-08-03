@@ -1,8 +1,11 @@
 import React from 'react'
+import ClassAchievementsList from './ClassAchievementsList'
 
 const Notifications = () => {
   return (
-    <div>Notifications</div>
+    <div>
+      <ClassAchievementsList/>
+    </div>
   )
 }
 

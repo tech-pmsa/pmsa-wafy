@@ -6,7 +6,6 @@ import AddStudents from '@/components/AddStudents'
 import ClassCouncil from '@/components/ClassCouncil'
 import StudentDetails from '@/components/StudentDetails'
 import AddBulkStudents from '@/components/AddBulkStudents'
-import Notifications from '@/components/Notifications'
 import AddAdmin from '@/components/AddAdmin'
 import ProfileSection from '@/components/ProfileSection'
 
@@ -54,7 +53,6 @@ export default function AdminSettingsPage() {
           <ProfileSection />
         </div>
       </div>
-      <div className='md:flex-row'>
         {/* Card 2: Role-based Components */}
         {(user.role === 'officer' || user.role === 'class' || user.role === 'class-leader') && (
           <div className="bg-white shadow-md rounded p-4">
@@ -65,10 +63,9 @@ export default function AdminSettingsPage() {
         )}
 
         {/* Card 3: Role-based Components */}
-        {(user.role === 'officer' || user.role === 'class') && (
+        {(user.role === 'officer') && (
           <div className="bg-white shadow-md rounded p-4">
             {user.role === 'officer' && <AddBulkStudents />}
-            {user.role === 'class' && <Notifications />}
           </div>
         )}
 
@@ -79,7 +76,5 @@ export default function AdminSettingsPage() {
           </div>
       )}
       </div>
-    </div>
-
   )
 }

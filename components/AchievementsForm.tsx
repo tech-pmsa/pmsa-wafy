@@ -50,6 +50,7 @@ export default function AchievementsForm() {
         name,
         cic,
         batch,
+        approved: false
       },
     ])
     setLoading(false)

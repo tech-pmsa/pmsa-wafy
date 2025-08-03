@@ -45,7 +45,7 @@ export default function AddAdmin() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg bg-white p-6 rounded shadow space-y-4">
+    <form onSubmit={handleSubmit} className="bg-white p-6 rounded shadow space-y-4">
       <h2 className="text-xl font-bold">Add New Admin</h2>
       <input name="name" placeholder="Name" required value={formData.name} onChange={handleChange} className="input" />
       <input name="email" placeholder="Email" type="email" required value={formData.email} onChange={handleChange} className="input" />

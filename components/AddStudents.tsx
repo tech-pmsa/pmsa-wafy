@@ -39,7 +39,6 @@ export default function AddStudents() {
       const email = `${cic}@pmsa.com`
       const password = `${cic}@11`
 
-      // Upload image to Supabase storage
       let img_url = ''
       if (formData.image) {
         const fileExt = formData.image.name.split('.').pop()
@@ -56,7 +55,6 @@ export default function AddStudents() {
         img_url = url || '/profile.png'
       }
 
-      // Call secure backend API to create user and insert student
       const res = await fetch('/api/create-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -100,24 +98,29 @@ export default function AddStudents() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg p-6 bg-white rounded shadow space-y-4">
-      <h2 className="text-xl font-semibold">Add New Student</h2>
-      <input required name="name" placeholder="Name" onChange={handleChange} value={formData.name} className="input" />
-      <input required name="cic" placeholder="CIC (unique)" onChange={handleChange} value={formData.cic} className="input" />
-      <input required name="class_id" placeholder="Class ID" onChange={handleChange} value={formData.class_id} className="input" />
-      <input required name="council" placeholder="Council" onChange={handleChange} value={formData.council} className="input" />
-      <input required name="batch" placeholder="Batch" onChange={handleChange} value={formData.batch} className="input" />
-      <input required name="phone" placeholder="Phone" onChange={handleChange} value={formData.phone} className="input" />
-      <input required name="guardian" placeholder="Guardian" onChange={handleChange} value={formData.guardian} className="input" />
-      <input required name="g_phone" placeholder="Guardian Phone" onChange={handleChange} value={formData.g_phone} className="input" />
-      <textarea required name="address" placeholder="Address" onChange={handleChange} value={formData.address} className="textarea" />
-      <input required type="file" accept="image/*" onChange={handleImageChange} className="input" />
+    <div className="bg-white shadow-md rounded p-4 w-full mx-auto">
+      <h2 className="text-xl font-semibold mb-4">Add New Student</h2>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input required name="name" placeholder="Name" onChange={handleChange} value={formData.name} className="input" />
+          <input required name="cic" placeholder="CIC (unique)" onChange={handleChange} value={formData.cic} className="input" />
+          <input required name="class_id" placeholder="Class ID" onChange={handleChange} value={formData.class_id} className="input" />
+          <input required name="council" placeholder="Council" onChange={handleChange} value={formData.council} className="input" />
+          <input required name="batch" placeholder="Batch" onChange={handleChange} value={formData.batch} className="input" />
+          <input required name="phone" placeholder="Phone" onChange={handleChange} value={formData.phone} className="input" />
+          <input required name="guardian" placeholder="Guardian" onChange={handleChange} value={formData.guardian} className="input" />
+          <input required name="g_phone" placeholder="Guardian Phone" onChange={handleChange} value={formData.g_phone} className="input" />
+        </div>
 
-      <button type="submit" disabled={loading} className="btn btn-primary">
-        {loading ? 'Adding...' : 'Add Student'}
-      </button>
+        <textarea required name="address" placeholder="Address" onChange={handleChange} value={formData.address} className="textarea w-full" />
+        <input required type="file" accept="image/*" onChange={handleImageChange} className="input w-full" />
 
-      {message && <p className="text-sm text-gray-700">{message}</p>}
-    </form>
+        <button type="submit" disabled={loading} className="btn btn-primary w-full">
+          {loading ? 'Adding...' : 'Add Student'}
+        </button>
+
+        {message && <p className="text-sm text-gray-700 text-center">{message}</p>}
+      </form>
+    </div>
   )
 }

@@ -4,6 +4,7 @@ import React from 'react'
 import StudentAttendanceCard from '@/components/StudentAttendanceCard'
 import FeeTable from '@/components/FeeTable'
 import AchievementsForm from '@/components/AchievementsForm'
+import ApprovedAchievements from '@/components/ApprovedAchievements'
 
 const Student = () => {
   return (
@@ -12,6 +13,7 @@ const Student = () => {
       <StudentAttendanceCard />
       <AchievementsForm/>
       <FeeTable />
+      <ApprovedAchievements/>
     </div>
   )
 }

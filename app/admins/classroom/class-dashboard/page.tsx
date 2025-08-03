@@ -3,6 +3,7 @@
 import React from 'react'
 import FeeTable from '@/components/FeeTable'
 import ClassStudentPresent from '@/components/ClassStudentPresent'
+import ApprovedAchievements from '@/components/ApprovedAchievements'
 
 const Class = () => {
   return (
@@ -10,6 +11,7 @@ const Class = () => {
       <h1 className="text-2xl font-semibold mb-4">Class Dashboard</h1>
       <ClassStudentPresent/>
       <FeeTable/>
+      <ApprovedAchievements/>
     </div>
   )
 }

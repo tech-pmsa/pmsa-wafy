@@ -4,6 +4,7 @@
 import React from 'react'
 import ClassAttendanceTabs from '@/components/ClassAttendanceTabs'
 import FeeTable from '@/components/FeeTable'
+import ApprovedAchievements from '@/components/ApprovedAchievements'
 
 const Officer = () => {
   return (
@@ -11,6 +12,7 @@ const Officer = () => {
       <h1 className="text-2xl font-semibold mb-4">Officer Dashboard</h1>
       <ClassAttendanceTabs />
       <FeeTable />
+      <ApprovedAchievements/>
     </div>
   )
 }

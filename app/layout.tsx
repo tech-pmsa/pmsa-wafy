@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { mullerB, mullerH, anekMal } from "./fonts";
+import 'swiper/css'
+import 'swiper/css/navigation'
+import 'swiper/css/pagination'
 import "./globals.css";
 
 export const metadata: Metadata = {

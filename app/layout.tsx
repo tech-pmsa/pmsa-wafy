@@ -20,7 +20,7 @@ export default function RootLayout({
       lang="en"
       className={`${mullerB.variable} ${mullerH.variable} ${anekMal.variable} antialiased`}
       >
-        <head></head>
+        <head><meta name="apple-mobile-web-app-title" content="PMSA " /></head>
       <body className='font-body'>
         {children}
       </body>

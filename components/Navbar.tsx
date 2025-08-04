@@ -21,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { LayoutDashboard, Settings, LogOut, Bell, User } from 'lucide-react'
+import { LayoutDashboard, Settings, LogOut, Bell, User, ChevronDown } from 'lucide-react'
 
 type Role = 'officer' | 'class' | 'class-leader' | 'student'
 
@@ -212,6 +212,7 @@ export default function Navbar() {
                     <User className="h-5 w-5" />
                   </AvatarFallback>
                 </Avatar>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">

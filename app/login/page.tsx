@@ -5,6 +5,7 @@ import { CiLogin } from "react-icons/ci";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import type { Database } from "@/types/supabase";
+import { GraduationCap } from "lucide-react"; // Added for the new icon
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -119,20 +120,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[url('/sm.svg')] bg-cover">
+    <div className="flex min-h-screen w-full bg-[url('/sm.svg')] bg-cover relative">
+      <div className="absolute left-8 top-8 z-10 flex items-center gap-2">
+        <GraduationCap className="h-8 w-8 text-gray-800" />
+        <span className="text-xl font-bold text-gray-800">
+          PMSA Wafy College
+        </span>
+      </div>
+
       {/* Left: Login Form */}
       <div className="w-full md:w-1/2 flex justify-center items-center px-6 py-12">
         <div className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 shadow-lg">
-          <div className="text-center mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold uppercase font-heading text-gray-800 mb-2">
-              Welcome to
-            </h1>
-            <p className="text-lg text-gray-600 uppercase font-heading">PMSA Wafy College</p>
-          </div>
 
-          <h2 className="text-2xl md:text-3xl uppercase font-heading mb-8 text-heading-text-black">
-            Login
-          </h2>
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
+            <p className="text-balance text-gray-600 mt-2">
+              Enter your credentials to access your dashboard
+            </p>
+          </div>
 
           <form onSubmit={handleLogin} className="w-full max-w-md space-y-6">
             {/* Email */}

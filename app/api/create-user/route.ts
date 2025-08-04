@@ -15,6 +15,9 @@ export async function POST(req: Request) {
     guardian,
     g_phone,
     address,
+    sslc,
+    plustwo,
+    plustwo_streams,
     img_url,
   } = body
 
@@ -43,6 +46,9 @@ export async function POST(req: Request) {
     guardian,
     g_phone,
     address,
+    sslc,
+    plustwo,
+    plustwo_streams,
     img_url,
     role: 'student',
   })

@@ -8,7 +8,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   const body = await req.json()
-  const { name, email, designation, role, password } = body
+  const { name, email, designation, batch, role, password } = body
 
   try {
     // 1. Create Auth user
@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       name,
       role,
       designation,
+      batch,
       email,
       img_url: '/profile.png', // Should be in public folder
     })

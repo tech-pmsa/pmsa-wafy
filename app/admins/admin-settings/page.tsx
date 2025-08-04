@@ -46,11 +46,8 @@ export default function AdminSettingsPage() {
   return (
     <div className="max-w-[95dvw] mx-auto p-6 flex flex-col gap-4">
       {/* Card 1: User Info */}
-      <div className=''>
-        <h2 className="text-xl font-semibold p-5">Settings</h2>
-        <div className="bg-white shadow-md rounded p-4 w-full">
+      <div>
           <ProfileSection />
-        </div>
       </div>
         {/* Card 2: Role-based Components */}
         {(user.role === 'officer' || user.role === 'class') && (

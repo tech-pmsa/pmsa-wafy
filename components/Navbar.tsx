@@ -1,277 +1,244 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useEffect, useState } from 'react'
+import { createClientComponentClient, Session } from '@supabase/auth-helpers-nextjs'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { IoIosLogOut } from 'react-icons/io'
-import { CiSettings } from 'react-icons/ci'
-import { MdOutlineDashboard } from 'react-icons/md'
 import Link from 'next/link'
-import { FaBell } from 'react-icons/fa'
+import { formatDistanceToNow } from 'date-fns'
+
+// Shadcn/UI & Icon Components
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { LayoutDashboard, Settings, LogOut, Bell, User } from 'lucide-react'
 
 type Role = 'officer' | 'class' | 'class-leader' | 'student'
+
+interface UserProfile {
+  name: string
+  img_url: string
+  role: Role
+  batch: string
+}
+
+// Helper function to format time
+const formatTimeAgo = (date: string) => {
+  return formatDistanceToNow(new Date(date), { addSuffix: true })
+}
 
 export default function Navbar() {
   const supabase = createClientComponentClient()
   const router = useRouter()
 
-  const [userData, setUserData] = useState<{
-    name: string
-    img_url: string
-    role: Role
-    batch: string
-  } | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [uid, setUid] = useState<string | null>(null)
-  const [dropdownOpen, setDropdownOpen] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
   const [notifications, setNotifications] = useState<any[]>([])
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [loading, setLoading] = useState(true)
 
+  // 1. ADDED STATE: State to control the notification popover
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  // Fetch user data and set up subscriptions
   useEffect(() => {
-    const fetchUserData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const fetchAndSubscribe = async () => {
+      setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
 
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        router.push('/login')
+        return
+      }
+      setUid(user.id)
 
-      const uid = user.id
-      setUid(uid)
-
-      let { data: profileData } = await supabase
+      // Try fetching from 'profiles' then 'students'
+      const { data: profileData } = await supabase
         .from('profiles')
-        .select('name, img_url, batch, role',)
-        .eq('uid', uid)
+        .select('name, img_url, batch, role')
+        .eq('uid', user.id)
         .single()
 
-      // If not found in profiles, try students
-      if (!profileData) {
-        const { data: studentData } = await supabase
-          .from('students')
-          .select('name, img_url, batch, role')
-          .eq('uid', uid)
-          .single()
+      const userProfile = profileData || (await supabase.from('students').select('name, img_url, batch, role').eq('uid', user.id).single()).data
 
-        profileData = studentData
-      }
+      if (userProfile) {
+        setProfile(userProfile as UserProfile)
 
-      if (profileData) setUserData(profileData as any)
-    }
+        // If user is a class teacher, fetch notifications and subscribe
+        if (userProfile.role === 'class' && userProfile.batch) {
+          fetchNotifications(userProfile.batch)
 
-    fetchUserData()
-  }, [supabase])
+          const channel = supabase
+            .channel(`realtime-achievements-${userProfile.batch}`)
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'achievements', filter: `batch=eq.${userProfile.batch}` },
+              () => fetchNotifications(userProfile.batch)
+            )
+            .subscribe()
 
-  useEffect(() => {
-    const fetchNotifications = async (batch: string) => {
-      const { data, error } = await supabase
-        .from('achievements')
-        .select('*')
-        .eq('batch', batch)
-        .eq('approved', false)
-        .order('submitted_at', { ascending: false })
-
-      if (!error) setNotifications(data || [])
-    }
-
-    const subscribeToRealtime = (batch: string) => {
-      const channel = supabase
-        .channel('realtime-achievements')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'achievements',
-            filter: `batch=eq.${batch}`
-          },
-          (payload) => {
-            fetchNotifications(batch)
+          setLoading(false)
+          return () => {
+            supabase.removeChannel(channel)
           }
-        )
-        .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
+        }
       }
+      setLoading(false)
     }
 
-    const getBatchAndSubscribe = async () => {
-      if (!uid) return
-
-      const { data: studentData } = await supabase
-        .from('students')
-        .select('batch')
-        .eq('uid', uid)
-        .single()
-
-      if (userData?.batch) {
-        fetchNotifications(userData.batch)
-        return subscribeToRealtime(userData.batch)
-      }
-    }
-
-    let cleanup: any
-    if (userData?.role === 'class' && userData.batch) {
-      getBatchAndSubscribe().then((cb) => {
-        cleanup = cb
-      })
-    }
+    const cleanup = fetchAndSubscribe()
 
     return () => {
-      if (cleanup) cleanup()
+        cleanup.then(cb => cb && cb())
     }
-  }, [userData?.role, userData?.batch])
+  }, [supabase, router])
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setDropdownOpen(false)
-        setShowDropdown(false)
-      }
-    }
+  const fetchNotifications = async (batch: string) => {
+    const { data, error } = await supabase
+      .from('achievements')
+      .select('*')
+      .eq('batch', batch)
+      .eq('approved', false)
+      .order('submitted_at', { ascending: false })
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [])
+    if (!error) setNotifications(data || [])
+  }
 
   const handleLogout = async () => {
-    setDropdownOpen(false)
     await supabase.auth.signOut()
     router.push('/login')
   }
 
-  const getDashboardLink = (role: Role) => {
+  const getDashboardLink = (role?: Role) => {
     switch (role) {
-      case 'officer':
-        return '/admins/officer/officer-dashboard'
-      case 'class':
-        return '/admins/classroom/class-dashboard'
-      case 'class-leader':
-        return '/admins/classleader/class-leader-dashboard'
-      case 'student':
-        return '/students/student-dashboard'
-      default:
-        return '/'
+      case 'officer': return '/admins/officer/officer-dashboard'
+      case 'class': return '/admins/classroom/class-dashboard'
+      case 'class-leader': return '/admins/classleader/class-leader-dashboard'
+      case 'student': return '/students/student-dashboard'
+      default: return '/'
     }
   }
 
+  if (loading || !profile) {
+    return (
+        <nav className="border-b bg-background">
+            <div className="container mx-auto flex h-16 items-center justify-between px-4">
+                <Skeleton className="h-6 w-24" />
+                <div className="flex items-center gap-4">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                </div>
+            </div>
+        </nav>
+    )
+  }
+
   return (
-    <nav className="bg-dark-green text-white pt-3 pb-3 px-4 shadow-md">
-      <div className="container mx-auto flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          {/* <Image
-            src="/college3d.png"
-            alt="College Logo"
-            width={36}
-            height={36}
-            className="rounded-full object-cover"
-          /> */}
-          <span className="font-bold text-lg">PMSA Wafy</span>
-        </div>
-        {userData && (
-          <div className="flex items-center gap-4 relative" ref={dropdownRef}>
-            {userData?.role === 'class' && (
-              <div className='relative'>
-                <button
-                  className="relative"
-                  onClick={() => {
-                    setShowDropdown((prev) => !prev)
-                    setDropdownOpen(false)
-                  }}
-                >
-                  <FaBell className="text-white text-xl" />
+    <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+        <Link href="/" className="flex items-center gap-2">
+           <Image
+             src="/logo.png" // Your college logo
+             alt="College Logo"
+             width={32}
+             height={32}
+             className="rounded-full object-cover"
+           />
+          <span className="font-bold text-lg hidden sm:inline-block">PMSA Wafy</span>
+        </Link>
+
+        <div className="flex items-center gap-4">
+          {profile.role === 'class' && (
+            // 2. CONTROLLED POPOVER: Linking the popover to our state
+            <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
                   {notifications.length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-semibold rounded-full px-1.5">
+                    <span className="absolute -top-0 -right-0 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
                       {notifications.length}
                     </span>
                   )}
-                </button>
-
-                {showDropdown && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white text-black rounded-md shadow-lg py-2 z-50">
-                    <h4 className="text-center font-semibold mb-2">New Achievements</h4>
-
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-80 p-0">
+                <div className="p-4">
+                  <h4 className="font-semibold">Pending Achievements</h4>
+                  <p className="text-xs text-muted-foreground">New submissions from your class.</p>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
-                      <p className="text-center text-sm text-gray-500 py-2">
-                        No new notifications
-                      </p>
+                        <p className="py-8 text-center text-sm text-muted-foreground">No new notifications</p>
                     ) : (
-                      notifications.slice(0, 3).map((ach) => (
-                        <div key={ach.id} className="px-4 py-2 border-b">
-                          <p className="text-sm font-medium">{ach.title}</p>
-                          <p className="text-xs text-gray-600">
-                            Submitted by {ach.name} ({ach.cic})
-                          </p>
+                        notifications.map((ach) => (
+                        <div key={ach.id} className="border-t p-4 hover:bg-muted/50">
+                            <p className="text-sm font-semibold">{ach.title}</p>
+                            <p className="text-xs text-muted-foreground">by {ach.name} • {formatTimeAgo(ach.submitted_at)}</p>
                         </div>
-                      ))
+                        ))
                     )}
-                    <div className="text-center mt-2">
-                      <Link
+                </div>
+                <div className="border-t p-2 text-center">
+                    {/* 3. ONCLICK HANDLER: Added onClick to close the popover */}
+                    <Link
                         href="/admins/classroom/notifications"
-                        className="text-blue-600 text-sm hover:underline"
-                        onClick={() => setShowDropdown(false)}
-                      >
-                        Show All
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <button
-              className="flex items-center gap-2 focus:outline-none"
-              onClick={() => {
-                setDropdownOpen((prev) => !prev)
-                setShowDropdown(false)
-              }}
-            >
-              <div className="w-[45px] h-[45px] rounded-full overflow-hidden">
-                <Image
-                  src={userData.img_url || '/profile.png'}
-                  alt="Profile"
-                  width={45}
-                  height={45}
-                  className="object-cover object-center"
-                />
-              </div>
-              <span className="text-white font-medium font-heading uppercase">{userData.name}</span>
-            </button>
+                        className="text-sm font-medium text-primary hover:underline"
+                        onClick={() => setNotificationsOpen(false)}
+                    >
+                        View All
+                    </Link>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
 
-            {dropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 w-44 bg-white text-black rounded-md shadow-lg py-2 z-50">
-                <Link
-                  href={getDashboardLink(userData.role)}
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <MdOutlineDashboard size={20} className="text-gray-600" />
-                  <span>Dashboard</span>
-                </Link>
-                <Link
-                  href="/admins/admin-settings"
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
-                  onClick={() => setDropdownOpen(false)}
-                >
-                  <CiSettings size={20} className="text-gray-600" />
-                  <span>Settings</span>
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors duration-150"
-                >
-                  <IoIosLogOut size={20} className="text-gray-600" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full">
+                 <span className="font-medium text-sm hidden md:inline-block">{profile.name}</span>
+                <Avatar className="h-9 w-9">
+                  <AvatarImage src={profile.img_url} alt={profile.name} />
+                  <AvatarFallback>
+                    <User className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link href={getDashboardLink(profile.role)}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    <span>Dashboard</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/admins/admin-settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </nav>
   )

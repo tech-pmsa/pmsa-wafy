@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import AddStudents from '@/components/AddStudents'
 import ClassCouncil from '@/components/ClassCouncil'
-import StudentDetails from '@/components/StudentDetails'
 import AddBulkStudents from '@/components/AddBulkStudents'
 import AddAdmin from '@/components/AddAdmin'
 import ProfileSection from '@/components/ProfileSection'
@@ -54,11 +53,10 @@ export default function AdminSettingsPage() {
         </div>
       </div>
         {/* Card 2: Role-based Components */}
-        {(user.role === 'officer' || user.role === 'class' || user.role === 'class-leader') && (
+        {(user.role === 'officer' || user.role === 'class') && (
           <div className="bg-white shadow-md rounded p-4">
             {user.role === 'officer' && <AddStudents />}
             {user.role === 'class' && <ClassCouncil />}
-            {user.role === 'class-leader' && <StudentDetails />}
           </div>
         )}
 

@@ -207,7 +207,7 @@ export default function Navbar() {
               <Button variant="ghost" className="flex items-center gap-2 h-auto p-1 rounded-full">
                  <span className="font-medium text-sm hidden md:inline-block">{profile.name}</span>
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={profile.img_url} alt={profile.name} />
+                  <AvatarImage src={profile.img_url} className="h-full w-full object-cover" alt={profile.name} />
                   <AvatarFallback>
                     <User className="h-5 w-5" />
                   </AvatarFallback>

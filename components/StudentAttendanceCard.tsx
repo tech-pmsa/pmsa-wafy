@@ -8,15 +8,21 @@ import { CalendarCheck2, CalendarDays } from 'lucide-react'
 
 // A new, custom component for the radial progress chart
 function RadialProgress({ percentage, colorClass }: { percentage: number; colorClass: string }) {
-  const radius = 50;
-  const stroke = 8;
-  const normalizedRadius = radius - stroke * 2;
+  const radius = 60; // Increased radius for a slightly larger viewBox
+  const stroke = 10;
+  const normalizedRadius = radius - stroke;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <div className="relative h-40 w-40">
-      <svg height="100%" width="100%" viewBox="0 0 120 120" className="-rotate-90">
+      <svg
+        height="100%"
+        width="100%"
+        viewBox="0 0 120 120"
+        className="-rotate-90"
+      >
+        {/* Background Circle */}
         <circle
           className="text-muted/20"
           stroke="currentColor"
@@ -26,6 +32,7 @@ function RadialProgress({ percentage, colorClass }: { percentage: number; colorC
           cx={radius}
           cy={radius}
         />
+        {/* Foreground Circle (Progress) */}
         <circle
           className={colorClass}
           stroke="currentColor"
@@ -35,13 +42,41 @@ function RadialProgress({ percentage, colorClass }: { percentage: number; colorC
           r={normalizedRadius}
           cx={radius}
           cy={radius}
-          style={{ strokeDasharray: circumference, strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-out' }}
+          style={{
+            strokeDasharray: circumference,
+            strokeDashoffset,
+            transition: 'stroke-dashoffset 0.5s ease-out',
+          }}
         />
+        {/* Text Element for Perfect Centering */}
+        <text
+          // Counter-rotate the text to make it upright
+          transform={`rotate(90 ${radius} ${radius})`}
+          // Center the text block horizontally and vertically
+          textAnchor="middle"
+          dominantBaseline="middle"
+          x="50%"
+          y="50%"
+          className="fill-current text-foreground"
+        >
+          {/* First line: Percentage */}
+          <tspan
+            className="text-2xl font-bold"
+            x="50%"
+            dy="-0.2em" // Nudge up slightly
+          >
+            {percentage.toFixed(0)}%
+          </tspan>
+          {/* Second line: "Attendance" */}
+          <tspan
+            className="text-xs font-medium text-muted-foreground"
+            x="50%"
+            dy="1.4em" // Move down from the percentage line
+          >
+            Attendance
+          </tspan>
+        </text>
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-3xl font-bold">{percentage.toFixed(0)}%</span>
-        <span className="text-xs text-muted-foreground">Attendance</span>
-      </div>
     </div>
   );
 }

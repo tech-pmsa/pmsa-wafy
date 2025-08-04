@@ -1,11 +1,23 @@
 'use client'
 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts'
 import { useEffect, useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import { supabase } from '@/lib/supabaseClient'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 
-type Student = {
+const COLORS = ['#10b981', '#3b82f6', '#6366f1', '#f59e0b', '#ef4444']
+
+interface Student {
   uid: string
   name: string
   class_id: string
@@ -15,20 +27,14 @@ type Student = {
   total_days: number
 }
 
-const getBarColor = (percentage: number): string => {
-  if (percentage >= 75) return 'bg-green-500'
-  if (percentage >= 50) return 'bg-yellow-400'
-  return 'bg-red-500'
-}
-
-const ClassStudentPresent = () => {
+export default function ClassAttendanceChart() {
   const [students, setStudents] = useState<Student[]>([])
   const [loading, setLoading] = useState(true)
+  const [showDetails, setShowDetails] = useState(false)
 
   useEffect(() => {
     const fetchStudents = async () => {
       setLoading(true)
-
       const {
         data: { user },
         error: userError,
@@ -65,9 +71,20 @@ const ClassStudentPresent = () => {
     fetchStudents()
   }, [])
 
+  const currentClassData = students.map((s) => ({
+    name: s.name,
+    percent: s.total_days ? (s.total_present / s.total_days) * 100 : 0,
+    total: `${s.total_present} / ${s.total_days}`,
+  }))
+
   return (
-    <div className="p-6">
-      <h2 className="text-2xl font-bold mb-4">Class Attendance Summary</h2>
+    <div className="p-6 max-w-5xl mx-auto space-y-4">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold">Class Attendance Summary</h2>
+        <Button variant="outline" onClick={() => setShowDetails(!showDetails)}>
+          {showDetails ? 'Chart View' : 'Details'}
+        </Button>
+      </div>
 
       {loading ? (
         <div className="space-y-4">
@@ -78,36 +95,56 @@ const ClassStudentPresent = () => {
       ) : students.length === 0 ? (
         <p>No students found.</p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-          {students.map((student) => {
-            const { total_present, total_days } = student
-            const percentage = total_days === 0 ? 0 : (total_present / total_days) * 100
-            const colorClass = getBarColor(percentage)
-
-            return (
-              <Card key={student.uid} className="p-4">
-                <CardContent>
-                  <h3 className="text-lg font-semibold">{student.name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Batch: {student.batch} | Council: {student.council}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    Attendance: {total_present.toFixed(1)} / {total_days} ({percentage.toFixed(0)}%)
-                  </p>
-                  <div className="mt-2 w-full h-3 rounded-full bg-gray-200 overflow-hidden">
-                    <div
-                      className={`h-full ${colorClass}`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
+        <Card className="p-4">
+          {showDetails ? (
+            <div className="overflow-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Name</th>
+                    <th className="text-left p-2">Present / Days</th>
+                    <th className="text-left p-2">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentClassData.map((student, i) => (
+                    <tr key={i} className="border-b">
+                      <td className="p-2">{student.name}</td>
+                      <td className="p-2">{student.total}</td>
+                      <td className="p-2">{student.percent.toFixed(1)}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart
+                data={currentClassData}
+                margin={{ top: 16, right: 32, left: 8, bottom: 32 }}
+              >
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 10 }}
+                  interval={0}
+                  angle={-45}
+                  textAnchor="end"
+                />
+                <YAxis domain={[0, 100]} />
+                <Tooltip />
+                <Bar dataKey="percent" radius={[6, 6, 0, 0]}>
+                  {currentClassData.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
       )}
     </div>
   )
 }
-
-export default ClassStudentPresent

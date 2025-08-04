@@ -1,10 +1,50 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CalendarCheck2, CalendarDays } from 'lucide-react'
+
+// A new, custom component for the radial progress chart
+function RadialProgress({ percentage, colorClass }: { percentage: number; colorClass: string }) {
+  const radius = 50;
+  const stroke = 8;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="relative h-40 w-40">
+      <svg height="100%" width="100%" viewBox="0 0 120 120" className="-rotate-90">
+        <circle
+          className="text-muted/20"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          fill="transparent"
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+        <circle
+          className={colorClass}
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          fill="transparent"
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+          style={{ strokeDasharray: circumference, strokeDashoffset, transition: 'stroke-dashoffset 0.5s ease-out' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold">{percentage.toFixed(0)}%</span>
+        <span className="text-xs text-muted-foreground">Attendance</span>
+      </div>
+    </div>
+  );
+}
 
 const StudentAttendanceCard = () => {
   const [loading, setLoading] = useState(true)
@@ -18,13 +58,9 @@ const StudentAttendanceCard = () => {
   useEffect(() => {
     const fetchStudent = async () => {
       setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser()
-
-      if (!user || userError) {
+      if (!user) {
         setLoading(false)
         return
       }
@@ -36,45 +72,92 @@ const StudentAttendanceCard = () => {
         .single()
 
       if (!error && data) {
-        setStudent({
-          name: data.name,
-          class_id: data.class_id,
-          total_present: parseFloat(data.total_present),
-          total_days: parseInt(data.total_days),
-        })
+        setStudent(data)
+      } else if (error) {
+        console.error("Error fetching student attendance:", error.message)
       }
-
       setLoading(false)
     }
-
     fetchStudent()
   }, [])
 
+  // Memoize calculations for performance and cleaner render logic
+  const attendanceInfo = useMemo(() => {
+    if (!student) return null;
+
+    const percentage = student.total_days > 0
+        ? (student.total_present / student.total_days) * 100
+        : 0;
+
+    let status = 'Good';
+    let colorClass = 'text-green-500';
+    let description = "You're on track. Keep it up!";
+
+    if (percentage < 75 && percentage >= 50) {
+      status = 'Average';
+      colorClass = 'text-orange-500';
+      description = 'There is room for improvement. Try not to miss any more classes.';
+    } else if (percentage < 50) {
+      status = 'Poor';
+      colorClass = 'text-red-500';
+      description = 'Your attendance is low. Please attend classes regularly.';
+    }
+
+    return { ...student, percentage, status, colorClass, description };
+  }, [student]);
+
   if (loading) {
-    return <Skeleton className="h-36 w-full rounded-xl" />
+    return (
+        <Card className="w-full max-w-md">
+            <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+            <CardContent className="flex flex-col items-center gap-4 pt-0 md:flex-row">
+                <Skeleton className="h-40 w-40 rounded-full" />
+                <div className="flex-1 space-y-3">
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-6 w-full" />
+                    <Skeleton className="h-10 w-3/4" />
+                </div>
+            </CardContent>
+        </Card>
+    );
   }
 
-  if (!student) {
-    return <p>No attendance record found.</p>
+  if (!attendanceInfo) {
+    return (
+      <Card className="w-full max-w-md p-6 text-center text-muted-foreground">
+        No attendance record found.
+      </Card>
+    )
   }
-
-  const percent =
-    student.total_days === 0
-      ? 0
-      : (student.total_present / student.total_days) * 100
 
   return (
-    <Card className="w-full max-w-md">
-      <CardContent className="p-6 space-y-2">
-        <h2 className="text-xl font-semibold">{student.name}</h2>
-        <p className="text-muted-foreground">Class: {student.class_id}</p>
-        <div className="text-sm">
-          Attendance: {student.total_present} / {student.total_days}
+    <Card className="w-full max-w-md overflow-hidden">
+      <CardHeader>
+        <CardTitle className="text-2xl">{attendanceInfo.name}</CardTitle>
+        <CardDescription>Class: {attendanceInfo.class_id}</CardDescription>
+      </CardHeader>
+      <CardContent className="pt-2">
+        <div className="flex flex-col items-center gap-6 md:flex-row">
+          <RadialProgress percentage={attendanceInfo.percentage} colorClass={attendanceInfo.colorClass} />
+          <div className="flex-1 space-y-4">
+            <div className="flex justify-around">
+              <div className="text-center">
+                <CalendarCheck2 className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="text-xl font-bold">{attendanceInfo.total_present}</p>
+                <p className="text-xs text-muted-foreground">Days Present</p>
+              </div>
+              <div className="text-center">
+                <CalendarDays className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="text-xl font-bold">{attendanceInfo.total_days}</p>
+                <p className="text-xs text-muted-foreground">Total Days</p>
+              </div>
+            </div>
+            <div className={`rounded-lg p-3 text-center ${attendanceInfo.colorClass.replace('text-', 'bg-')}/10`}>
+              <p className={`font-semibold ${attendanceInfo.colorClass}`}>{attendanceInfo.status} Standing</p>
+              <p className="text-xs text-muted-foreground">{attendanceInfo.description}</p>
+            </div>
+          </div>
         </div>
-        <Progress value={percent} />
-        <p className="text-xs text-muted-foreground">
-          {percent.toFixed(1)}% attendance
-        </p>
       </CardContent>
     </Card>
   )

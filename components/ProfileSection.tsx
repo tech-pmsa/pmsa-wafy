@@ -3,7 +3,6 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import Image from 'next/image'
 
 // Shadcn/UI & Icon Components
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -13,7 +12,6 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock } from 'lucide-react'
 
 // A reusable component for displaying a line of profile information

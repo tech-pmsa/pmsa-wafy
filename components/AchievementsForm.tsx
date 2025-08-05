@@ -44,7 +44,7 @@ export default function AchievementsForm() {
     setDescription('')
     setProofFile(null)
     setPreviewUrl(null)
-    if(fileInputRef.current) {
+    if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
   }
@@ -67,7 +67,8 @@ export default function AchievementsForm() {
     let proofUrl = null
 
     if (proofFile) {
-      const filePath = `public/${uid}/${Date.now()}-${proofFile.name}`
+      // AFTER
+      const filePath = `${uid}/${Date.now()}-${proofFile.name}`
       const { error: uploadError } = await supabase.storage
         .from('achievements')
         .upload(filePath, proofFile)
@@ -113,9 +114,9 @@ export default function AchievementsForm() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        {/* ====================================================== */}
-        {/* START OF UPDATED TRIGGER                             */}
-        {/* ====================================================== */}
+      {/* ====================================================== */}
+      {/* START OF UPDATED TRIGGER                             */}
+      {/* ====================================================== */}
       <DialogTrigger asChild>
         <Card className="group w-full max-w-md cursor-pointer border-2 border-dashed border-border bg-transparent transition-all hover:border-primary hover:bg-accent">
           <CardContent className="flex h-52 flex-col items-center justify-center p-6 text-center">
@@ -129,15 +130,15 @@ export default function AchievementsForm() {
           </CardContent>
         </Card>
       </DialogTrigger>
-        {/* ====================================================== */}
-        {/* END OF UPDATED TRIGGER                               */}
-        {/* ====================================================== */}
+      {/* ====================================================== */}
+      {/* END OF UPDATED TRIGGER                               */}
+      {/* ====================================================== */}
 
       <DialogContent className="sm:max-w-[480px]">
         {/* The dialog content and form logic remain the same as before */}
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Award className="h-6 w-6 text-primary"/>
+            <Award className="h-6 w-6 text-primary" />
             <span className="text-2xl">Submit New Achievement</span>
           </DialogTitle>
           <DialogDescription>
@@ -155,32 +156,32 @@ export default function AchievementsForm() {
           )}
           {successMsg && (
             <Alert variant="default" className="border-green-500 text-green-700">
-               <CheckCircle2 className="h-4 w-4 text-green-500"/>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
               <AlertTitle>Success</AlertTitle>
               <AlertDescription>{successMsg}</AlertDescription>
             </Alert>
           )}
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="title" className="text-right"><Type className="inline-block h-4 w-4 mr-1"/>Title</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" placeholder="e.g., Won Hackathon"/>
+            <Label htmlFor="title" className="text-right"><Type className="inline-block h-4 w-4 mr-1" />Title</Label>
+            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} className="col-span-3" placeholder="e.g., Won Hackathon" />
           </div>
 
           <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="description" className="text-right pt-2"><FileText className="inline-block h-4 w-4 mr-1"/>Description</Label>
-            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3" placeholder="Describe your achievement..." rows={4}/>
+            <Label htmlFor="description" className="text-right pt-2"><FileText className="inline-block h-4 w-4 mr-1" />Description</Label>
+            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} className="col-span-3" placeholder="Describe your achievement..." rows={4} />
           </div>
 
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="proof-file" className="text-right"><Link className="inline-block h-4 w-4 mr-1"/>Proof</Label>
-            <Input id="proof-file" type="file" onChange={handleFileChange} ref={fileInputRef} className="col-span-3 file:text-primary file:font-semibold" accept="image/png, image/jpeg, application/pdf"/>
+            <Label htmlFor="proof-file" className="text-right"><Link className="inline-block h-4 w-4 mr-1" />Proof</Label>
+            <Input id="proof-file" type="file" onChange={handleFileChange} ref={fileInputRef} className="col-span-3 file:text-primary file:font-semibold" accept="image/png, image/jpeg, application/pdf" />
           </div>
 
           {previewUrl && (
-             <div className="grid grid-cols-4 items-center gap-4">
-                <div className="col-start-2 col-span-3">
-                   <img src={previewUrl} alt="Proof preview" className="max-h-40 rounded-md border object-contain"/>
-                </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <div className="col-start-2 col-span-3">
+                <img src={previewUrl} alt="Proof preview" className="max-h-40 rounded-md border object-contain" />
+              </div>
             </div>
           )}
         </div>

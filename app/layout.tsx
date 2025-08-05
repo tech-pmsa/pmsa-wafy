@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { mullerB, mullerH, anekMal } from "./fonts";
+import { Analytics } from '@vercel/analytics/next';
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
@@ -23,6 +24,7 @@ export default function RootLayout({
         <head><meta name="apple-mobile-web-app-title" content="PMSA " /></head>
       <body className='font-body'>
         {children}
+        <Analytics />
       </body>
     </html>
   );

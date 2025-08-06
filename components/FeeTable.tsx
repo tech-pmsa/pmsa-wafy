@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useUserRoleData } from '@/hooks/useUserRoleData'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, MinusCircle } from 'lucide-react' // Added MinusCircle
 
 // Shadcn/UI Components
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -31,6 +31,30 @@ function StatCard({ title, value, description }: { title: string; value: string;
   )
 }
 
+// A new, modern tooltip for the bar chart
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const totalPaid = payload[0].value;
+    return (
+      <div className="rounded-lg border bg-background p-2 shadow-sm">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col space-y-1">
+            <span className="text-[0.70rem] uppercase text-muted-foreground">Student</span>
+            <span className="font-bold">{label}</span>
+          </div>
+          <div className="flex flex-col space-y-1">
+            <span className="text-[0.70rem] uppercase text-muted-foreground">Total Paid</span>
+            <span className="font-bold text-primary">
+              {totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 })}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 // Helper to show a colored status badge for the accordion trigger
 function PaymentStatus({ paid, total }: { paid: number; total: number }) {
   const percentage = total > 0 ? (paid / total) * 100 : 0
@@ -38,7 +62,7 @@ function PaymentStatus({ paid, total }: { paid: number; total: number }) {
   let bgColor = 'bg-red-100 dark:bg-red-900'
   let textColor = 'text-red-700 dark:text-red-300'
 
-  if (percentage >= 99) { // Using >= 99 to handle potential float issues
+  if (percentage >= 99) {
     statusText = 'Fully Paid'
     bgColor = 'bg-green-100 dark:bg-green-900'
     textColor = 'text-green-700 dark:text-green-300'
@@ -60,7 +84,7 @@ function PaymentStatus({ paid, total }: { paid: number; total: number }) {
   )
 }
 
-// The new Accordion List component to display student data
+// The Accordion List component with the new logic
 function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders: string[] }) {
   if (rows.length === 0) {
     return (
@@ -77,17 +101,37 @@ function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders
         const studentName = row[2]
         const monthStartIndex = 3
 
+        // ======================================================
+        // START OF NEW CALCULATION LOGIC
+        // ======================================================
         const payments = monthHeaders.map((header, i) => {
-          const amountStr = row[monthStartIndex + i]
-          const amount = parseFloat(amountStr || '0')
+          const rawValue = (row[monthStartIndex + i] || '').trim().toLowerCase()
+          const amount = parseFloat(rawValue)
+          let status: 'paid' | 'unpaid' | 'not_applicable';
+
+          // Apply the new rule for "A"
+          if (rawValue === 'a') {
+            status = 'not_applicable'
+          } else if (!isNaN(amount) && amount > 0) {
+            status = 'paid'
+          } else {
+            status = 'unpaid' // Empty cells are "unpaid"
+          }
+
           return {
             month: header,
-            amount: amount,
-            isPaid: !isNaN(amount) && amount > 0,
+            status,
+            amount: !isNaN(amount) ? amount : 0,
           }
         })
 
-        const paidCount = payments.filter(p => p.isPaid).length
+        // Calculate counts based on the new logic
+        const applicablePayments = payments.filter(p => p.status !== 'not_applicable')
+        const paidCount = applicablePayments.filter(p => p.status === 'paid').length
+        const totalApplicableMonths = applicablePayments.length
+        // ======================================================
+        // END OF NEW CALCULATION LOGIC
+        // ======================================================
 
         return (
           <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-background shadow-sm">
@@ -97,22 +141,25 @@ function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders
                   <p className="font-semibold text-primary">{studentName}</p>
                   <p className="text-sm text-muted-foreground">CIC: {studentCIC}</p>
                 </div>
-                <PaymentStatus paid={paidCount} total={monthHeaders.length} />
+                {/* This now uses the corrected total months count */}
+                <PaymentStatus paid={paidCount} total={totalApplicableMonths} />
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pt-0 pb-4">
               <div className="border-t pt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {payments.map((payment) => (
                   <div key={payment.month} className="flex items-center space-x-2">
-                    {payment.isPaid ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                    )}
+                    {/* Render icon based on the new 'status' property */}
+                    {payment.status === 'paid' && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                    {payment.status === 'unpaid' && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
+                    {payment.status === 'not_applicable' && <MinusCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+
                     <div>
                       <p className="text-sm font-medium">{payment.month}</p>
                       <p className="text-xs text-muted-foreground">
-                        {payment.isPaid ? `₹${payment.amount.toLocaleString('en-IN')}` : 'Not Paid'}
+                        {payment.status === 'paid' && `₹${payment.amount.toLocaleString('en-IN')}`}
+                        {payment.status === 'unpaid' && 'Not Paid'}
+                        {payment.status === 'not_applicable' && 'Not Applicable'}
                       </p>
                     </div>
                   </div>
@@ -201,7 +248,6 @@ function SheetContent({
           <CardDescription>An overview of the fee payments and outstanding balances.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Section for Summary Stats & Chart (only for class/officer roles) */}
           {role !== 'student' && (
             <div className="space-y-6">
               <div className="grid gap-4 md:grid-cols-3">
@@ -212,24 +258,53 @@ function SheetContent({
               <Card>
                 <CardHeader>
                   <CardTitle>Payment Distribution</CardTitle>
-                  <CardDescription>Total amount paid by each student.</CardDescription>
+                  <CardDescription>Total amount paid by each student. Hover over a bar for details.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={350}>
-                    <BarChart data={chartData}>
-                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} hide={chartData.length > 10} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${value / 1000}k`} />
-                      <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))' }} />
-                      <Legend />
-                      <Bar dataKey="Total Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="w-full overflow-x-auto">
+                    <div className="min-w-[600px] h-[350px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={chartData}
+                          margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
+                        >
+                          {/* ====================================================== */}
+                          {/* START OF UPDATED AXIS AND TOOLTIP                      */}
+                          {/* ====================================================== */}
+                          <XAxis
+                            dataKey="name"
+                            stroke="#888888"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            // This is the magic: hide the labels if there are too many bars
+                            hide={chartData.length > 6}
+                          />
+                          <YAxis
+                            stroke="#888888"
+                            fontSize={12}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value) => `₹${value / 1000}k`}
+                          />
+                          <Tooltip
+                            content={<CustomTooltip />} // Use our new custom tooltip
+                            cursor={{ fill: 'hsl(var(--muted))' }}
+                          />
+                          {/* ====================================================== */}
+                          {/* END OF UPDATED AXIS AND TOOLTIP                        */}
+                          {/* ====================================================== */}
+                          <Legend />
+                          <Bar dataKey="Total Paid" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
           )}
 
-          {/* Section for Search and the NEW Student Accordion List */}
           <div className="space-y-4">
             {role !== 'student' && (
               <div className="flex justify-center">
@@ -302,7 +377,7 @@ export default function FeeDashboardPage() {
     return <div className="text-center p-6">Your role does not have permission to view this page.</div>
   }
 
-  if (Object.keys(sheetData).length === 0 || !activeTab) {
+  if (!sheetData || Object.keys(sheetData).length === 0 || !activeTab) {
     return <div className="text-center p-6">No fee data is available for you at the moment.</div>
   }
 
@@ -322,12 +397,13 @@ export default function FeeDashboardPage() {
             </TabsList>
           </div>
         )}
-        {(role === 'class' || role === 'student') && (
-          <SheetContent sheetName={activeTab} sheetData={sheetData[activeTab]} role={role} cic={cic || null} />
+        {activeTab && sheetData[activeTab] && (
+           (role === 'class' || role === 'student') ? (
+              <SheetContent sheetName={activeTab} sheetData={sheetData[activeTab]} role={role} cic={cic || null} />
+            ) : role === 'officer' && sheetNames.map(name => (
+              <SheetContent key={name} sheetName={name} sheetData={sheetData[name]} role={role} cic={cic || null} />
+            ))
         )}
-        {role === 'officer' && sheetNames.map(name => (
-          <SheetContent key={name} sheetName={name} sheetData={sheetData[name]} role={role} cic={cic || null} />
-        ))}
       </Tabs>
     </div>
   )

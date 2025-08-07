@@ -29,14 +29,14 @@ function ProfileInfoLine({ icon: Icon, label, value }: { icon: React.ElementType
 
 // A component for a disabled/read-only form field
 function ReadOnlyField({ label, value, icon: Icon }: { label: string, value: string, icon: React.ElementType }) {
-    return (
-        <div className="space-y-2">
-            <Label htmlFor={label} className="flex items-center gap-2 text-muted-foreground">
-                <Lock className="h-3 w-3" /> {label}
-            </Label>
-            <Input id={label} value={value || ''} readOnly disabled />
-        </div>
-    )
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={label} className="flex items-center gap-2 text-muted-foreground">
+        <Lock className="h-3 w-3" /> {label}
+      </Label>
+      <Input id={label} value={value || ''} readOnly disabled />
+    </div>
+  )
 }
 
 export default function ProfileSection() {
@@ -90,8 +90,8 @@ export default function ProfileSection() {
     // We only want to update fields that are actually editable
     const { name, phone, guardian, g_phone, address, designation } = form;
     let updatedData: any = isStudent
-        ? { name, phone, guardian, g_phone, address }
-        : { name, designation };
+      ? { name, phone, guardian, g_phone, address }
+      : { name, designation };
 
     if (file) {
       const filePath = `${user.uid}/${Date.now()}-${file.name}`
@@ -115,11 +115,11 @@ export default function ProfileSection() {
       .single()
 
     if (updateError) {
-        console.error("Update Error:", updateError)
+      console.error("Update Error:", updateError)
     } else if (newUserData) {
-        setUser(newUserData)
-        setForm(newUserData)
-        setEditOpen(false)
+      setUser(newUserData)
+      setForm(newUserData)
+      setEditOpen(false)
     }
 
     setFile(null)
@@ -150,61 +150,60 @@ export default function ProfileSection() {
           <DialogTrigger asChild>
             <Button variant="outline"><Pencil className="w-4 h-4 mr-2" /> Edit Profile</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-4xl">
+          <DialogContent className="lg:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Your Profile</DialogTitle>
               <DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription>
             </DialogHeader>
-            <div className="grid gap-8 py-4 md:grid-cols-3">
-                <div className="flex flex-col items-center gap-4 pt-4">
-                    <Avatar className="h-32 w-32">
-                        <AvatarImage src={preview || user.img_url} alt="Avatar Preview"/>
-                        <AvatarFallback><User className="h-16 w-16"/></AvatarFallback>
-                    </Avatar>
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button>
-                    <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+            <div className="flex flex-col md:flex-row gap-8 py-4">
+              {/* Left Column: Avatar */}
+              <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8">
+                <Avatar className="h-32 w-32">
+                  <AvatarImage src={preview || user.img_url} alt="Avatar Preview" />
+                  <AvatarFallback><User className="h-16 w-16" /></AvatarFallback>
+                </Avatar>
+                <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button>
+                <Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" />
+              </div>
+              {/* Right Column: Form Fields */}
+              <div className="grid gap-4 md:w-2/3 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input id="name" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
                 </div>
-                {/* ====================================================== */}
-                {/* START OF UPDATED FORM WITH READ-ONLY FIELDS          */}
-                {/* ====================================================== */}
-                <div className="grid gap-4 md:col-span-2 sm:grid-cols-2">
+                {isStudent ? (
+                  <>
+                    <ReadOnlyField label="CIC" value={form.cic} icon={UserCheck} />
+                    <ReadOnlyField label="Class" value={form.class_id} icon={Building} />
+                    <ReadOnlyField label="Batch" value={form.batch} icon={Shield} />
                     <div className="space-y-2">
-                        <Label htmlFor="name">Full Name</Label>
-                        <Input id="name" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                     </div>
-                     {isStudent ? (
-                         <>
-                            <ReadOnlyField label="CIC" value={form.cic} icon={UserCheck} />
-                            <ReadOnlyField label="Class" value={form.class_id} icon={Building} />
-                            <ReadOnlyField label="Batch" value={form.batch} icon={Shield} />
-                            <div className="space-y-2">
-                                <Label htmlFor="phone">Phone</Label>
-                                <Input id="phone" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="guardian">Guardian Name</Label>
-                                <Input id="guardian" value={form.guardian || ''} onChange={(e) => setForm({ ...form, guardian: e.target.value })} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="g_phone">Guardian Phone</Label>
-                                <Input id="g_phone" value={form.g_phone || ''} onChange={(e) => setForm({ ...form, g_phone: e.target.value })} />
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="address">Address</Label>
-                                <Input id="address" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-                            </div>
-                         </>
-                     ) : (
-                        <>
-                            <ReadOnlyField label="Email" value={form.email} icon={Mail} />
-                             <ReadOnlyField label="designation" value={form.designation} icon={Shield} />
-                             <ReadOnlyField label="Batch" value={form.batch} icon={Shield} />
-                        </>
-                     )}
-                </div>
-                {/* ====================================================== */}
-                {/* END OF UPDATED FORM                                  */}
-                {/* ====================================================== */}
+                    <div className="space-y-2">
+                      <Label htmlFor="guardian">Guardian Name</Label>
+                      <Input id="guardian" value={form.guardian || ''} onChange={(e) => setForm({ ...form, guardian: e.target.value })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="g_phone">Guardian Phone</Label>
+                      <Input id="g_phone" value={form.g_phone || ''} onChange={(e) => setForm({ ...form, g_phone: e.target.value })} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="address">Address</Label>
+                      <Input id="address" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <ReadOnlyField label="Email" value={form.email} icon={Mail} />
+                    <div className="space-y-2">
+                      <Label htmlFor="designation">Designation</Label>
+                      <Input id="designation" value={form.designation || ''} onChange={(e) => setForm({ ...form, designation: e.target.value })} />
+                    </div>
+                    <ReadOnlyField label="Batch" value={form.batch} icon={Shield} />
+                  </>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button onClick={() => setEditOpen(false)} variant="ghost">Cancel</Button>
@@ -221,7 +220,7 @@ export default function ProfileSection() {
         <div className="flex flex-col items-center text-center gap-2 md:w-1/4">
           <Avatar className="w-32 h-32 border-4 border-background shadow-md">
             <AvatarImage src={user.img_url} alt={user.name} />
-            <AvatarFallback><User className="h-16 w-16"/></AvatarFallback>
+            <AvatarFallback><User className="h-16 w-16" /></AvatarFallback>
           </Avatar>
           <h2 className="text-2xl font-bold mt-2">{user.name}</h2>
           <Badge variant="secondary" className="capitalize">{user.role}</Badge>

@@ -3,10 +3,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { supabase } from '@/lib/supabaseClient'
+import { useUserRoleData } from '@/hooks/useUserRoleData' // Import the hook
 
 // ShadCN & Icon Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -70,37 +70,46 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function ClassAttendanceDashboard() {
-  const [allAttendance, setAllAttendance] = useState<StudentAttendance[]>([])
-  const [classIds, setClassIds] = useState<string[]>([])
-  const [selectedClass, setSelectedClass] = useState<string>('')
+  // Use the hook to get the logged-in user's role and designation
+  const { role, designation } = useUserRoleData();
+
+  const [classAttendance, setClassAttendance] = useState<StudentAttendance[]>([])
+  const [classId, setClassId] = useState<string>('')
   const [view, setView] = useState<'chart' | 'details'>('chart')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Wait until we have the user's role and designation
+    if (!role || role !== 'class' || !designation) {
+        // If the role is loaded but not 'class', we can stop loading
+        if (role) setLoading(false);
+        return;
+    }
+
+    const currentClassId = designation.replace(' Class', '');
+    setClassId(currentClassId);
+
     const fetchData = async () => {
       setLoading(true)
+      // Fetch data ONLY for the teacher's specific class
       const { data, error } = await supabase
         .from('students_with_attendance')
         .select('uid, name, class_id, total_present, total_days')
+        .eq('class_id', currentClassId)
 
       if (error) {
         console.error("Error fetching attendance data:", error)
       } else if (data) {
-        setAllAttendance(data)
-        const uniqueClasses = [...new Set(data.map(d => d.class_id))].sort()
-        setClassIds(uniqueClasses)
-        if (uniqueClasses.length > 0) {
-          setSelectedClass(uniqueClasses[0])
-        }
+        setClassAttendance(data)
       }
       setLoading(false)
     }
     fetchData()
-  }, [])
+  }, [role, designation]) // Re-run when user data is loaded
 
+  // Memoize derived data for performance
   const classData = useMemo(() => {
-    const filtered = allAttendance.filter(s => s.class_id === selectedClass)
-    const processed = filtered.map(s => ({
+    const processed = classAttendance.map(s => ({
       name: s.name,
       percentage: s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0,
       total: `${s.total_present} / ${s.total_days}`,
@@ -116,12 +125,13 @@ export default function ClassAttendanceDashboard() {
       topPerformer: processed[0],
       belowThreshold,
     }
-  }, [selectedClass, allAttendance])
+  }, [classAttendance])
 
   if (loading) {
     return (
       <div className="p-4 md:p-6 space-y-4">
-        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-5 w-72" />
         <div className="grid gap-4 md:grid-cols-3">
           <Skeleton className="h-28 w-full" />
           <Skeleton className="h-28 w-full" />
@@ -132,37 +142,32 @@ export default function ClassAttendanceDashboard() {
     )
   }
 
+  // If the user is not a class teacher or has no data, show a message
+  if (role !== 'class') {
+      return (
+          <div className="text-center text-muted-foreground p-8">
+              This dashboard is for class teachers.
+          </div>
+      )
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">College Attendance</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Your Class Attendance</h1>
         <p className="text-muted-foreground">
-          Select a class to view its attendance summary.
+          An attendance summary for your class: {classId}
         </p>
       </div>
 
-      {classIds.length > 0 && (
-        <div className="w-full overflow-x-auto pb-1">
-          <Tabs value={selectedClass} onValueChange={setSelectedClass} className="w-max">
-            <TabsList>
-              {classIds.map(classId => (
-                <TabsTrigger key={classId} value={classId}>
-                  {classId}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
-
       {classData.students.length === 0 ? (
         <div className="text-center text-muted-foreground pt-8">
-          No attendance data available for {selectedClass}.
+          No attendance data is available for your class yet.
         </div>
       ) : (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-             <StatCard title="Class Average" value={`${classData.average.toFixed(1)}%`} icon={Users} footer={`Average attendance for ${selectedClass}`}/>
+             <StatCard title="Class Average" value={`${classData.average.toFixed(1)}%`} icon={Users} footer={`Average attendance for your class`}/>
              <StatCard title="Top Performer" value={classData.topPerformer?.name || 'N/A'} icon={TrendingUp} footer={`${classData.topPerformer?.percentage.toFixed(1)}% Attendance`}/>
              <StatCard title="Below 75% Attendance" value={classData.belowThreshold.toString()} icon={AlertTriangle} footer={`Students needing attention`}/>
           </div>
@@ -170,7 +175,7 @@ export default function ClassAttendanceDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
-                <CardTitle>Attendance Overview for {selectedClass}</CardTitle>
+                <CardTitle>Attendance Overview</CardTitle>
                 <CardDescription>Toggle between chart and detailed list view.</CardDescription>
               </div>
               <Button variant="outline" size="sm" onClick={() => setView(view === 'chart' ? 'details' : 'chart')}>
@@ -180,9 +185,6 @@ export default function ClassAttendanceDashboard() {
             </CardHeader>
             <CardContent>
               {view === 'chart' ? (
-                // ======================================================
-                // START OF UPDATED CHART SECTION
-                // ======================================================
                 <div className="w-full overflow-x-auto">
                   <div className="min-w-[600px] h-[400px]">
                     <ResponsiveContainer width="100%" height="100%">
@@ -194,7 +196,6 @@ export default function ClassAttendanceDashboard() {
                           fontSize={12}
                           tickLine={false}
                           axisLine={false}
-                          // Hide labels if there are too many bars to prevent overlap
                           hide={classData.students.length > 8}
                         />
                         <YAxis
@@ -204,18 +205,12 @@ export default function ClassAttendanceDashboard() {
                           axisLine={false}
                           tickFormatter={(value) => `${value}%`}
                         />
-                        <Tooltip
-                          content={<CustomTooltip />} // Use our modern tooltip
-                          cursor={{ fill: 'hsl(var(--muted))' }}
-                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
                         <Bar dataKey="percentage" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
-                // ======================================================
-                // END OF UPDATED CHART SECTION
-                // ======================================================
               ) : (
                 <div className="overflow-auto max-h-[400px]">
                   <Table>

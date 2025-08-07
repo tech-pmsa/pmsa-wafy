@@ -1,8 +1,10 @@
+// hooks/useUserRoleData.ts
 'use client'
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
+// 1. ADDED designation to the interface
 interface RoleData {
   loading: boolean
   role: string | null
@@ -11,6 +13,7 @@ interface RoleData {
   batch?: string
   uid?: string
   name?: string
+  designation?: string // <-- ADD THIS LINE
 }
 
 export function useUserRoleData(): RoleData {
@@ -34,7 +37,7 @@ export function useUserRoleData(): RoleData {
 
         const uid = session.user.id
 
-        // Try profiles table
+        // Try profiles table (for admins, teachers, etc.)
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role, designation, batch, uid, name')
@@ -47,6 +50,8 @@ export function useUserRoleData(): RoleData {
             uid: profile.uid,
             name: profile.name,
             role: profile.role,
+            // 2. SET the designation property here
+            designation: profile.designation || undefined, // <-- ADD THIS LINE
             classId: profile.designation || undefined,
             batch: profile.batch || undefined,
           })
@@ -69,6 +74,7 @@ export function useUserRoleData(): RoleData {
             cic: student.cic,
             classId: student.class_id,
             batch: student.batch,
+            // Students don't have a 'designation', so it remains undefined
           })
           return
         }

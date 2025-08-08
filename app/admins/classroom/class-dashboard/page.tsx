@@ -1,19 +1,36 @@
-// app/admins/officer/officer-dashboard/page.tsx
 'use client'
-import React from 'react'
-import FeeTable from '@/components/FeeTable'
-import ClassStudentPresent from '@/components/ClassStudentPresent'
-import ApprovedAchievements from '@/components/ApprovedAchievements'
 
-const Class = () => {
+import React from 'react'
+import { useUserData } from '@/hooks/useUserData'
+
+// Import the dedicated components
+import ClassAttendanceDashboard from '@/components/admin/ClassAttendanceDashboard'
+import FeeManagementDashboard from '@/components/FeeManagementDashboard'
+import AchievementViewer from '@/components/admin/AchievementViewer'
+
+const ClassroomDashboardPage = () => {
+  const { details } = useUserData();
+
   return (
-    <div className="p-4">
-      <h1 className="text-2xl font-semibold mb-4">Class Dashboard</h1>
-      <ClassStudentPresent/>
-      <FeeTable/>
-      <ApprovedAchievements/>
+    <div className="space-y-6 animate-fade-in">
+      {/* Welcome Header */}
+      <div>
+        <h1 className="text-3xl font-bold font-heading">
+          {details?.designation || 'Class'} Dashboard
+        </h1>
+        <p className="text-muted-foreground">
+          Welcome, {details?.name}. Here is an overview of your class.
+        </p>
+      </div>
+
+      {/* Main Dashboard Components */}
+      <div className="space-y-8">
+        <ClassAttendanceDashboard />
+        <FeeManagementDashboard />
+        <AchievementViewer />
+      </div>
     </div>
   )
 }
 
-export default Class
+export default ClassroomDashboardPage;

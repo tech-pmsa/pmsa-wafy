@@ -31,8 +31,7 @@ export async function POST(req: Request) {
       role,
       designation,
       batch,
-      email,
-      img_url: '/profile.png', // Should be in public folder
+      email
     })
 
     if (dbError) {

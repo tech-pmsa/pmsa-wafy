@@ -1,11 +1,21 @@
 "use client";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { CiLogin } from "react-icons/ci";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import type { Database } from "@/types/supabase";
-import { GraduationCap } from "lucide-react"; // Added for the new icon
+import { GraduationCap, LogIn, Mail, Lock, Loader2 } from "lucide-react";
+
+// Using shadcn/ui components for a consistent look and feel
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,203 +23,115 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClientComponentClient<Database>();
+  const supabase = createClientComponentClient();
 
-  // Redirect if session already exists
-  useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+  // The middleware now handles redirecting already-logged-in users,
+  // so the useEffect hook for session checking is no longer needed here.
+  // This makes the component much cleaner.
 
-      if (session) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("uid", session.user.id)
-          .single();
-
-        if (profile) {
-          switch (profile.role) {
-            case "officer":
-              router.replace("/admins/officer/officer-dashboard");
-              return;
-            case "class":
-              router.replace("/admins/classroom/class-dashboard");
-              return;
-            case "class-leader":
-              router.replace("/admins/classleader/class-leader-dashboard");
-              return;
-          }
-        }
-
-        const { data: student } = await supabase
-          .from("students")
-          .select("role")
-          .eq("uid", session.user.id)
-          .single();
-
-        if (student?.role === "student") {
-          router.replace("/students/student-dashboard");
-          return;
-        }
-
-        // No valid role
-        await supabase.auth.signOut();
-      }
-    };
-
-    checkSession();
-  }, [router, supabase]);
-
-  // Handle Login Submit
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { data: signInData, error: signInError } =
-      await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (signInError) {
-      setError("Invalid email or password.");
+      // Provide more user-friendly error messages
+      if (signInError.message.includes("Invalid login credentials")) {
+        setError("Invalid email or password. Please try again.");
+      } else {
+        setError("An unexpected error occurred. Please try again later.");
+      }
       setLoading(false);
       return;
     }
 
-    const uid = signInData.user.id;
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("uid", uid)
-      .single();
-
-    if (profileData) {
-      switch (profileData.role) {
-        case "officer":
-          router.push("/admins/officer/officer-dashboard");
-          return;
-        case "class":
-          router.push("/admins/classroom/class-dashboard");
-          return;
-        case "class-leader":
-          router.push("/admins/classleader/class-leader-dashboard");
-          return;
-        default:
-          setError("Access denied: Invalid role.");
-          setLoading(false);
-          await supabase.auth.signOut();
-          return;
-      }
-    }
-
-    const { data: studentData } = await supabase
-      .from("students")
-      .select("role")
-      .eq("uid", uid)
-      .single();
-
-    if (studentData?.role === "student") {
-      router.push("/students/student-dashboard");
-      return;
-    }
-
-    // No role found
-    setError("Access denied: No valid role found.");
-    setLoading(false);
-    await supabase.auth.signOut();
+    // On successful login, we don't need to manually redirect.
+    // The middleware is already set up to handle role-based redirection.
+    // We just need to trigger a router refresh to re-run the middleware.
+    router.refresh();
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-[url('/sm.svg')] bg-cover relative">
-      <div className="absolute left-8 top-8 z-10 flex items-center gap-2">
-        <GraduationCap className="h-8 w-8 text-gray-800" />
-        <span className="text-xl font-bold text-gray-800">
-          PMSA Wafy College
-        </span>
-      </div>
-
-      {/* Left: Login Form */}
-      <div className="w-full md:w-1/2 flex justify-center items-center px-6 py-12">
-        <div className="w-full max-w-md backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl p-8 shadow-lg">
-
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Welcome Back</h1>
-            <p className="text-balance text-gray-600 mt-2">
-              Enter your credentials to access your dashboard
+    <div className="flex w-full max-w-4xl animate-fade-in">
+        {/* Left Side: Decorative Panel */}
+        <div className="hidden md:flex md:w-1/2 flex-col justify-between bg-brand-green text-white p-8 rounded-l-2xl">
+            <div>
+                <div className="flex items-center gap-3">
+                    <GraduationCap className="h-8 w-8" />
+                    <h1 className="text-2xl font-bold font-heading">PMSA Wafy College</h1>
+                </div>
+                <p className="mt-4 text-brand-green-light text-lg">
+                    Your portal to academic excellence and campus life.
+                </p>
+            </div>
+            <p className="text-sm text-brand-green-light/70">
+                © {new Date().getFullYear()} PMSA Wafy College. All Rights Reserved.
             </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="w-full max-w-md space-y-6">
-            {/* Email */}
-            <div>
-              <label className="block mb-1 text-text-grey">Email</label>
-              <div className="flex items-center border border-primary-dark-grey bg-transparent rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-button-yellow">
-                <Image
-                  src="/email.png"
-                  alt="Email"
-                  width={35}
-                  height={35}
-                  className="mr-2"
-                />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full outline-none bg-transparent placeholder-text-grey text-text-grey"
-                  placeholder="you@pmsa.com"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block mb-1 text-text-grey">Password</label>
-              <div className="flex items-center border border-primary-dark-grey bg-transparent rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-button-yellow">
-                <Image
-                  src="/lock.png"
-                  alt="Password"
-                  width={35}
-                  height={35}
-                  className="mr-2"
-                />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full outline-none bg-transparent placeholder-text-grey text-text-grey"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
-            )}
-
-            {/* Login Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-button-yellow text-button-text-black py-2 rounded-xl hover:bg-primary-dark-grey transition duration-200 flex items-center justify-center gap-2"
-            >
-              <span>{loading ? "Logging in..." : "Login"}</span>
-              {!loading && <CiLogin size={22} />}
-            </button>
-          </form>
         </div>
-      </div>
 
-      {/* Right: Image Side */}
-      <div className="hidden md:flex md:w-1/2 h-screen relative">
-        <Image
-          src="/college3d.png"
-          alt="College 3D"
-          fill
-          className="object-cover"
-          priority
-        />
-      </div>
+        {/* Right Side: Login Form */}
+        <div className="w-full md:w-1/2 bg-card rounded-r-2xl">
+            <Card className="w-full h-full p-8 border-none shadow-none rounded-l-none">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-3xl font-heading text-neutral-black">Welcome Back!</CardTitle>
+                    <CardDescription>
+                        Enter your credentials to access your dashboard.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleLogin} className="space-y-6">
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-dark" />
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="you@pmsa.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="pl-10"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
+                             <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-dark" />
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    className="pl-10"
+                                />
+                            </div>
+                        </div>
+
+                        {error && (
+                            <p className="text-sm text-destructive text-center">{error}</p>
+                        )}
+
+                        <Button type="submit" disabled={loading} className="w-full bg-brand-yellow text-neutral-black hover:bg-brand-yellow-dark">
+                            {loading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <LogIn className="mr-2 h-4 w-4" />
+                            )}
+                            {loading ? "Signing In..." : "Sign In"}
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }

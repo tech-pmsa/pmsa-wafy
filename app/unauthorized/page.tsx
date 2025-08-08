@@ -1,36 +1,42 @@
-// app/unauthorized/page.tsx
 'use client'
 
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { IoIosLogOut } from 'react-icons/io'
+import { ShieldAlert, LogOut, Home } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 export default function UnauthorizedPage() {
   const router = useRouter()
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-yellow-50 text-yellow-800 px-4 text-center">
-      <h1 className="text-3xl font-bold mb-2">🚫 Unauthorized Access</h1>
-      <p className="mb-4 text-sm">
-        You don’t have permission to view this page. Please check your role or login with the appropriate account.
-      </p>
-      <button
-        onClick={() => router.push('/')}
-        className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition"
-      >
-        Go Back to Home
-      </button>
-      <button
-        onClick={handleLogout}
-        className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition"
-      >
-        <IoIosLogOut size={20} className="text-gray-600" />
-        <span>Logout</span>
-      </button>
+    <div className="flex items-center justify-center min-h-screen bg-neutral-light">
+      <Card className="w-full max-w-md text-center animate-fade-in shadow-lg">
+        <CardHeader>
+          <div className="mx-auto bg-brand-yellow/20 text-brand-yellow-dark p-3 rounded-full w-fit">
+              <ShieldAlert className="h-12 w-12" />
+          </div>
+          <CardTitle className="text-2xl font-heading mt-4">Access Denied</CardTitle>
+          <CardDescription>
+            You don’t have permission to view this page. Please check your account role.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+           <Button onClick={() => router.push('/')}>
+                <Home className="mr-2 h-4 w-4" />
+                Go to Homepage
+            </Button>
+           <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout & Sign In Again
+            </Button>
+        </CardContent>
+      </Card>
     </div>
   )
 }

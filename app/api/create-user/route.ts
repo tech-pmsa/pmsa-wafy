@@ -17,8 +17,7 @@ export async function POST(req: Request) {
     address,
     sslc,
     plustwo,
-    plustwo_streams,
-    img_url,
+    plustwo_streams
   } = body
 
   // Step 1: Create Auth user
@@ -49,7 +48,6 @@ export async function POST(req: Request) {
     sslc,
     plustwo,
     plustwo_streams,
-    img_url,
     role: 'student',
   })
 

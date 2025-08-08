@@ -12,7 +12,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "downlevelIteration": true, // ✅ added this line
+    "downlevelIteration": true,
     "plugins": [
       {
         "name": "next"

@@ -1,8 +1,7 @@
-// components/ClassCouncil.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUserRoleData } from '@/hooks/useUserRoleData'
+import { useUserData } from '@/hooks/useUserData' // CORRECTED
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 
@@ -28,30 +27,33 @@ const councilPositions = [
 ]
 
 export default function ClassCouncil() {
-  const { uid } = useUserRoleData()
+  const { user, loading: userLoading } = useUserData() // CORRECTED
   const [council, setCouncil] = useState<any>(null)
-  const [originalCouncil, setOriginalCouncil] = useState<any>(null) // To handle cancel
+  const [originalCouncil, setOriginalCouncil] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [editMode, setEditMode] = useState(false)
 
   useEffect(() => {
     const fetchCouncil = async () => {
-      if (!uid) { setLoading(false); return; }
+      if (!user?.id) {
+        if (!userLoading) setLoading(false);
+        return;
+      }
       setLoading(true)
 
       const { data, error } = await supabase
         .from('class_council')
         .select('*')
-        .eq('uid', uid)
+        .eq('uid', user.id)
         .single()
 
       if (data) {
         setCouncil(data)
-        setOriginalCouncil(data) // Store the initial state
+        setOriginalCouncil(data)
       } else {
         // If no record exists, create a blank one to allow editing
-        const blankCouncil = councilPositions.reduce((acc, pos) => ({...acc, [pos.key]: ''}), { uid })
+        const blankCouncil = councilPositions.reduce((acc, pos) => ({...acc, [pos.key]: ''}), { uid: user.id })
         setCouncil(blankCouncil)
         setOriginalCouncil(blankCouncil)
       }
@@ -59,14 +61,14 @@ export default function ClassCouncil() {
     }
 
     fetchCouncil()
-  }, [uid])
+  }, [user, userLoading])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCouncil({ ...council, [e.target.name]: e.target.value })
   }
 
   const handleCancel = () => {
-    setCouncil(originalCouncil); // Revert to original data
+    setCouncil(originalCouncil);
     setEditMode(false);
   }
 
@@ -74,7 +76,7 @@ export default function ClassCouncil() {
     setIsSaving(true)
     const { error } = await supabase
       .from('class_council')
-      .upsert({ ...council, uid })
+      .upsert({ ...council, uid: user?.id })
       .select()
       .single()
 
@@ -82,13 +84,13 @@ export default function ClassCouncil() {
       toast.error('Failed to save changes.', { description: error.message })
     } else {
       toast.success('Class council has been updated successfully!')
-      setOriginalCouncil(council) // Set the new state as the original
+      setOriginalCouncil(council)
       setEditMode(false)
     }
     setIsSaving(false)
   }
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <Card>
         <CardHeader><Skeleton className="h-8 w-48" /></CardHeader>
@@ -96,10 +98,7 @@ export default function ClassCouncil() {
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex items-center gap-4 rounded-lg border p-4">
               <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-32" />
-              </div>
+              <div className="space-y-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-4 w-32" /></div>
             </div>
           ))}
         </CardContent>
@@ -112,59 +111,33 @@ export default function ClassCouncil() {
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Class Council Details</CardTitle>
-          <CardDescription>
-            {editMode ? 'Update the names for each council position.' : `Council for Batch: ${council?.batch || 'N/A'}`}
-          </CardDescription>
+          <CardDescription>{editMode ? 'Update the names for each council position.' : `Council for Batch: ${council?.batch || 'N/A'}`}</CardDescription>
         </div>
-        {!editMode && (
-          <Button variant="outline" onClick={() => setEditMode(true)}>
-            <Pencil className="h-4 w-4 mr-2" /> Edit
-          </Button>
-        )}
+        {!editMode && (<Button variant="outline" onClick={() => setEditMode(true)}><Pencil className="h-4 w-4 mr-2" /> Edit</Button>)}
       </CardHeader>
-
       <CardContent>
         {editMode ? (
-          // EDIT VIEW
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {councilPositions.map(({ key, label, icon: Icon }) => (
               <div key={key} className="space-y-2">
-                <Label htmlFor={key} className="flex items-center gap-2">
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                  {label}
-                </Label>
-                <Input
-                  id={key}
-                  name={key}
-                  value={council?.[key] || ''}
-                  onChange={handleChange}
-                  placeholder={`Enter name for ${label}`}
-                />
+                <Label htmlFor={key} className="flex items-center gap-2"><Icon className="h-4 w-4 text-muted-foreground" />{label}</Label>
+                <Input id={key} name={key} value={council?.[key] || ''} onChange={handleChange} placeholder={`Enter name for ${label}`} />
               </div>
             ))}
           </div>
         ) : (
-          // DISPLAY VIEW
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {councilPositions.map(({ key, label, icon: Icon }) => (
               <div key={key} className="flex items-center gap-4 rounded-lg border p-4 bg-muted/40">
-                <Avatar className="h-12 w-12">
-                  <AvatarFallback>
-                    <Icon className="h-6 w-6 text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="font-semibold">{council?.[key] || 'Not Assigned'}</p>
-                </div>
+                <Avatar className="h-12 w-12"><AvatarFallback><Icon className="h-6 w-6 text-muted-foreground" /></AvatarFallback></Avatar>
+                <div><p className="text-sm text-muted-foreground">{label}</p><p className="font-semibold">{council?.[key] || 'Not Assigned'}</p></div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
-
       {editMode && (
-        <CardFooter className="flex justify-end gap-2">
+        <CardFooter className="flex justify-end gap-2 border-t pt-6">
           <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={isSaving}>
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

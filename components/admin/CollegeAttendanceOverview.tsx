@@ -7,34 +7,22 @@ import { supabase } from '@/lib/supabaseClient'
 // ShadCN & Icon Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { TrendingUp, TrendingDown, Users } from 'lucide-react'
+import { TrendingUp, TrendingDown, Users, Percent } from 'lucide-react'
 
 // Define the data structure for student attendance
 interface StudentAttendance {
-  uid: string
-  name: string
   class_id: string
   total_present: number
   total_days: number
 }
 
 // Reusable card for displaying key statistics
-function StatCard({
-  title,
-  value,
-  icon: Icon,
-  footer,
-}: {
-  title: string
-  value: string
-  icon: React.ElementType
-  footer: string
-}) {
+function StatCard({ title, value, icon: Icon, footer, colorClass = 'text-primary' }: { title: string; value: string; icon: React.ElementType; footer: string; colorClass?: string; }) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <Icon className={`h-4 w-4 text-muted-foreground ${colorClass}`} />
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">{value}</div>
@@ -65,7 +53,7 @@ const ClassTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function OfficerAttendanceDashboard() {
+export default function CollegeAttendanceOverview() {
   const [allAttendance, setAllAttendance] = useState<StudentAttendance[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -74,7 +62,7 @@ export default function OfficerAttendanceDashboard() {
       setLoading(true)
       const { data, error } = await supabase
         .from('students_with_attendance')
-        .select('uid, name, class_id, total_present, total_days')
+        .select('class_id, total_present, total_days')
 
       if (error) {
         console.error("Error fetching attendance data:", error)
@@ -86,11 +74,11 @@ export default function OfficerAttendanceDashboard() {
     fetchData()
   }, [])
 
-  // Memoize data processing for the officer's view
   const collegeData = useMemo(() => {
     const classMap = new Map<string, { totalPercentage: number, studentCount: number }>()
 
     allAttendance.forEach(s => {
+      if (!s.class_id) return; // Skip if class_id is null or empty
       const percentage = s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0
       if (!classMap.has(s.class_id)) {
         classMap.set(s.class_id, { totalPercentage: 0, studentCount: 0 })
@@ -117,7 +105,7 @@ export default function OfficerAttendanceDashboard() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-6 space-y-4">
+      <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-3">
           <Skeleton className="h-28 w-full" />
           <Skeleton className="h-28 w-full" />
@@ -129,18 +117,11 @@ export default function OfficerAttendanceDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">College-Wide Attendance</h1>
-        <p className="text-muted-foreground">
-          An overview of the average attendance across all classes.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <StatCard title="Overall College Average" value={`${collegeData.overallAverage.toFixed(1)}%`} icon={Users} footer="Average attendance of all classes" />
-        <StatCard title="Top Performing Class" value={collegeData.topClass?.name || 'N/A'} icon={TrendingUp} footer={`${collegeData.topClass?.average_attendance.toFixed(1)}% Average`} />
-        <StatCard title="Lowest Performing Class" value={collegeData.bottomClass?.name || 'N/A'} icon={TrendingDown} footer={`${collegeData.bottomClass?.average_attendance.toFixed(1)}% Average`} />
+        <StatCard title="Overall College Average" value={`${collegeData.overallAverage.toFixed(1)}%`} icon={Percent} footer="Average of all class percentages" />
+        <StatCard title="Top Performing Class" value={collegeData.topClass?.name || 'N/A'} icon={TrendingUp} footer={`${collegeData.topClass?.average_attendance.toFixed(1) || 0}% Average`} colorClass="text-brand-green" />
+        <StatCard title="Lowest Performing Class" value={collegeData.bottomClass?.name || 'N/A'} icon={TrendingDown} footer={`${collegeData.bottomClass?.average_attendance.toFixed(1) || 0}% Average`} colorClass="text-destructive" />
       </div>
 
       <Card>
@@ -149,35 +130,16 @@ export default function OfficerAttendanceDashboard() {
           <CardDescription>Average attendance percentage for each class.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="w-full overflow-x-auto">
-            <div className="min-w-[600px] h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={collegeData.chartData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="name"
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    // Hide labels if there are too many classes to prevent overlap
-                    hide={collegeData.chartData.length > 10}
-                  />
-                  <YAxis
-                    stroke="#888888"
-                    fontSize={12}
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(value) => `${value}%`}
-                  />
-                  <Tooltip
-                    content={<ClassTooltip />} // Use the specific tooltip for classes
-                    cursor={{ fill: 'hsl(var(--muted))' }}
-                  />
-                  <Bar dataKey="average_attendance" fill="#8884d8" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+          <div className="w-full h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={collegeData.chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} hide={collegeData.chartData.length > 10} />
+                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
+                <Tooltip content={<ClassTooltip />} cursor={{ fill: 'hsl(var(--muted))' }} />
+                <Bar dataKey="average_attendance" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </CardContent>
       </Card>

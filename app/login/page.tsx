@@ -25,10 +25,6 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClientComponentClient();
 
-  // The middleware now handles redirecting already-logged-in users,
-  // so the useEffect hook for session checking is no longer needed here.
-  // This makes the component much cleaner.
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -40,7 +36,6 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      // Provide more user-friendly error messages
       if (signInError.message.includes("Invalid login credentials")) {
         setError("Invalid email or password. Please try again.");
       } else {
@@ -49,29 +44,34 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-
-    // On successful login, we don't need to manually redirect.
-    // The middleware is already set up to handle role-based redirection.
-    // We just need to trigger a router refresh to re-run the middleware.
     router.refresh();
   };
 
   return (
-    <div className="flex w-full max-w-4xl animate-fade-in">
+    <div className="flex w-full max-w-4xl animate-fade-in rounded-2xl shadow-2xl">
         {/* Left Side: Decorative Panel */}
-        <div className="hidden md:flex md:w-1/2 flex-col justify-between bg-brand-green text-white p-8 rounded-l-2xl">
-            <div>
-                <div className="flex items-center gap-3">
-                    <GraduationCap className="h-8 w-8" />
-                    <h1 className="text-2xl font-bold font-heading">PMSA Wafy College</h1>
+        <div className="hidden md:flex md:w-1/2 relative bg-[url('/college3d.png')] bg-cover p-8 rounded-l-2xl">
+            {/* ====================================================== */}
+            {/* START OF FIX: Added overlay for text readability     */}
+            {/* ====================================================== */}
+            <div className="absolute inset-0 bg-brand-green-dark/70 rounded-l-2xl"></div>
+            <div className="relative z-10 flex flex-col justify-between h-full text-white">
+            {/* ====================================================== */}
+            {/* END OF FIX                                           */}
+            {/* ====================================================== */}
+                <div>
+                    <div className="flex items-center gap-3">
+                        <GraduationCap className="h-8 w-8" />
+                        <h1 className="text-2xl font-bold font-heading">PMSA Wafy College</h1>
+                    </div>
+                    <p className="mt-4 text-lg text-brand-green-light">
+                        Your portal to academic excellence and campus life.
+                    </p>
                 </div>
-                <p className="mt-4 text-brand-green-light text-lg">
-                    Your portal to academic excellence and campus life.
+                <p className="text-sm text-brand-green-light/70">
+                    © {new Date().getFullYear()} PMSA Wafy College. All Rights Reserved.
                 </p>
             </div>
-            <p className="text-sm text-brand-green-light/70">
-                © {new Date().getFullYear()} PMSA Wafy College. All Rights Reserved.
-            </p>
         </div>
 
         {/* Right Side: Login Form */}

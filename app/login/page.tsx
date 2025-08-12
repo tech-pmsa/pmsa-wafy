@@ -50,7 +50,7 @@ export default function LoginPage() {
   return (
     <div className="flex w-full max-w-4xl animate-fade-in rounded-2xl shadow-2xl">
         {/* Left Side: Decorative Panel */}
-        <div className="hidden md:flex md:w-1/2 relative bg-[url('/college3d.png')] bg-cover p-8 rounded-l-2xl">
+        <div className="hidden md:flex md:w-1/2 relative bg-[url('/imglogin.jpeg')] bg-cover p-8 rounded-l-2xl">
             {/* ====================================================== */}
             {/* START OF FIX: Added overlay for text readability     */}
             {/* ====================================================== */}

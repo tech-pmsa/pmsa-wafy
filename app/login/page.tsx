@@ -54,7 +54,7 @@ export default function LoginPage() {
             {/* ====================================================== */}
             {/* START OF FIX: Added overlay for text readability     */}
             {/* ====================================================== */}
-            <div className="absolute inset-0 bg-brand-green-dark/70 rounded-l-2xl"></div>
+            {/* <div className="absolute inset-0 bg-brand-green-dark/70 rounded-l-2xl"></div> */}
             <div className="relative z-10 flex flex-col justify-between h-full text-white">
             {/* ====================================================== */}
             {/* END OF FIX                                           */}

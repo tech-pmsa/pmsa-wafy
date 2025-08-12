@@ -5,10 +5,11 @@ const SHEET_ID = process.env.SHEET_FEES_ID!
 const GOOGLE_CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL!
 const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 
-// Cache in-memory (for dev/demo only, not production-safe)
+// Cache in-memory
 let cachedData: Record<string, { headers: string[]; rows: any[] }> | null = null
 let lastFetchTime = 0
-const CACHE_DURATION = 30 * 60 * 1000 // 30 minutes
+// UPDATED: Cache duration is now 15 minutes
+const CACHE_DURATION = 15 * 60 * 1000
 
 export async function GET() {
   const now = Date.now()
@@ -41,7 +42,7 @@ export async function GET() {
     for (const sheetName of sheetNames) {
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SHEET_ID,
-        range: `${sheetName}!A1:CE60`,
+        range: `${sheetName}!A1:GE60`,
       })
 
       const values = response.data.values || []

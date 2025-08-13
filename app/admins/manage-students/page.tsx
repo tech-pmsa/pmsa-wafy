@@ -4,7 +4,8 @@
 import { useEffect, useState, useRef, ChangeEvent, FormEvent } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { useUserData } from '@/hooks/useUserData'; // Assuming you have a user context to get the current admin's ID
+import { supabase } from '@/lib/supabaseClient';
+import { useUserData } from '@/hooks/useUserData';
 
 // Shadcn/UI & Icon Components
 import { Button } from '@/components/ui/button';
@@ -16,9 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Mail, Phone, Edit, Loader2, Camera, AlertCircle, School, Users } from 'lucide-react';
+import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/lib/supabaseClient';
 
 // Define types
 interface StudentProfile {
@@ -42,7 +42,7 @@ interface AdminProfile {
 }
 
 // Reusable Student Card Component
-function StudentCard({ student, onEdit }: { student: StudentProfile; onEdit: (student: StudentProfile) => void }) {
+function StudentCard({ student, onEdit, onDelete }: { student: StudentProfile; onEdit: (student: StudentProfile) => void; onDelete: (student: StudentProfile) => void; }) {
     return (
         <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl">
             <CardHeader className="flex flex-row items-center gap-4 p-4">
@@ -60,9 +60,12 @@ function StudentCard({ student, onEdit }: { student: StudentProfile; onEdit: (st
                 <div className="flex items-center gap-2"><Users className="h-4 w-4 flex-shrink-0" /><span>{student.council || 'N/A'}</span></div>
                 <div className="flex items-center gap-2"><Phone className="h-4 w-4 flex-shrink-0" /><span>{student.phone || 'N/A'}</span></div>
             </CardContent>
-            <CardFooter className="p-4 pt-0 mt-auto">
+            <CardFooter className="p-4 pt-0 mt-auto flex items-center gap-2">
                 <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(student)}>
-                    <Edit className="mr-2 h-4 w-4" /> Edit Details
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                </Button>
+                <Button variant="destructive" size="icon" className="flex-shrink-0" onClick={() => onDelete(student)}>
+                    <Trash2 className="h-4 w-4" />
                 </Button>
             </CardFooter>
         </Card>
@@ -172,6 +175,27 @@ function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: bool
     );
 }
 
+// Confirmation Modal for Deletion
+function DeleteConfirmationModal({ isOpen, onClose, onConfirm, title, description, isLoading }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; description: string; isLoading: boolean; }) {
+    if (!isOpen) return null;
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{title}</DialogTitle>
+                    <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button>
+                    <Button variant="destructive" onClick={onConfirm} disabled={isLoading}>
+                        {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</> : 'Confirm Delete'}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 // Main Page Component
 export default function ManageStudentsPage() {
     const { user: authUser } = useUserData();
@@ -179,8 +203,13 @@ export default function ManageStudentsPage() {
     const [students, setStudents] = useState<StudentProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // State for modals
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [classToDelete, setClassToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const fetchData = async (admin: AdminProfile) => {
         setLoading(true);
@@ -191,7 +220,7 @@ export default function ManageStudentsPage() {
                 query = query.eq('batch', admin.batch);
             }
 
-            const { data, error } = await query;
+            const { data, error } = await query.order('name', { ascending: true });
 
             if (error) throw error;
             setStudents(data || []);
@@ -223,16 +252,50 @@ export default function ManageStudentsPage() {
                 setLoading(false);
             }
         };
-        fetchAdminProfile();
+        if (authUser) fetchAdminProfile();
     }, [authUser]);
 
     const handleEditClick = (student: StudentProfile) => {
         setSelectedStudent(student);
-        setIsModalOpen(true);
+        setIsEditModalOpen(true);
     };
 
-    const handleSaveSuccess = () => {
-        if (adminProfile) fetchData(adminProfile);
+    const handleDeleteClick = (student: StudentProfile) => {
+        setSelectedStudent(student);
+        setIsDeleteModalOpen(true);
+    };
+
+    const handleDeleteClassClick = (classId: string) => {
+        setClassToDelete(classId);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        setIsDeleting(true);
+        try {
+            const endpoint = classToDelete ? '/api/delete-class' : '/api/delete-user';
+            const body = classToDelete ? { class_id: classToDelete } : { uid: selectedStudent?.uid };
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Deletion failed');
+
+            toast.success(classToDelete ? `Successfully deleted all students in ${classToDelete}.` : 'Student deleted successfully.');
+            if (adminProfile) fetchData(adminProfile); // Refresh data
+
+        } catch (err: any) {
+            toast.error('Deletion failed', { description: err.message });
+        } finally {
+            setIsDeleting(false);
+            setIsDeleteModalOpen(false);
+            setSelectedStudent(null);
+            setClassToDelete(null);
+        }
     };
 
     const groupedStudents = students.reduce((acc, student) => {
@@ -246,7 +309,7 @@ export default function ManageStudentsPage() {
         <div className="h-full w-full p-4 md:p-6">
             <div className="mb-6">
                 <h1 className="text-3xl font-bold">Manage Students</h1>
-                <p className="text-muted-foreground">View and edit student profiles.</p>
+                <p className="text-muted-foreground">View, edit, and manage student profiles.</p>
             </div>
 
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
@@ -257,26 +320,40 @@ export default function ManageStudentsPage() {
                 </div>
             ) : adminProfile?.role === 'officer' ? (
                 <Tabs defaultValue={Object.keys(groupedStudents)[0] || ''} className="w-full">
-                    <TabsList>
-                        {Object.keys(groupedStudents).map(classId => (
+                    <TabsList className="overflow-x-auto h-auto">
+                        {Object.keys(groupedStudents).sort().map(classId => (
                             <TabsTrigger key={classId} value={classId}>{classId}</TabsTrigger>
                         ))}
                     </TabsList>
                     {Object.entries(groupedStudents).map(([classId, studentList]) => (
-                        <TabsContent key={classId} value={classId}>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
-                                {studentList.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} />)}
+                        <TabsContent key={classId} value={classId} className="mt-4">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-semibold">{classId} ({studentList.length} Students)</h3>
+                                <Button variant="destructive" size="sm" onClick={() => handleDeleteClassClick(classId)}>
+                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Class
+                                </Button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                {studentList.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
                             </div>
                         </TabsContent>
                     ))}
                 </Tabs>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {students.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} />)}
+                    {students.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
                 </div>
             )}
 
-            <EditStudentModal isOpen={isModalOpen} setIsOpen={setIsModalOpen} student={selectedStudent} onSave={handleSaveSuccess} />
+            <EditStudentModal isOpen={isEditModalOpen} setIsOpen={setIsEditModalOpen} student={selectedStudent} onSave={() => { if(adminProfile) fetchData(adminProfile) }} />
+            <DeleteConfirmationModal
+                isOpen={isDeleteModalOpen}
+                onClose={() => setIsDeleteModalOpen(false)}
+                onConfirm={confirmDelete}
+                isLoading={isDeleting}
+                title={classToDelete ? `Delete Class: ${classToDelete}?` : `Delete Student: ${selectedStudent?.name}?`}
+                description={classToDelete ? `Are you sure you want to delete all students in this class? This action is irreversible.` : `Are you sure you want to delete this student? This action is irreversible.`}
+            />
         </div>
     );
 }

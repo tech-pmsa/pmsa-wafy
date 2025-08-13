@@ -69,10 +69,10 @@ export default function ProfileSection() {
     const table = isStudent ? 'students' : 'profiles';
     const bucket = 'avatars';
 
-    const { name, phone, guardian, g_phone, address, designation } = form;
+    const { name, phone, guardian, g_phone, address, designation, batch } = form;
     let updatedData: any = isStudent
       ? { name, phone, guardian, g_phone, address }
-      : { name, designation };
+      : { name, designation, batch };
 
     if (file) {
       const filePath = `${user.id}/${Date.now()}-${file.name}`;
@@ -136,7 +136,7 @@ export default function ProfileSection() {
                   <>
                     <ReadOnlyField label="Email" value={details.email} icon={Mail} />
                     <ReadOnlyField label='Designation' value={details.designation} icon={Shield}/>
-                    <ReadOnlyField label="Status" value={form.batch} icon={Building} />
+                    <div className="space-y-2"><Label htmlFor="relation">Related to</Label><Input id="relation" value={form.batch || ''} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></div>
                   </>
                 )}
               </div>
@@ -173,7 +173,7 @@ export default function ProfileSection() {
             <>
               <ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} />
               <ProfileInfoLine icon={Mail} label="Email" value={details.email} />
-              <ProfileInfoLine icon={Building} label="Status" value={details.batch} />
+              <ProfileInfoLine icon={Building} label="Related to" value={details.batch} />
             </>
           )}
         </div>

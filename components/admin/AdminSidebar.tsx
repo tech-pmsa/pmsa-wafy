@@ -12,9 +12,9 @@ const allNavItems = [
     { href: '/admins/classroom/class-dashboard', label: 'Class Dashboard', icon: School, roles: ['class'] },
     { href: '/admins/classleader/class-leader-dashboard', label: 'Leader Dashboard', icon: BookUser, roles: ['class-leader'] },
     { href: '/admins/manage-students', label: 'Manage Students', icon: Users, roles: ['officer', 'class'] },
-    { href: '/admins/manage-staff', label: 'Manage Staff', icon: UserCheck, roles: ['officer'] },
+    { href: '/admins/officer/manage-staff', label: 'Manage Staff', icon: UserCheck, roles: ['officer'] },
     // CORRECTED: The path for settings
-    { href: '/admins/settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
+    { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
 ];
 
 export default function AdminSidebar() {

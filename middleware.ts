@@ -75,6 +75,9 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/admins/admin-settings')) {
         return res; // Continue without redirecting
     }
+    if (pathname.startsWith('/admins/manage-students')) {
+        return res; // Continue without redirecting
+    }
     // ======================================================
     // END OF FIX
     // ======================================================

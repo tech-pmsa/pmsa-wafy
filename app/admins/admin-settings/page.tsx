@@ -9,7 +9,6 @@ import { Loader2, User } from 'lucide-react'
 import AddStudents from '@/components/AddStudents'
 import ClassCouncil from '@/components/ClassCouncil'
 import AddBulkStudents from '@/components/AddBulkStudents'
-import AddAdmin from '@/components/AddAdmin'
 import ProfileSection from '@/components/ProfileSection'
 
 export default function AdminSettingsPage() {
@@ -78,15 +77,6 @@ export default function AdminSettingsPage() {
                     </CardHeader>
                     <CardContent>
                         <AddBulkStudents />
-                    </CardContent>
-                </Card>
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle>Add New Admin/Staff</CardTitle>
-                        <CardDescription>Create a new user with administrative privileges.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <AddAdmin />
                     </CardContent>
                 </Card>
             </div>

@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Progress } from '@/components/ui/progress'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { User, GraduationCap, Phone, Home, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { User, GraduationCap, Phone, Loader2, CheckCircle2 } from 'lucide-react'
 
 function ReviewItem({ label, value }: { label: string; value: string | undefined }) {
   return (
@@ -24,6 +24,10 @@ const initialFormData = {
     guardian: '', g_phone: '', address: '', sslc: '', plustwo: '', plustwo_streams: '',
 };
 
+const classOptions = [
+    "TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4", "Foundation A", "Foundation B"
+];
+
 export default function AddStudents() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState(initialFormData)
@@ -33,6 +37,10 @@ export default function AddStudents() {
     const { name, value } = e.target
     setFormData({ ...formData, [name]: value })
   }
+
+  const handleClassChange = (value: string) => {
+    setFormData({ ...formData, class_id: value });
+  };
 
   const nextStep = () => setStep(prev => prev < 4 ? prev + 1 : prev)
   const prevStep = () => setStep(prev => prev > 1 ? prev - 1 : prev)
@@ -87,8 +95,8 @@ export default function AddStudents() {
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-6 min-h-[250px]">
           {step === 1 && (<div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="name">Full Name</Label><Input required id="name" name="name" placeholder="e.g., Mohammed Shuhaib M" onChange={handleChange} value={formData.name} /></div><div className="space-y-2"><Label htmlFor="cic">CIC Number (Unique)</Label><Input required id="cic" name="cic" placeholder="e.g., 16828" onChange={handleChange} value={formData.cic} /></div></div>)}
-          {step === 2 && (<div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="class_id">Class ID</Label><Input required id="class_id" name="class_id" placeholder="e.g., AL-4, TH-2" onChange={handleChange} value={formData.class_id} /></div><div className="space-y-2"><Label htmlFor="council">Council</Label><Input required id="council" name="council" placeholder="e.g., INSHIRAH" onChange={handleChange} value={formData.council} /></div><div className="space-y-2"><Label htmlFor="batch">Batch</Label><Input required id="batch" name="batch" placeholder="e.g., Batch 12" onChange={handleChange} value={formData.batch} /></div><div className="space-y-2"><Label htmlFor="sslc">SSLC Board</Label><Input required id="sslc" name="sslc" placeholder="e.g., Kerala Board" onChange={handleChange} value={formData.sslc} /></div><div className="space-y-2"><Label htmlFor="plustwo">Plus Two Board</Label><Input required id="plustwo" name="plustwo" placeholder="e.g., Kerala Board" onChange={handleChange} value={formData.plustwo} /></div><div className="space-y-2"><Label htmlFor="plustwo_streams">Plus Two Stream</Label><Input required id="plustwo_streams" name="plustwo_streams" placeholder="e.g., Science" onChange={handleChange} value={formData.plustwo_streams} /></div></div>)}
-          {step === 3 && (<div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="phone">Student Phone</Label><Input required id="phone" name="phone" onChange={handleChange} value={formData.phone} /></div><div className="space-y-2"><Label htmlFor="guardian">Guardian Name</Label><Input required id="guardian" name="guardian" onChange={handleChange} value={formData.guardian} /></div><div className="space-y-2"><Label htmlFor="g_phone">Guardian Phone</Label><Input required id="g_phone" name="g_phone" onChange={handleChange} value={formData.g_phone} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="address">Address</Label><Textarea required id="address" name="address" onChange={handleChange} value={formData.address} /></div></div>)}
+          {step === 2 && (<div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="class_id">Class ID</Label><Select required onValueChange={handleClassChange} value={formData.class_id}><SelectTrigger id="class_id"><SelectValue placeholder="Select a class" /></SelectTrigger><SelectContent>{classOptions.map(option => (<SelectItem key={option} value={option}>{option}</SelectItem>))}</SelectContent></Select></div><div className="space-y-2"><Label htmlFor="council">Council</Label><Input required id="council" name="council" placeholder="e.g., INSHIRAH" onChange={handleChange} value={formData.council} /></div><div className="space-y-2"><Label htmlFor="batch">Batch</Label><Input required id="batch" name="batch" placeholder="e.g., Batch 12" onChange={handleChange} value={formData.batch} /></div><div className="space-y-2"><Label htmlFor="sslc">SSLC Board</Label><Input required id="sslc" name="sslc" placeholder="e.g., Board Of Kerala" onChange={handleChange} value={formData.sslc} /></div><div className="space-y-2"><Label htmlFor="plustwo">Plus Two Board</Label><Input required id="plustwo" name="plustwo" placeholder="e.g., Board Of Kerala" onChange={handleChange} value={formData.plustwo} /></div><div className="space-y-2"><Label htmlFor="plustwo_streams">Plus Two Stream</Label><Input required id="plustwo_streams" name="plustwo_streams" placeholder="e.g., Humanities" onChange={handleChange} value={formData.plustwo_streams} /></div></div>)}
+          {step === 3 && (<div className="grid sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="phone">Student Phone</Label><Input required id="phone" name="phone" placeholder="e.g., +91 96451 84118" onChange={handleChange} value={formData.phone} /></div><div className="space-y-2"><Label htmlFor="guardian">Guardian Name</Label><Input required id="guardian" name="guardian" placeholder="e.g., Muneer S" onChange={handleChange} value={formData.guardian} /></div><div className="space-y-2"><Label htmlFor="g_phone">Guardian Phone</Label><Input required id="g_phone" name="g_phone" placeholder="e.g., +91 96451 84118" onChange={handleChange} value={formData.g_phone} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="address">Address</Label><Textarea required id="address" name="address" placeholder="e.g., Madeena Manzil HOUSE, Perunguzhi, THIRUVANANTHAPURAM, Chirayinkeezhu BLOCK, Chirayinkeezhu PANCHAYATH, Perunguzhi (PO), PIN - 695305" onChange={handleChange} value={formData.address} /></div></div>)}
           {step === 4 && (<div className="space-y-4"><div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 border-t pt-4"><ReviewItem label="Name" value={formData.name} /><ReviewItem label="CIC" value={formData.cic} /><ReviewItem label="Class" value={formData.class_id} /><ReviewItem label="Batch" value={formData.batch} /><ReviewItem label="Council" value={formData.council} /><ReviewItem label="SSLC" value={formData.sslc} /><ReviewItem label="Plus Two" value={formData.plustwo} /><ReviewItem label="Plus Two Stream" value={formData.plustwo_streams} /><ReviewItem label="Student Phone" value={formData.phone} /><ReviewItem label="Guardian" value={formData.guardian} /><ReviewItem label="Guardian Phone" value={formData.g_phone} /><ReviewItem label="Address" value={formData.address} /></div></div>)}
         </CardContent>
         <CardFooter className="flex justify-between border-t pt-6">

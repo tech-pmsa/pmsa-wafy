@@ -9,7 +9,7 @@ const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY!.replace(/\\n/g, '\n')
 let cachedData: Record<string, { headers: string[]; rows: any[] }> | null = null
 let lastFetchTime = 0
 // UPDATED: Cache duration is now 15 minutes
-const CACHE_DURATION = 15 * 60 * 1000
+const CACHE_DURATION = 30 * 60 * 1000
 
 export async function GET() {
   const now = Date.now()

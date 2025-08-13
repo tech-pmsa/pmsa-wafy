@@ -135,8 +135,8 @@ export default function ProfileSection() {
                 ) : (
                   <>
                     <ReadOnlyField label="Email" value={details.email} icon={Mail} />
-                    <div className="space-y-2"><Label htmlFor="designation">Designation</Label><Input id="designation" value={form.designation || ''} onChange={(e) => setForm({ ...form, designation: e.target.value })} /></div>
-                    <ReadOnlyField label="Batch (if applicable)" value={form.batch} icon={Shield} />
+                    <ReadOnlyField label='Designation' value={details.designation} icon={Shield}/>
+                    <ReadOnlyField label="Status" value={form.batch} icon={Building} />
                   </>
                 )}
               </div>
@@ -173,7 +173,7 @@ export default function ProfileSection() {
             <>
               <ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} />
               <ProfileInfoLine icon={Mail} label="Email" value={details.email} />
-              <ProfileInfoLine icon={Building} label="Batch (if applicable)" value={details.batch} />
+              <ProfileInfoLine icon={Building} label="Status" value={details.batch} />
             </>
           )}
         </div>

@@ -1,10 +1,10 @@
 // app/admins/manage-students/page.tsx
 'use client';
 
-import { useEffect, useState, useRef, ChangeEvent, FormEvent } from 'react';
+import { useEffect, useState, useRef, ChangeEvent, FormEvent, useMemo } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { supabase } from '@/lib/supabaseClient';
+
 import { useUserData } from '@/hooks/useUserData';
 
 // Shadcn/UI & Icon Components
@@ -17,8 +17,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2 } from 'lucide-react';
+import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/lib/supabaseClient';
 
 // Define types
 interface StudentProfile {
@@ -33,6 +34,9 @@ interface StudentProfile {
     g_phone: string | null;
     address: string | null;
     img_url: string | null;
+    sslc: string | null;
+    plustwo: string | null;
+    plustwo_streams: string | null;
 }
 
 interface AdminProfile {
@@ -42,7 +46,7 @@ interface AdminProfile {
 }
 
 // Reusable Student Card Component
-function StudentCard({ student, onEdit, onDelete }: { student: StudentProfile; onEdit: (student: StudentProfile) => void; onDelete: (student: StudentProfile) => void; }) {
+function StudentCard({ student, onView, onEdit, onDelete }: { student: StudentProfile; onView: (student: StudentProfile) => void; onEdit: (student: StudentProfile) => void; onDelete: (student: StudentProfile) => void; }) {
     return (
         <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl">
             <CardHeader className="flex flex-row items-center gap-4 p-4">
@@ -61,18 +65,60 @@ function StudentCard({ student, onEdit, onDelete }: { student: StudentProfile; o
                 <div className="flex items-center gap-2"><Phone className="h-4 w-4 flex-shrink-0" /><span>{student.phone || 'N/A'}</span></div>
             </CardContent>
             <CardFooter className="p-4 pt-0 mt-auto flex items-center gap-2">
-                <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(student)}>
-                    <Edit className="mr-2 h-4 w-4" /> Edit
-                </Button>
-                <Button variant="destructive" size="icon" className="flex-shrink-0" onClick={() => onDelete(student)}>
-                    <Trash2 className="h-4 w-4" />
-                </Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => onView(student)}><View className="mr-2 h-4 w-4" /> View</Button>
+                <Button variant="outline" size="sm" className="w-full" onClick={() => onEdit(student)}><Edit className="mr-2 h-4 w-4" /> Edit</Button>
+                <Button variant="destructive" size="icon" className="flex-shrink-0" onClick={() => onDelete(student)}><Trash2 className="h-4 w-4" /></Button>
             </CardFooter>
         </Card>
     );
 }
 
-// Edit Modal Component
+// View Details Modal Component
+function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; }) {
+    if (!student) return null;
+
+    const details = [
+        { label: 'CIC', value: student.cic },
+        { label: 'Class', value: student.class_id },
+        { label: 'Batch', value: student.batch },
+        { label: 'Council', value: student.council },
+        { label: 'Phone', value: student.phone },
+        { label: 'Guardian', value: student.guardian },
+        { label: 'Guardian Phone', value: student.g_phone },
+        { label: 'SSLC Board', value: student.sslc },
+        { label: 'Plus Two Board', value: student.plustwo },
+        { label: 'Plus Two Stream', value: student.plustwo_streams },
+        { label: 'Address', value: student.address, fullWidth: true },
+    ];
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader className="flex flex-col items-center text-center">
+                    <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
+                        <AvatarImage src={student.img_url || undefined} alt={student.name} />
+                        <AvatarFallback><User className="h-12 w-12" /></AvatarFallback>
+                    </Avatar>
+                    <DialogTitle className="text-2xl">{student.name}</DialogTitle>
+                    <DialogDescription>Full student profile details.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+                    {details.map(item => (
+                        <div key={item.label} className={item.fullWidth ? 'sm:col-span-2' : ''}>
+                            <Label className="text-xs text-muted-foreground">{item.label}</Label>
+                            <p className="font-medium">{item.value || 'N/A'}</p>
+                        </div>
+                    ))}
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild><Button>Close</Button></DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+// Edit Modal Component (no major changes needed)
 function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; onSave: () => void; }) {
     const [formData, setFormData] = useState<Partial<StudentProfile>>({});
     const [preview, setPreview] = useState<string | null>(null);
@@ -132,7 +178,7 @@ function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: bool
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="max-w-2xl">
                 <form onSubmit={handleSave}>
                     <DialogHeader>
                         <DialogTitle>Edit Student Profile</DialogTitle>
@@ -203,9 +249,11 @@ export default function ManageStudentsPage() {
     const [students, setStudents] = useState<StudentProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // State for modals
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [classToDelete, setClassToDelete] = useState<string | null>(null);
@@ -255,6 +303,11 @@ export default function ManageStudentsPage() {
         if (authUser) fetchAdminProfile();
     }, [authUser]);
 
+    const handleViewClick = (student: StudentProfile) => {
+        setSelectedStudent(student);
+        setIsViewModalOpen(true);
+    };
+
     const handleEditClick = (student: StudentProfile) => {
         setSelectedStudent(student);
         setIsEditModalOpen(true);
@@ -286,7 +339,7 @@ export default function ManageStudentsPage() {
             if (!res.ok) throw new Error(data.error || 'Deletion failed');
 
             toast.success(classToDelete ? `Successfully deleted all students in ${classToDelete}.` : 'Student deleted successfully.');
-            if (adminProfile) fetchData(adminProfile); // Refresh data
+            if (adminProfile) fetchData(adminProfile);
 
         } catch (err: any) {
             toast.error('Deletion failed', { description: err.message });
@@ -298,7 +351,15 @@ export default function ManageStudentsPage() {
         }
     };
 
-    const groupedStudents = students.reduce((acc, student) => {
+    const filteredStudents = useMemo(() => {
+        if (!searchQuery) return students;
+        return students.filter(student =>
+            student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            student.cic?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [students, searchQuery]);
+
+    const groupedStudents = filteredStudents.reduce((acc, student) => {
         const key = student.class_id || 'Unassigned';
         if (!acc[key]) acc[key] = [];
         acc[key].push(student);
@@ -307,9 +368,20 @@ export default function ManageStudentsPage() {
 
     return (
         <div className="h-full w-full p-4 md:p-6">
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold">Manage Students</h1>
-                <p className="text-muted-foreground">View, edit, and manage student profiles.</p>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+                <div>
+                    <h1 className="text-3xl font-bold">Manage Students</h1>
+                    <p className="text-muted-foreground">View, edit, and manage student profiles.</p>
+                </div>
+                <div className="relative w-full sm:w-auto">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name or CIC..."
+                        className="pl-10 w-full sm:w-64"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
             </div>
 
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
@@ -334,17 +406,18 @@ export default function ManageStudentsPage() {
                                 </Button>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                {studentList.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
+                                {studentList.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
                             </div>
                         </TabsContent>
                     ))}
                 </Tabs>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {students.map(student => <StudentCard key={student.uid} student={student} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
+                    {filteredStudents.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}
                 </div>
             )}
 
+            <ViewStudentModal isOpen={isViewModalOpen} setIsOpen={setIsViewModalOpen} student={selectedStudent} />
             <EditStudentModal isOpen={isEditModalOpen} setIsOpen={setIsEditModalOpen} student={selectedStudent} onSave={() => { if(adminProfile) fetchData(adminProfile) }} />
             <DeleteConfirmationModal
                 isOpen={isDeleteModalOpen}

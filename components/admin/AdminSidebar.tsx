@@ -14,14 +14,18 @@ const allNavItems = [
     { href: '/admins/officer/officer-dashboard', label: 'Officer Dashboard', icon: LayoutDashboard, roles: ['officer'] },
     { href: '/admins/classroom/class-dashboard', label: 'Class Dashboard', icon: School, roles: ['class'] },
     { href: '/admins/classleader/class-leader-dashboard', label: 'Leader Dashboard', icon: BookUser, roles: ['class-leader'] },
-    // New Notifications link for class teachers
     { href: '/admins/classroom/notifications', label: 'Notifications', icon: Bell, roles: ['class'], notification: 'achievements' },
     { href: '/admins/manage-students', label: 'Manage Students', icon: Users, roles: ['officer', 'class'] },
     { href: '/admins/officer/manage-staff', label: 'Manage Staff', icon: UserCheck, roles: ['officer'] },
     { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
 ];
 
-export default function AdminSidebar() {
+// Define props to accept the click handler
+interface AdminSidebarProps {
+  onLinkClick?: () => void;
+}
+
+export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
     const pathname = usePathname();
     const { role, details, loading } = useUserData();
     const [notificationCount, setNotificationCount] = useState(0);
@@ -72,6 +76,7 @@ export default function AdminSidebar() {
                             <li key={item.href}>
                                 <Link
                                     href={item.href}
+                                    onClick={onLinkClick} // Call the closing function on click
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-primary/10",
                                         (pathname === item.href || pathname.startsWith(`${item.href}/`)) && "bg-primary/10 text-primary font-semibold"

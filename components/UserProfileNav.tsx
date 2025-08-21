@@ -61,7 +61,7 @@ export default function UserProfileNav() {
         <Button variant="ghost" className="relative h-auto p-1.5 flex items-center gap-2">
             <span className="font-medium text-sm hidden sm:inline-block">{details.name}</span>
             <Avatar className="h-9 w-9">
-                <AvatarImage src={details.img_url} alt={details.name} />
+                <AvatarImage src={details.img_url} alt={details.name} className='object-cover' />
                 <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
             </Avatar>
             <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:inline-block"/>

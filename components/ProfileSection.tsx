@@ -119,7 +119,7 @@ export default function ProfileSection() {
           <DialogContent className="lg:max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Edit Your Profile</DialogTitle><DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription></DialogHeader>
             <div className="flex flex-col md:flex-row gap-8 py-4">
-              <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8"><Avatar className="h-32 w-32"><AvatarImage src={preview || details.img_url} alt="Avatar Preview" /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button><Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" /></div>
+              <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8"><Avatar className="h-32 w-32"><AvatarImage src={preview || details.img_url} alt="Avatar Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button><Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" /></div>
               <div className="grid gap-4 md:w-2/3 sm:grid-cols-2">
                 <div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Full Name</Label><Input id="name" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
                 {isStudent ? (
@@ -147,7 +147,7 @@ export default function ProfileSection() {
       </CardHeader>
       <CardContent className="flex flex-col md:flex-row gap-8 pt-6">
         <div className="flex flex-col items-center text-center gap-2 md:w-1/4">
-          <Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
+          <Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
           <h2 className="text-2xl font-bold mt-2">{details.name}</h2>
           <Badge variant="secondary" className="capitalize">{details.role}</Badge>
           <p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p>

@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, ChangeEvent, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useUserData } from '@/hooks/useUserData'
 
 // Shadcn/UI & Icon Components
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -14,7 +14,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked } from 'lucide-react' // Added BookMarked icon
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked, PlusCircle, Trash2 } from 'lucide-react'
+
+// --- EDITED: Define types for Academic Marks with string types ---
+interface AcademicMark {
+    id?: number;
+    title: string;
+    marks_obtained: string; // Changed to string
+    total_marks: string;    // Changed to string
+}
 
 function ProfileInfoLine({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | null | undefined }) {
   return (
@@ -37,6 +46,77 @@ function ReadOnlyField({ label, value, icon: Icon }: { label: string, value: str
   )
 }
 
+// --- EDITED: Modal for Adding/Editing Academic Marks ---
+function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; mark: AcademicMark | null; onSave: () => void; }) {
+    const { user } = useUserData();
+    const [formData, setFormData] = useState<AcademicMark>({ title: '', marks_obtained: '', total_marks: '' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (mark) {
+            setFormData(mark);
+        } else {
+            setFormData({ title: '', marks_obtained: '', total_marks: '' });
+        }
+    }, [mark]);
+
+    const handleSave = async (e: FormEvent) => {
+        e.preventDefault();
+        if (!user) return;
+        setIsSaving(true);
+
+        const dataToSave = {
+            ...formData,
+            student_uid: user.id,
+        };
+
+        const { error } = await supabase.from('academic_marks').upsert(dataToSave);
+
+        if (error) {
+            console.error("Error saving mark:", error);
+        } else {
+            onSave();
+            setIsOpen(false);
+        }
+        setIsSaving(false);
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent>
+                <form onSubmit={handleSave}>
+                    <DialogHeader>
+                        <DialogTitle>{mark?.id ? 'Edit' : 'Add'} Academic Mark</DialogTitle>
+                        <DialogDescription>Enter the details for this academic achievement.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label htmlFor="title">Exam / Semester Title</Label>
+                            <Input id="title" placeholder="e.g., SSLC, TH-1 SEM-1" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="marks_obtained">Marks Obtained</Label>
+                                {/* EDITED: Changed type to text and removed parseInt */}
+                                <Input id="marks_obtained" type="text" placeholder="e.g., 90% or 5A+" value={formData.marks_obtained} onChange={(e) => setFormData({...formData, marks_obtained: e.target.value})} required />
+                            </div>
+                            <div>
+                                <Label htmlFor="total_marks">Out of (Total)</Label>
+                                {/* EDITED: Changed type to text and removed parseInt */}
+                                <Input id="total_marks" type="text" placeholder="e.g., 100% or 12A+" value={formData.total_marks} onChange={(e) => setFormData({...formData, total_marks: e.target.value})} required />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Mark</Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function ProfileSection() {
   const router = useRouter();
   const { user, details, role, loading } = useUserData();
@@ -48,11 +128,20 @@ export default function ProfileSection() {
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [marks, setMarks] = useState<AcademicMark[]>([]);
+  const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
+  const [selectedMark, setSelectedMark] = useState<AcademicMark | null>(null);
+
+  const fetchMarks = async () => {
+    if (!user) return;
+    const { data, error } = await supabase.from('academic_marks').select('*').eq('student_uid', user.id).order('created_at');
+    if (data) setMarks(data);
+  };
+
   useEffect(() => {
-    if (details) {
-      setForm(details);
-    }
-  }, [details]);
+    if (details) setForm(details);
+    if (role === 'student') fetchMarks();
+  }, [details, role, user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -64,21 +153,16 @@ export default function ProfileSection() {
   const handleSave = async () => {
     if (!user || !role) return;
     setIsSaving(true);
-
     const isStudent = role === 'student';
     const table = isStudent ? 'students' : 'profiles';
-    const bucket = 'avatars';
-
     const { name, phone, guardian, g_phone, address, designation, batch } = form;
-    let updatedData: any = isStudent
-      ? { name, phone, guardian, g_phone, address }
-      : { name, designation, batch };
+    let updatedData: any = isStudent ? { name, phone, guardian, g_phone, address } : { name, designation, batch };
 
     if (file) {
-      const filePath = `${user.id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+      const filePath = `avatars/${user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
       if (uploadError) { console.error("Upload Error:", uploadError); setIsSaving(false); return; }
-      const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
       updatedData.img_url = `${urlData.publicUrl}?t=${new Date().getTime()}`;
     }
 
@@ -92,15 +176,14 @@ export default function ProfileSection() {
     setIsSaving(false);
   }
 
+  const handleMarkDelete = async (markId: number) => {
+    const { error } = await supabase.from('academic_marks').delete().eq('id', markId);
+    if (!error) fetchMarks();
+  };
+
   if (loading) {
     return (
-        <Card>
-            <CardHeader><Skeleton className="h-8 w-48" /></CardHeader>
-            <CardContent className="flex flex-col md:flex-row gap-8">
-                <div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div>
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div>
-            </CardContent>
-        </Card>
+        <Card><CardHeader><Skeleton className="h-8 w-48" /></CardHeader><CardContent className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card>
     );
   }
 
@@ -111,76 +194,57 @@ export default function ProfileSection() {
   const isStudent = role === 'student';
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div><CardTitle className="text-2xl">Your Profile</CardTitle><CardDescription>View and manage your personal information.</CardDescription></div>
-        <Dialog open={editOpen} onOpenChange={setEditOpen}>
-          <DialogTrigger asChild><Button variant="outline"><Pencil className="w-4 h-4 mr-2" /> Edit Profile</Button></DialogTrigger>
-          <DialogContent className="lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader><DialogTitle>Edit Your Profile</DialogTitle><DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription></DialogHeader>
-            <div className="flex flex-col md:flex-row gap-8 py-4">
-              <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8"><Avatar className="h-32 w-32"><AvatarImage src={preview || details.img_url} alt="Avatar Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button><Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" /></div>
-              <div className="grid gap-4 md:w-2/3 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Full Name</Label><Input id="name" value={form.name || ''} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-                {isStudent ? (
-                  <>
-                    <ReadOnlyField label="CIC" value={form.cic} icon={UserCheck} />
-                    <ReadOnlyField label="Class" value={form.class_id} icon={Building} />
-                    <ReadOnlyField label="Batch" value={form.batch} icon={Shield} />
-                    <div className="space-y-2"><Label htmlFor="phone">Phone</Label><Input id="phone" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-                    <div className="space-y-2"><Label htmlFor="guardian">Guardian Name</Label><Input id="guardian" value={form.guardian || ''} onChange={(e) => setForm({ ...form, guardian: e.target.value })} /></div>
-                    <div className="space-y-2"><Label htmlFor="g_phone">Guardian Phone</Label><Input id="g_phone" value={form.g_phone || ''} onChange={(e) => setForm({ ...form, g_phone: e.target.value })} /></div>
-                    <div className="space-y-2 sm:col-span-2"><Label htmlFor="address">Address</Label><Input id="address" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-                  </>
-                ) : (
-                  <>
-                    <ReadOnlyField label="Email" value={details.email} icon={Mail} />
-                    <ReadOnlyField label='Designation' value={details.designation} icon={Shield}/>
-                    <div className="space-y-2"><Label htmlFor="relation">Related to</Label><Input id="relation" value={form.batch || ''} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></div>
-                  </>
-                )}
-              </div>
-            </div>
-            <DialogFooter><Button onClick={() => setEditOpen(false)} variant="ghost">Cancel</Button><Button onClick={handleSave} disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button></DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Dialog open={editOpen} onOpenChange={setEditOpen}><DialogTrigger asChild><Button variant="outline"><Pencil className="w-4 h-4 mr-2" /> Edit Profile</Button></DialogTrigger><DialogContent className="lg:max-w-4xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Edit Your Profile</DialogTitle><DialogDescription>Make changes to your profile here. Click save when you're done.</DialogDescription></DialogHeader><div className="flex flex-col md:flex-row gap-8 py-4"><div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8"><Avatar className="h-32 w-32"><AvatarImage src={preview || details.img_url} alt="Avatar Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button><Input type="file" accept="image/*" onChange={handleFileChange} ref={fileInputRef} className="hidden" /></div><div className="grid gap-4 md:w-2/3 sm:grid-cols-2">{isStudent ? (<><ReadOnlyField label="CIC" value={form.cic} icon={UserCheck} /><ReadOnlyField label="Class" value={form.class_id} icon={Building} /><ReadOnlyField label="Batch" value={form.batch} icon={Shield} /><div className="space-y-2"><Label htmlFor="phone">Phone</Label><Input id="phone" value={form.phone || ''} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div><div className="space-y-2"><Label htmlFor="guardian">Guardian Name</Label><Input id="guardian" value={form.guardian || ''} onChange={(e) => setForm({ ...form, guardian: e.target.value })} /></div><div className="space-y-2"><Label htmlFor="g_phone">Guardian Phone</Label><Input id="g_phone" value={form.g_phone || ''} onChange={(e) => setForm({ ...form, g_phone: e.target.value })} /></div><div className="space-y-2 sm:col-span-2"><Label htmlFor="address">Address</Label><Input id="address" value={form.address || ''} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div></>) : (<><ReadOnlyField label="Email" value={details.email} icon={Mail} /><ReadOnlyField label='Designation' value={details.designation} icon={Shield}/><div className="space-y-2"><Label htmlFor="relation">Related to</Label><Input id="relation" value={form.batch || ''} onChange={(e) => setForm({ ...form, batch: e.target.value })} /></div></>)}</div></div><DialogFooter><Button onClick={() => setEditOpen(false)} variant="ghost">Cancel</Button><Button onClick={handleSave} disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Changes</Button></DialogFooter></DialogContent></Dialog>
       </CardHeader>
-      <CardContent className="flex flex-col md:flex-row gap-8 pt-6">
-        <div className="flex flex-col items-center text-center gap-2 md:w-1/4">
-          <Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
-          <h2 className="text-2xl font-bold mt-2">{details.name}</h2>
-          <Badge variant="secondary" className="capitalize">{details.role}</Badge>
-          <p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p>
-        </div>
-        {/* ====================================================== */}
-        {/* START OF FIX                                         */}
-        {/* ====================================================== */}
-        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">
-          {isStudent ? (
-            <>
-              <ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} />
-              <ProfileInfoLine icon={Building} label="Class" value={details.class_id} />
-              <ProfileInfoLine icon={Shield} label="Council" value={details.council} />
-              <ProfileInfoLine icon={Phone} label="Phone" value={details.phone} />
-              <ProfileInfoLine icon={User} label="Guardian" value={details.guardian} />
-              <ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} />
-              <ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} />
-              <ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} />
-              <ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} />
-              <ProfileInfoLine icon={Home} label="Address" value={details.address} />
-            </>
-          ) : (
-            <>
-              <ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} />
-              <ProfileInfoLine icon={Mail} label="Email" value={details.email} />
-              <ProfileInfoLine icon={Building} label="Related to" value={details.batch} />
-            </>
-          )}
-        </div>
-        {/* ====================================================== */}
-        {/* END OF FIX                                           */}
-        {/* ====================================================== */}
+      <CardContent>
+        <Tabs defaultValue="personal">
+            <TabsList>
+                <TabsTrigger value="personal">Personal Info</TabsTrigger>
+                {isStudent && <TabsTrigger value="academics">Academics</TabsTrigger>}
+            </TabsList>
+            <TabsContent value="personal" className="pt-6">
+                <div className="flex flex-col md:flex-row gap-8">
+                    <div className="flex flex-col items-center text-center gap-2 md:w-1/4"><Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><h2 className="text-2xl font-bold mt-2">{details.name}</h2><Badge variant="secondary" className="capitalize">{details.role}</Badge><p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p></div>
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">{isStudent ? (<><ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} /><ProfileInfoLine icon={Building} label="Class" value={details.class_id} /><ProfileInfoLine icon={Shield} label="Council" value={details.council} /><ProfileInfoLine icon={Phone} label="Phone" value={details.phone} /><ProfileInfoLine icon={User} label="Guardian" value={details.guardian} /><ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} /><ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} /><ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} /><ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} /><ProfileInfoLine icon={Home} label="Address" value={details.address} /></>) : (<><ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} /><ProfileInfoLine icon={Mail} label="Email" value={details.email} /><ProfileInfoLine icon={Building} label="Related to" value={details.batch} /></>)}</div>
+                </div>
+            </TabsContent>
+            {isStudent && (
+                <TabsContent value="academics" className="pt-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <div><h3 className="text-lg font-semibold">Academic Marks</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div>
+                        <Button onClick={() => { setSelectedMark(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Mark</Button>
+                    </div>
+                    <div className="border rounded-md">
+                        {marks.length > 0 ? (
+                            <ul className="divide-y">
+                                {marks.map(mark => (
+                                    <li key={mark.id} className="flex items-center justify-between p-3">
+                                        <div>
+                                            <p className="font-semibold">{mark.title}</p>
+                                            {/* EDITED: Display text-based marks */}
+                                            <p className="text-sm text-muted-foreground">Score: {mark.marks_obtained} out of {mark.total_marks}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => { setSelectedMark(mark); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                            <Button variant="ghost" size="icon" onClick={() => handleMarkDelete(mark.id!)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="p-4 text-center text-muted-foreground">No academic marks have been added yet.</p>
+                        )}
+                    </div>
+                </TabsContent>
+            )}
+        </Tabs>
       </CardContent>
     </Card>
+    <MarkEditorModal isOpen={isMarkModalOpen} setIsOpen={setIsMarkModalOpen} mark={selectedMark} onSave={fetchMarks} />
+    </>
   )
 }

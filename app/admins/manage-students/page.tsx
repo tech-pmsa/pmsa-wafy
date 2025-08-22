@@ -51,7 +51,7 @@ function StudentCard({ student, onView, onEdit, onDelete }: { student: StudentPr
         <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl">
             <CardHeader className="flex flex-row items-center gap-4 p-4">
                 <Avatar className="h-16 w-16 flex-shrink-0 border-2 border-primary/20">
-                    <AvatarImage src={student.img_url || undefined} alt={student.name} />
+                    <AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' />
                     <AvatarFallback><User className="h-8 w-8 text-muted-foreground" /></AvatarFallback>
                 </Avatar>
                 <div className="min-w-0 flex-1">
@@ -96,7 +96,7 @@ function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boolean; set
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="flex flex-col items-center text-center">
                     <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
-                        <AvatarImage src={student.img_url || undefined} alt={student.name} />
+                        <AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' />
                         <AvatarFallback><User className="h-12 w-12" /></AvatarFallback>
                     </Avatar>
                     <DialogTitle className="text-2xl">{student.name}</DialogTitle>
@@ -188,7 +188,7 @@ function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: bool
                         <div className="md:col-span-1 flex flex-col items-center gap-4">
                             <div className="relative group h-32 w-32">
                                 <Avatar className="h-full w-full ring-4 ring-primary/20">
-                                    <AvatarImage src={preview || undefined} alt="Profile Preview" />
+                                    <AvatarImage src={preview || undefined} alt="Profile Preview" className='object-cover' />
                                     <AvatarFallback><User className="h-16 w-16" /></AvatarFallback>
                                 </Avatar>
                                 <Label htmlFor="image-upload" className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">

@@ -17,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from '@/components/ui/badge';
 import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -26,6 +27,8 @@ interface AcademicMark {
     title: string;
     marks_obtained: string;
     total_marks: string;
+    status: 'Passed' | 'Failed';
+    failed_subjects: string | null;
 }
 
 interface StudentProfile {
@@ -94,10 +97,7 @@ function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }:
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader className="flex flex-col items-center text-center">
-                    <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20">
-                        <AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' />
-                        <AvatarFallback><User className="h-12 w-12" /></AvatarFallback>
-                    </Avatar>
+                    <Avatar className="h-24 w-24 mb-4 border-4 border-primary/20"><AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' /><AvatarFallback><User className="h-12 w-12" /></AvatarFallback></Avatar>
                     <DialogTitle className="text-2xl">{student.name}</DialogTitle>
                     <DialogDescription>Full student profile details.</DialogDescription>
                 </DialogHeader>
@@ -115,8 +115,13 @@ function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }:
                                 <ul className="divide-y rounded-md border">
                                     {marks.map(mark => (
                                         <li key={mark.id} className="flex items-center justify-between p-3">
-                                            <p className="font-semibold">{mark.title}</p>
-                                            <p className="text-sm text-muted-foreground">{mark.marks_obtained} / {mark.total_marks}</p>
+                                            <div>
+                                                <p className="font-semibold">{mark.title}</p>
+                                                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                    <span>Score: {mark.marks_obtained} / {mark.total_marks}</span>
+                                                    {mark.status === 'Passed' ? <Badge variant="default" className="bg-green-600">Passed</Badge> : <Badge variant="destructive">Failed: {mark.failed_subjects}</Badge>}
+                                                </div>
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -212,7 +217,7 @@ export default function ManageStudentsPage() {
         setIsViewModalOpen(true);
         setIsLoadingMarks(true);
         const { data } = await supabase.from('academic_marks').select('*').eq('student_uid', student.uid);
-        setAcademicMarks(data || []);
+        setAcademicMarks(data as AcademicMark[] || []);
         setIsLoadingMarks(false);
     };
 

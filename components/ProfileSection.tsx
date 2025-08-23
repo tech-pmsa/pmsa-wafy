@@ -15,48 +15,38 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked, PlusCircle, Trash2 } from 'lucide-react'
 
-// --- EDITED: Define types for Academic Marks with string types ---
+// Define types for Academic Marks
 interface AcademicMark {
     id?: number;
     title: string;
-    marks_obtained: string; // Changed to string
-    total_marks: string;    // Changed to string
+    marks_obtained: string;
+    total_marks: string;
+    status: 'Passed' | 'Failed';
+    failed_subjects: string | null;
 }
 
 function ProfileInfoLine({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | null | undefined }) {
-  return (
-    <div className="flex items-start gap-4">
-      <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" />
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium text-neutral-black">{value || 'Not set'}</p>
-      </div>
-    </div>
-  )
+  return ( <div className="flex items-start gap-4"> <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground" aria-hidden="true" /> <div> <p className="text-sm text-muted-foreground">{label}</p> <p className="font-medium text-neutral-black">{value || 'Not set'}</p> </div> </div> )
 }
 
 function ReadOnlyField({ label, value, icon: Icon }: { label: string, value: string, icon: React.ElementType }) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={label} className="flex items-center gap-2 text-muted-foreground"><Lock className="h-3 w-3" /> {label}</Label>
-      <Input id={label} value={value || ''} readOnly disabled className="cursor-not-allowed" />
-    </div>
-  )
+  return ( <div className="space-y-2"> <Label htmlFor={label} className="flex items-center gap-2 text-muted-foreground"><Lock className="h-3 w-3" /> {label}</Label> <Input id={label} value={value || ''} readOnly disabled className="cursor-not-allowed" /> </div> )
 }
 
-// --- EDITED: Modal for Adding/Editing Academic Marks ---
+// Modal for Adding/Editing Academic Marks
 function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; mark: AcademicMark | null; onSave: () => void; }) {
     const { user } = useUserData();
-    const [formData, setFormData] = useState<AcademicMark>({ title: '', marks_obtained: '', total_marks: '' });
+    const [formData, setFormData] = useState<AcademicMark>({ title: '', marks_obtained: '', total_marks: '', status: 'Passed', failed_subjects: null });
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (mark) {
             setFormData(mark);
         } else {
-            setFormData({ title: '', marks_obtained: '', total_marks: '' });
+            setFormData({ title: '', marks_obtained: '', total_marks: '', status: 'Passed', failed_subjects: null });
         }
     }, [mark]);
 
@@ -65,19 +55,16 @@ function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean;
         if (!user) return;
         setIsSaving(true);
 
-        const dataToSave = {
-            ...formData,
-            student_uid: user.id,
-        };
+        const dataToSave = { ...formData, student_uid: user.id, };
+        // Ensure failed_subjects is null if status is 'Passed'
+        if (dataToSave.status === 'Passed') {
+            dataToSave.failed_subjects = null;
+        }
 
         const { error } = await supabase.from('academic_marks').upsert(dataToSave);
 
-        if (error) {
-            console.error("Error saving mark:", error);
-        } else {
-            onSave();
-            setIsOpen(false);
-        }
+        if (error) { console.error("Error saving mark:", error); }
+        else { onSave(); setIsOpen(false); }
         setIsSaving(false);
     };
 
@@ -90,27 +77,23 @@ function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean;
                         <DialogDescription>Enter the details for this academic achievement.</DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-4">
-                        <div>
-                            <Label htmlFor="title">Exam / Semester Title</Label>
-                            <Input id="title" placeholder="e.g., SSLC, TH-1 SEM-1" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required />
-                        </div>
+                        <div><Label htmlFor="title">Exam / Semester Title</Label><Input id="title" placeholder="e.g., SSLC, Wafy Thamheediyya (Sem 1)" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required /></div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="marks_obtained">Marks Obtained</Label>
-                                {/* EDITED: Changed type to text and removed parseInt */}
-                                <Input id="marks_obtained" type="text" placeholder="e.g., 90% or 5A+" value={formData.marks_obtained} onChange={(e) => setFormData({...formData, marks_obtained: e.target.value})} required />
-                            </div>
-                            <div>
-                                <Label htmlFor="total_marks">Out of (Total)</Label>
-                                {/* EDITED: Changed type to text and removed parseInt */}
-                                <Input id="total_marks" type="text" placeholder="e.g., 100% or 12A+" value={formData.total_marks} onChange={(e) => setFormData({...formData, total_marks: e.target.value})} required />
-                            </div>
+                            <div><Label htmlFor="marks_obtained">Marks Obtained</Label><Input id="marks_obtained" type="text" placeholder="e.g., 90% or 5A+" value={formData.marks_obtained} onChange={(e) => setFormData({...formData, marks_obtained: e.target.value})} required /></div>
+                            <div><Label htmlFor="total_marks">Out of (Total)</Label><Input id="total_marks" type="text" placeholder="e.g., 100% or 12A+" value={formData.total_marks} onChange={(e) => setFormData({...formData, total_marks: e.target.value})} required /></div>
                         </div>
+                        <div>
+                            <Label>Status</Label>
+                            <RadioGroup value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as 'Passed' | 'Failed'})} className="flex items-center gap-4 mt-2">
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="Passed" id="passed" /><Label htmlFor="passed">Passed</Label></div>
+                                <div className="flex items-center space-x-2"><RadioGroupItem value="Failed" id="failed" /><Label htmlFor="failed">Failed</Label></div>
+                            </RadioGroup>
+                        </div>
+                        {formData.status === 'Failed' && (
+                            <div><Label htmlFor="failed_subjects">Details (e.g., number of failed subjects)</Label><Input id="failed_subjects" placeholder="e.g., 2 Subjects" value={formData.failed_subjects || ''} onChange={(e) => setFormData({...formData, failed_subjects: e.target.value})} /></div>
+                        )}
                     </div>
-                    <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Mark</Button>
-                    </DialogFooter>
+                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Mark</Button></DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
@@ -120,44 +103,24 @@ function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean;
 export default function ProfileSection() {
   const router = useRouter();
   const { user, details, role, loading } = useUserData();
-
   const [editOpen, setEditOpen] = useState(false);
   const [form, setForm] = useState<any>({});
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [marks, setMarks] = useState<AcademicMark[]>([]);
   const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
   const [selectedMark, setSelectedMark] = useState<AcademicMark | null>(null);
 
-  const fetchMarks = async () => {
-    if (!user) return;
-    const { data, error } = await supabase.from('academic_marks').select('*').eq('student_uid', user.id).order('created_at');
-    if (data) setMarks(data);
-  };
-
-  useEffect(() => {
-    if (details) setForm(details);
-    if (role === 'student') fetchMarks();
-  }, [details, role, user]);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-    setPreview(URL.createObjectURL(f));
-  }
-
+  const fetchMarks = async () => { if (!user) return; const { data } = await supabase.from('academic_marks').select('*').eq('student_uid', user.id).order('created_at'); if (data) setMarks(data); };
+  useEffect(() => { if (details) setForm(details); if (role === 'student') fetchMarks(); }, [details, role, user]);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; setFile(f); setPreview(URL.createObjectURL(f)); }
   const handleSave = async () => {
-    if (!user || !role) return;
-    setIsSaving(true);
-    const isStudent = role === 'student';
-    const table = isStudent ? 'students' : 'profiles';
+    if (!user || !role) return; setIsSaving(true);
+    const isStudent = role === 'student'; const table = isStudent ? 'students' : 'profiles';
     const { name, phone, guardian, g_phone, address, designation, batch } = form;
     let updatedData: any = isStudent ? { name, phone, guardian, g_phone, address } : { name, designation, batch };
-
     if (file) {
       const filePath = `avatars/${user.id}/${Date.now()}-${file.name}`;
       const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
@@ -165,32 +128,13 @@ export default function ProfileSection() {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
       updatedData.img_url = `${urlData.publicUrl}?t=${new Date().getTime()}`;
     }
-
     const { error: updateError } = await supabase.from(table).update(updatedData).eq('uid', user.id);
-    if (updateError) { console.error("Update Error:", updateError); }
-    else { router.refresh(); setEditOpen(false); }
-
-    setFile(null);
-    setPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setIsSaving(false);
+    if (updateError) { console.error("Update Error:", updateError); } else { router.refresh(); setEditOpen(false); }
+    setFile(null); setPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; setIsSaving(false);
   }
-
-  const handleMarkDelete = async (markId: number) => {
-    const { error } = await supabase.from('academic_marks').delete().eq('id', markId);
-    if (!error) fetchMarks();
-  };
-
-  if (loading) {
-    return (
-        <Card><CardHeader><Skeleton className="h-8 w-48" /></CardHeader><CardContent className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card>
-    );
-  }
-
-  if (!details) {
-    return <p className="text-center mt-10 text-muted-foreground">Could not load user profile.</p>
-  }
-
+  const handleMarkDelete = async (markId: number) => { const { error } = await supabase.from('academic_marks').delete().eq('id', markId); if (!error) fetchMarks(); };
+  if (loading) { return ( <Card><CardHeader><Skeleton className="h-8 w-48" /></CardHeader><CardContent className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card> ); }
+  if (!details) { return <p className="text-center mt-10 text-muted-foreground">Could not load user profile.</p> }
   const isStudent = role === 'student';
 
   return (
@@ -207,17 +151,11 @@ export default function ProfileSection() {
                 {isStudent && <TabsTrigger value="academics">Academics</TabsTrigger>}
             </TabsList>
             <TabsContent value="personal" className="pt-6">
-                <div className="flex flex-col md:flex-row gap-8">
-                    <div className="flex flex-col items-center text-center gap-2 md:w-1/4"><Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><h2 className="text-2xl font-bold mt-2">{details.name}</h2><Badge variant="secondary" className="capitalize">{details.role}</Badge><p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p></div>
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">{isStudent ? (<><ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} /><ProfileInfoLine icon={Building} label="Class" value={details.class_id} /><ProfileInfoLine icon={Shield} label="Council" value={details.council} /><ProfileInfoLine icon={Phone} label="Phone" value={details.phone} /><ProfileInfoLine icon={User} label="Guardian" value={details.guardian} /><ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} /><ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} /><ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} /><ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} /><ProfileInfoLine icon={Home} label="Address" value={details.address} /></>) : (<><ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} /><ProfileInfoLine icon={Mail} label="Email" value={details.email} /><ProfileInfoLine icon={Building} label="Related to" value={details.batch} /></>)}</div>
-                </div>
+                <div className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center text-center gap-2 md:w-1/4"><Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><h2 className="text-2xl font-bold mt-2">{details.name}</h2><Badge variant="secondary" className="capitalize">{details.role}</Badge><p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">{isStudent ? (<><ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} /><ProfileInfoLine icon={Building} label="Class" value={details.class_id} /><ProfileInfoLine icon={Shield} label="Council" value={details.council} /><ProfileInfoLine icon={Phone} label="Phone" value={details.phone} /><ProfileInfoLine icon={User} label="Guardian" value={details.guardian} /><ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} /><ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} /><ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} /><ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} /><ProfileInfoLine icon={Home} label="Address" value={details.address} /></>) : (<><ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} /><ProfileInfoLine icon={Mail} label="Email" value={details.email} /><ProfileInfoLine icon={Building} label="Related to" value={details.batch} /></>)}</div></div>
             </TabsContent>
             {isStudent && (
                 <TabsContent value="academics" className="pt-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <div><h3 className="text-lg font-semibold">Academic Marks</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div>
-                        <Button onClick={() => { setSelectedMark(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Mark</Button>
-                    </div>
+                    <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Marks</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedMark(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Mark</Button></div>
                     <div className="border rounded-md">
                         {marks.length > 0 ? (
                             <ul className="divide-y">
@@ -225,8 +163,10 @@ export default function ProfileSection() {
                                     <li key={mark.id} className="flex items-center justify-between p-3">
                                         <div>
                                             <p className="font-semibold">{mark.title}</p>
-                                            {/* EDITED: Display text-based marks */}
-                                            <p className="text-sm text-muted-foreground">Score: {mark.marks_obtained} out of {mark.total_marks}</p>
+                                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                                                <span>Score: {mark.marks_obtained} / {mark.total_marks}</span>
+                                                {mark.status === 'Passed' ? <Badge variant="default" className="bg-green-600">Passed</Badge> : <Badge variant="destructive">Failed: {mark.failed_subjects}</Badge>}
+                                            </div>
                                         </div>
                                         <div className="flex gap-2">
                                             <Button variant="ghost" size="icon" onClick={() => { setSelectedMark(mark); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button>
@@ -235,9 +175,7 @@ export default function ProfileSection() {
                                     </li>
                                 ))}
                             </ul>
-                        ) : (
-                            <p className="p-4 text-center text-muted-foreground">No academic marks have been added yet.</p>
-                        )}
+                        ) : (<p className="p-4 text-center text-muted-foreground">No academic marks have been added yet.</p>)}
                     </div>
                 </TabsContent>
             )}

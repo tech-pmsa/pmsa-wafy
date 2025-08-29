@@ -15,17 +15,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Switch } from "@/components/ui/switch"
 import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked, PlusCircle, Trash2 } from 'lucide-react'
 
-// Define types for Academic Marks
-interface AcademicMark {
+// --- NEW: Define types for new schema ---
+interface SubjectMark {
+    id?: number;
+    subject_name: string;
+    marks_obtained: string;
+    status: boolean; // true = Passed, false = Failed
+}
+interface AcademicEntry {
     id?: number;
     title: string;
-    marks_obtained: string;
-    total_marks: string;
-    status: 'Passed' | 'Failed';
-    failed_subjects: string | null;
+    subject_marks: SubjectMark[];
 }
 
 function ProfileInfoLine({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | null | undefined }) {
@@ -36,64 +40,112 @@ function ReadOnlyField({ label, value, icon: Icon }: { label: string, value: str
   return ( <div className="space-y-2"> <Label htmlFor={label} className="flex items-center gap-2 text-muted-foreground"><Lock className="h-3 w-3" /> {label}</Label> <Input id={label} value={value || ''} readOnly disabled className="cursor-not-allowed" /> </div> )
 }
 
-// Modal for Adding/Editing Academic Marks
-function MarkEditorModal({ isOpen, setIsOpen, mark, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; mark: AcademicMark | null; onSave: () => void; }) {
+// --- NEW: Heavily modified modal for new academic structure ---
+function MarkEditorModal({ isOpen, setIsOpen, entry, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; entry: AcademicEntry | null; onSave: () => void; }) {
     const { user } = useUserData();
-    const [formData, setFormData] = useState<AcademicMark>({ title: '', marks_obtained: '', total_marks: '', status: 'Passed', failed_subjects: null });
+    const [title, setTitle] = useState('');
+    const [subjects, setSubjects] = useState<SubjectMark[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
+    // --- EDITED: This effect now runs when the modal opens to reset the form ---
     useEffect(() => {
-        if (mark) {
-            setFormData(mark);
-        } else {
-            setFormData({ title: '', marks_obtained: '', total_marks: '', status: 'Passed', failed_subjects: null });
+        if (isOpen) {
+            if (entry) {
+                setTitle(entry.title);
+                setSubjects(entry.subject_marks);
+            } else {
+                // This ensures the form is blank for new entries
+                setTitle('');
+                setSubjects([{ subject_name: '', marks_obtained: '', status: true }]);
+            }
         }
-    }, [mark]);
+    }, [entry, isOpen]);
+
+    const handleSubjectChange = (index: number, field: keyof SubjectMark, value: string | boolean) => {
+        const newSubjects = [...subjects];
+        (newSubjects[index] as any)[field] = value;
+        setSubjects(newSubjects);
+    };
+
+    const addSubject = () => {
+        setSubjects([...subjects, { subject_name: '', marks_obtained: '', status: true }]);
+    };
+
+    const removeSubject = (index: number) => {
+        setSubjects(subjects.filter((_, i) => i !== index));
+    };
 
     const handleSave = async (e: FormEvent) => {
         e.preventDefault();
         if (!user) return;
         setIsSaving(true);
+        try {
+            // Step 1: Upsert the main academic entry to get its ID
+            const { data: entryData, error: entryError } = await supabase
+                .from('academic_entries')
+                .upsert({ id: entry?.id, student_uid: user.id, title })
+                .select()
+                .single();
+            if (entryError) throw entryError;
 
-        const dataToSave = { ...formData, student_uid: user.id, };
-        // Ensure failed_subjects is null if status is 'Passed'
-        if (dataToSave.status === 'Passed') {
-            dataToSave.failed_subjects = null;
+            // Step 2: Prepare subject marks with the new entry_id
+            const subjectMarksToSave = subjects.map(subject => ({
+                ...subject,
+                entry_id: entryData.id,
+            }));
+
+            // Step 3: Upsert all subject marks
+            const { error: subjectsError } = await supabase.from('subject_marks').upsert(subjectMarksToSave);
+            if (subjectsError) throw subjectsError;
+
+            // If editing, we need to delete subjects that were removed in the UI
+            if (entry) {
+                const subjectsToDelete = entry.subject_marks.filter(
+                    oldSub => !subjects.some(newSub => newSub.id === oldSub.id)
+                );
+                if (subjectsToDelete.length > 0) {
+                    const { error: deleteError } = await supabase
+                        .from('subject_marks')
+                        .delete()
+                        .in('id', subjectsToDelete.map(s => s.id!));
+                    if (deleteError) throw deleteError;
+                }
+            }
+            onSave();
+            setIsOpen(false);
+        } catch (error: any) {
+            console.error("Error saving marks:", error);
+        } finally {
+            setIsSaving(false);
         }
-
-        const { error } = await supabase.from('academic_marks').upsert(dataToSave);
-
-        if (error) { console.error("Error saving mark:", error); }
-        else { onSave(); setIsOpen(false); }
-        setIsSaving(false);
     };
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent>
+            <DialogContent className="max-w-2xl">
                 <form onSubmit={handleSave}>
                     <DialogHeader>
-                        <DialogTitle>{mark?.id ? 'Edit' : 'Add'} Academic Mark</DialogTitle>
-                        <DialogDescription>Enter the details for this academic achievement.</DialogDescription>
+                        <DialogTitle>{entry?.id ? 'Edit' : 'Add'} Academic Entry</DialogTitle>
+                        <DialogDescription>Add an exam/semester and its subject marks.</DialogDescription>
                     </DialogHeader>
-                    <div className="py-4 space-y-4">
-                        <div><Label htmlFor="title">Exam / Semester Title</Label><Input id="title" placeholder="e.g., SSLC, Wafy Thamheediyya (Sem 1)" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} required /></div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><Label htmlFor="marks_obtained">Marks Obtained</Label><Input id="marks_obtained" type="text" placeholder="e.g., 90% or 5A+" value={formData.marks_obtained} onChange={(e) => setFormData({...formData, marks_obtained: e.target.value})} required /></div>
-                            <div><Label htmlFor="total_marks">Out of (Total)</Label><Input id="total_marks" type="text" placeholder="e.g., 100% or 12A+" value={formData.total_marks} onChange={(e) => setFormData({...formData, total_marks: e.target.value})} required /></div>
+                    <div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-4">
+                        {/* --- EDITED: Added uppercase class and onInput handler --- */}
+                        <div><Label htmlFor="title">Exam / Semester Title</Label><Input id="title" placeholder="e.g., SSLC, Wafy Thamheediyya (Sem 1)" value={title} onChange={(e) => setTitle(e.target.value.toUpperCase())} className="uppercase" required /></div>
+                        <Label>Subjects & Marks</Label>
+                        <div className="space-y-3">
+                            {subjects.map((subject, index) => (
+                                <div key={index} className="grid grid-cols-12 gap-2 items-center p-2 border rounded-md">
+                                    {/* --- EDITED: Added uppercase class and onInput handler --- */}
+                                    <Input placeholder="Subject Name" value={subject.subject_name} onChange={(e) => handleSubjectChange(index, 'subject_name', e.target.value.toUpperCase())} className="col-span-5 uppercase" required />
+                                    <Input placeholder="Mark/Grade" value={subject.marks_obtained} onChange={(e) => handleSubjectChange(index, 'marks_obtained', e.target.value.toUpperCase())} className="col-span-3 uppercase" required />
+                                    <div className="col-span-3 flex items-center justify-center gap-2"><Label htmlFor={`status-${index}`} className={subject.status ? 'text-green-600' : 'text-red-600'}>{subject.status ? 'Pass' : 'Fail'}</Label><Switch id={`status-${index}`} checked={subject.status} onCheckedChange={(checked) => handleSubjectChange(index, 'status', checked)} /></div>
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeSubject(index)} className="col-span-1 text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                </div>
+                            ))}
                         </div>
-                        <div>
-                            <Label>Status</Label>
-                            <RadioGroup value={formData.status} onValueChange={(value) => setFormData({...formData, status: value as 'Passed' | 'Failed'})} className="flex items-center gap-4 mt-2">
-                                <div className="flex items-center space-x-2"><RadioGroupItem value="Passed" id="passed" /><Label htmlFor="passed">Passed</Label></div>
-                                <div className="flex items-center space-x-2"><RadioGroupItem value="Failed" id="failed" /><Label htmlFor="failed">Failed</Label></div>
-                            </RadioGroup>
-                        </div>
-                        {formData.status === 'Failed' && (
-                            <div><Label htmlFor="failed_subjects">Details (e.g., number of failed subjects)</Label><Input id="failed_subjects" placeholder="e.g., 2 Subjects" value={formData.failed_subjects || ''} onChange={(e) => setFormData({...formData, failed_subjects: e.target.value})} /></div>
-                        )}
+                        <Button type="button" variant="outline" onClick={addSubject} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button>
                     </div>
-                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save Mark</Button></DialogFooter>
+                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button></DialogFooter>
                 </form>
             </DialogContent>
         </Dialog>
@@ -109,12 +161,12 @@ export default function ProfileSection() {
   const [file, setFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [marks, setMarks] = useState<AcademicMark[]>([]);
+  const [academicEntries, setAcademicEntries] = useState<AcademicEntry[]>([]);
   const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
-  const [selectedMark, setSelectedMark] = useState<AcademicMark | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AcademicEntry | null>(null);
 
-  const fetchMarks = async () => { if (!user) return; const { data } = await supabase.from('academic_marks').select('*').eq('student_uid', user.id).order('created_at'); if (data) setMarks(data); };
-  useEffect(() => { if (details) setForm(details); if (role === 'student') fetchMarks(); }, [details, role, user]);
+  const fetchAcademicData = async () => { if (!user) return; const { data, error } = await supabase.from('academic_entries').select('*, subject_marks(*)').eq('student_uid', user.id).order('created_at'); if (data) setAcademicEntries(data); };
+  useEffect(() => { if (details) setForm(details); if (role === 'student') fetchAcademicData(); }, [details, role, user]);
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (!f) return; setFile(f); setPreview(URL.createObjectURL(f)); }
   const handleSave = async () => {
     if (!user || !role) return; setIsSaving(true);
@@ -132,7 +184,7 @@ export default function ProfileSection() {
     if (updateError) { console.error("Update Error:", updateError); } else { router.refresh(); setEditOpen(false); }
     setFile(null); setPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; setIsSaving(false);
   }
-  const handleMarkDelete = async (markId: number) => { const { error } = await supabase.from('academic_marks').delete().eq('id', markId); if (!error) fetchMarks(); };
+  const handleEntryDelete = async (entryId: number) => { const { error } = await supabase.from('academic_entries').delete().eq('id', entryId); if (!error) fetchAcademicData(); };
   if (loading) { return ( <Card><CardHeader><Skeleton className="h-8 w-48" /></CardHeader><CardContent className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card> ); }
   if (!details) { return <p className="text-center mt-10 text-muted-foreground">Could not load user profile.</p> }
   const isStudent = role === 'student';
@@ -155,34 +207,45 @@ export default function ProfileSection() {
             </TabsContent>
             {isStudent && (
                 <TabsContent value="academics" className="pt-6">
-                    <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Marks</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedMark(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Mark</Button></div>
+                    <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
                     <div className="border rounded-md">
-                        {marks.length > 0 ? (
-                            <ul className="divide-y">
-                                {marks.map(mark => (
-                                    <li key={mark.id} className="flex items-center justify-between p-3">
-                                        <div>
-                                            <p className="font-semibold">{mark.title}</p>
-                                            <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                                <span>Score: {mark.marks_obtained} / {mark.total_marks}</span>
-                                                {mark.status === 'Passed' ? <Badge variant="default" className="bg-green-600">Passed</Badge> : <Badge variant="destructive">Failed: {mark.failed_subjects}</Badge>}
+                        {academicEntries.length > 0 ? (
+                            <Accordion type="single" collapsible className="w-full">
+                                {academicEntries.map(entry => (
+                                    <AccordionItem key={entry.id} value={`item-${entry.id}`}>
+                                        <AccordionTrigger className="px-4">
+                                            <div className="flex items-center justify-between w-full pr-4">
+                                                <span className="font-semibold">{entry.title}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button variant="ghost" size="icon" onClick={() => { setSelectedMark(mark); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleMarkDelete(mark.id!)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                        </div>
-                                    </li>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-4 pb-4">
+                                            <ul className="divide-y border rounded-md uppercase">
+                                                {entry.subject_marks.map(subject => (
+                                                    <li key={subject.id} className="flex items-center justify-between p-2">
+                                                        <span>{subject.subject_name}</span>
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="text-sm text-muted-foreground">{subject.marks_obtained}</span>
+                                                            <Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge>
+                                                        </div>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </AccordionContent>
+                                    </AccordionItem>
                                 ))}
-                            </ul>
-                        ) : (<p className="p-4 text-center text-muted-foreground">No academic marks have been added yet.</p>)}
+                            </Accordion>
+                        ) : (<p className="p-8 text-center text-muted-foreground">No academic records have been added yet.</p>)}
                     </div>
                 </TabsContent>
             )}
         </Tabs>
       </CardContent>
     </Card>
-    <MarkEditorModal isOpen={isMarkModalOpen} setIsOpen={setIsMarkModalOpen} mark={selectedMark} onSave={fetchMarks} />
+    <MarkEditorModal isOpen={isMarkModalOpen} setIsOpen={setIsMarkModalOpen} entry={selectedEntry} onSave={fetchAcademicData} />
     </>
   )
 }

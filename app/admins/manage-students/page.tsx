@@ -17,41 +17,32 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from '@/components/ui/badge';
-import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View } from 'lucide-react';
+import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View, PlusCircle, Pencil } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 
-// Define types
-interface AcademicMark {
-    id: number;
-    title: string;
+// Define types for new academic structure
+interface SubjectMark {
+    id?: number;
+    subject_name: string;
     marks_obtained: string;
-    total_marks: string;
-    status: 'Passed' | 'Failed';
-    failed_subjects: string | null;
+    status: boolean;
 }
-
+interface AcademicEntry {
+    id?: number;
+    title: string;
+    subject_marks: SubjectMark[];
+}
 interface StudentProfile {
-    uid: string;
-    name: string;
-    cic: string | null;
-    class_id: string;
-    council: string | null;
-    batch: string | null;
-    phone: string | null;
-    guardian: string | null;
-    g_phone: string | null;
-    address: string | null;
-    img_url: string | null;
-    sslc: string | null;
-    plustwo: string | null;
+    uid: string; name: string; cic: string | null; class_id: string; council: string | null;
+    batch: string | null; phone: string | null; guardian: string | null; g_phone: string | null;
+    address: string | null; img_url: string | null; sslc: string | null; plustwo: string | null;
     plustwo_streams: string | null;
 }
-
 interface AdminProfile {
-    uid: string;
-    role: string;
-    batch: string | null;
+    uid: string; role: string; batch: string | null;
 }
 
 // Reusable Student Card Component
@@ -59,14 +50,8 @@ function StudentCard({ student, onView, onEdit, onDelete }: { student: StudentPr
     return (
         <Card className="flex flex-col overflow-hidden transition-transform duration-300 hover:-translate-y-1 hover:shadow-xl">
             <CardHeader className="flex flex-row items-center gap-4 p-4">
-                <Avatar className="h-16 w-16 flex-shrink-0 border-2 border-primary/20">
-                    <AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' />
-                    <AvatarFallback><User className="h-8 w-8 text-muted-foreground" /></AvatarFallback>
-                </Avatar>
-                <div className="min-w-0 flex-1">
-                    <CardTitle className="truncate" title={student.name}>{student.name}</CardTitle>
-                    <CardDescription>CIC: {student.cic || 'N/A'}</CardDescription>
-                </div>
+                <Avatar className="h-16 w-16 flex-shrink-0 border-2 border-primary/20"><AvatarImage src={student.img_url || undefined} alt={student.name} className='object-cover' /><AvatarFallback><User className="h-8 w-8 text-muted-foreground" /></AvatarFallback></Avatar>
+                <div className="min-w-0 flex-1"><CardTitle className="truncate" title={student.name}>{student.name}</CardTitle><CardDescription>CIC: {student.cic || 'N/A'}</CardDescription></div>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2"><School className="h-4 w-4 flex-shrink-0" /><span>{student.class_id}</span></div>
@@ -82,17 +67,15 @@ function StudentCard({ student, onView, onEdit, onDelete }: { student: StudentPr
     );
 }
 
-// View Details Modal Component with Academics Tab
-function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; marks: AcademicMark[]; isLoadingMarks: boolean; }) {
+// --- EDITED: Corrected 'marks' prop type to AcademicEntry[] ---
+function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; marks: AcademicEntry[]; isLoadingMarks: boolean; }) {
     if (!student) return null;
-
     const details = [
         { label: 'CIC', value: student.cic }, { label: 'Class', value: student.class_id }, { label: 'Batch', value: student.batch },
         { label: 'Council', value: student.council }, { label: 'Phone', value: student.phone }, { label: 'Guardian', value: student.guardian },
         { label: 'Guardian Phone', value: student.g_phone }, { label: 'SSLC Board', value: student.sslc }, { label: 'Plus Two Board', value: student.plustwo },
         { label: 'Plus Two Stream', value: student.plustwo_streams }, { label: 'Address', value: student.address, fullWidth: true },
     ];
-
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -102,29 +85,23 @@ function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }:
                     <DialogDescription>Full student profile details.</DialogDescription>
                 </DialogHeader>
                 <Tabs defaultValue="personal" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="personal">Personal Info</TabsTrigger>
-                        <TabsTrigger value="academics">Academics</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="personal">
-                        <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4 pr-2">{details.map(item => (<div key={item.label} className={item.fullWidth ? 'sm:col-span-2' : ''}><Label className="text-xs text-muted-foreground">{item.label}</Label><p className="font-medium">{item.value || 'N/A'}</p></div>))}</div>
-                    </TabsContent>
+                    <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="personal">Personal Info</TabsTrigger><TabsTrigger value="academics">Academics</TabsTrigger></TabsList>
+                    <TabsContent value="personal"><div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-4 pr-2">{details.map(item => (<div key={item.label} className={item.fullWidth ? 'sm:col-span-2' : ''}><Label className="text-xs text-muted-foreground">{item.label}</Label><p className="font-medium">{item.value || 'N/A'}</p></div>))}</div></TabsContent>
                     <TabsContent value="academics">
                         <div className="py-4 pr-2">
                             {isLoadingMarks ? (<Skeleton className="h-24 w-full" />) : marks.length > 0 ? (
-                                <ul className="divide-y rounded-md border">
-                                    {marks.map(mark => (
-                                        <li key={mark.id} className="flex items-center justify-between p-3">
-                                            <div>
-                                                <p className="font-semibold">{mark.title}</p>
-                                                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                                                    <span>Score: {mark.marks_obtained} / {mark.total_marks}</span>
-                                                    {mark.status === 'Passed' ? <Badge variant="default" className="bg-green-600">Passed</Badge> : <Badge variant="destructive">Failed: {mark.failed_subjects}</Badge>}
-                                                </div>
-                                            </div>
-                                        </li>
+                                <Accordion type="single" collapsible className="w-full">
+                                    {marks.map(entry => (
+                                        <AccordionItem key={entry.id} value={`item-${entry.id}`}>
+                                            <AccordionTrigger>{entry.title}</AccordionTrigger>
+                                            <AccordionContent>
+                                                <ul className="divide-y border rounded-md">
+                                                    {entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2 text-sm"><p>{subject.subject_name}</p><div className="flex items-center gap-3"><span className="text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}
+                                                </ul>
+                                            </AccordionContent>
+                                        </AccordionItem>
                                     ))}
-                                </ul>
+                                </Accordion>
                             ) : (<p className="text-center text-muted-foreground">No academic marks found.</p>)}
                         </div>
                     </TabsContent>
@@ -135,34 +112,122 @@ function ViewStudentModal({ isOpen, setIsOpen, student, marks, isLoadingMarks }:
     );
 }
 
-// Edit Modal Component
+// --- EDITED: This is the new Mark Editor for Admins ---
+function AdminMarkEditorModal({ isOpen, setIsOpen, entry, student_uid, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; entry: AcademicEntry | null; student_uid: string; onSave: () => void; }) {
+    const [title, setTitle] = useState('');
+    const [subjects, setSubjects] = useState<SubjectMark[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            if (entry) {
+                setTitle(entry.title);
+                setSubjects(entry.subject_marks);
+            } else {
+                setTitle('');
+                setSubjects([{ subject_name: '', marks_obtained: '', status: true }]);
+            }
+        }
+    }, [entry, isOpen]);
+
+    const handleSubjectChange = (index: number, field: keyof SubjectMark, value: string | boolean) => { const newSubjects = [...subjects]; (newSubjects[index] as any)[field] = value; setSubjects(newSubjects); };
+    const addSubject = () => { setSubjects([...subjects, { subject_name: '', marks_obtained: '', status: true }]); };
+    const removeSubject = (index: number) => { setSubjects(subjects.filter((_, i) => i !== index)); };
+
+    const handleSave = async (e: FormEvent) => {
+        e.preventDefault(); if (!student_uid) return; setIsSaving(true);
+        try {
+            const { data: entryData, error: entryError } = await supabase.from('academic_entries').upsert({ id: entry?.id, student_uid, title }).select().single();
+            if (entryError) throw entryError;
+            const subjectMarksToSave = subjects.map(subject => ({ ...subject, entry_id: entryData.id, }));
+            const { error: subjectsError } = await supabase.from('subject_marks').upsert(subjectMarksToSave);
+            if (subjectsError) throw subjectsError;
+            if (entry) {
+                const subjectsToDelete = entry.subject_marks.filter(oldSub => !subjects.some(newSub => newSub.id === oldSub.id));
+                if (subjectsToDelete.length > 0) {
+                    const { error: deleteError } = await supabase.from('subject_marks').delete().in('id', subjectsToDelete.map(s => s.id!));
+                    if (deleteError) throw deleteError;
+                }
+            }
+            toast.success("Academic record saved successfully!");
+            onSave(); setIsOpen(false);
+        } catch (error: any) { toast.error("Failed to save record.", { description: error.message }); } finally { setIsSaving(false); }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="max-w-2xl"><form onSubmit={handleSave}><DialogHeader><DialogTitle>{entry?.id ? 'Edit' : 'Add'} Academic Entry</DialogTitle><DialogDescription>Manage this student's academic records.</DialogDescription></DialogHeader><div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-4"><div><Label htmlFor="title">Exam / Semester Title</Label><Input id="title" placeholder="e.g., SSLC" value={title} onChange={(e) => setTitle(e.target.value.toUpperCase())} className="uppercase" required /></div><Label>Subjects & Marks</Label><div className="space-y-3">{subjects.map((subject, index) => (<div key={index} className="grid grid-cols-12 gap-2 items-center p-2 border rounded-md"><Input placeholder="Subject Name" value={subject.subject_name} onChange={(e) => handleSubjectChange(index, 'subject_name', e.target.value.toUpperCase())} className="col-span-5 uppercase" required /><Input placeholder="Mark/Grade" value={subject.marks_obtained} onChange={(e) => handleSubjectChange(index, 'marks_obtained', e.target.value.toUpperCase())} className="col-span-3 uppercase" required /><div className="col-span-3 flex items-center justify-center gap-2"><Label htmlFor={`status-${index}`} className={subject.status ? 'text-green-600' : 'text-red-600'}>{subject.status ? 'Pass' : 'Fail'}</Label><Switch id={`status-${index}`} checked={subject.status} onCheckedChange={(checked) => handleSubjectChange(index, 'status', checked)} /></div><Button type="button" variant="ghost" size="icon" onClick={() => removeSubject(index)} className="col-span-1 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>))}</div><Button type="button" variant="outline" onClick={addSubject} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button></div><DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button></DialogFooter></form></DialogContent>
+        </Dialog>
+    );
+}
+
+// --- EDITED: Edit modal now includes full academic management UI ---
 function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; onSave: () => void; }) {
     const [formData, setFormData] = useState<Partial<StudentProfile>>({});
     const [preview, setPreview] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [academicEntries, setAcademicEntries] = useState<AcademicEntry[]>([]);
+    const [selectedEntry, setSelectedEntry] = useState<AcademicEntry | null>(null);
+    const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
 
-    useEffect(() => { if (student) { setFormData(student); setPreview(student.img_url); } }, [student]);
+    const fetchAcademicData = async () => { if (!student) return; const { data } = await supabase.from('academic_entries').select('*, subject_marks(*)').eq('student_uid', student.uid); if (data) setAcademicEntries(data); };
+    useEffect(() => { if (student) { setFormData(student); setPreview(student.img_url); fetchAcademicData(); } }, [student, isOpen]);
+
     const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setFormData({ ...formData, [e.target.name]: e.target.value }); };
     const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(URL.createObjectURL(f)); } };
+    const handleEntryDelete = async (entryId: number) => { const { error } = await supabase.from('academic_entries').delete().eq('id', entryId); if (!error) fetchAcademicData(); };
+
     const handleSave = async (e: FormEvent) => {
         e.preventDefault(); if (!student) return; setIsSaving(true);
-        const { uid, ...updateData } = formData; let finalUpdateData: any = { ...updateData };
         try {
+            let finalUpdateData: any = { ...formData };
             if (file) {
                 const filePath = `avatars/${student.uid}/${Date.now()}-${file.name}`;
-                const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
-                if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+                const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true }); if (uploadError) throw uploadError;
                 const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
                 finalUpdateData.img_url = `${urlData.publicUrl}?t=${new Date().getTime()}`;
             }
             const { error: updateError } = await supabase.from('students').update(finalUpdateData).eq('uid', student.uid);
-            if (updateError) throw new Error(`Failed to update student: ${updateError.message}`);
+            if (updateError) throw updateError;
             toast.success('Student profile updated successfully!'); onSave(); setIsOpen(false);
         } catch (err: any) { toast.error('Save failed', { description: err.message }); } finally { setIsSaving(false); }
     };
-    return (<Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-2xl"><form onSubmit={handleSave}><DialogHeader><DialogTitle>Edit Student Profile</DialogTitle><DialogDescription>Update the details for {student?.name}.</DialogDescription></DialogHeader><div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-2"><div className="md:col-span-1 flex flex-col items-center gap-4"><div className="relative group h-32 w-32"><Avatar className="h-full w-full ring-4 ring-primary/20"><AvatarImage src={preview || undefined} alt="Profile Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Label htmlFor="image-upload" className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Camera className="w-8 h-8" /></Label><Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} className="hidden" ref={fileInputRef} /></div></div><div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label htmlFor="name">Full Name</Label><Input id="name" name="name" value={formData.name || ''} onChange={handleChange} /></div><div><Label htmlFor="cic">CIC</Label><Input id="cic" name="cic" value={formData.cic || ''} onChange={handleChange} /></div><div><Label htmlFor="class_id">Class ID</Label><Input id="class_id" name="class_id" value={formData.class_id || ''} onChange={handleChange} /></div><div><Label htmlFor="council">Council</Label><Input id="council" name="council" value={formData.council || ''} onChange={handleChange} /></div><div><Label htmlFor="batch">Batch</Label><Input id="batch" name="batch" value={formData.batch || ''} onChange={handleChange} /></div><div><Label htmlFor="phone">Phone</Label><Input id="phone" name="phone" value={formData.phone || ''} onChange={handleChange} /></div><div><Label htmlFor="guardian">Guardian</Label><Input id="guardian" name="guardian" value={formData.guardian || ''} onChange={handleChange} /></div><div><Label htmlFor="g_phone">Guardian Phone</Label><Input id="g_phone" name="g_phone" value={formData.g_phone || ''} onChange={handleChange} /></div><div className="sm:col-span-2"><Label htmlFor="address">Address</Label><Textarea id="address" name="address" value={formData.address || ''} onChange={handleChange} /></div></div></div><DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Changes'}</Button></DialogFooter></form></DialogContent></Dialog>);
+    return (
+      <>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogContent className="max-w-3xl max-h-[90vh]">
+                <form onSubmit={handleSave}>
+                    <DialogHeader><DialogTitle>Edit Student Profile</DialogTitle><DialogDescription>Update the details for {student?.name}.</DialogDescription></DialogHeader>
+                    <Tabs defaultValue="personal" className="w-full mt-4">
+                        <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="personal">Personal Info</TabsTrigger><TabsTrigger value="academics">Academics</TabsTrigger></TabsList>
+                        <TabsContent value="personal" className="overflow-y-auto pr-2 max-h-[60vh]">
+                             <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-6"><div className="md:col-span-1 flex flex-col items-center gap-4"><div className="relative group h-32 w-32"><Avatar className="h-full w-full ring-4 ring-primary/20"><AvatarImage src={preview || undefined} alt="Profile Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><Label htmlFor="image-upload" className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"><Camera className="w-8 h-8" /></Label><Input id="image-upload" type="file" accept="image/*" onChange={handleImageChange} className="hidden" ref={fileInputRef} /></div></div><div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4"><div><Label htmlFor="name">Full Name</Label><Input id="name" name="name" value={formData.name || ''} onChange={handleChange} /></div><div><Label htmlFor="cic">CIC</Label><Input id="cic" name="cic" value={formData.cic || ''} onChange={handleChange} /></div><div><Label htmlFor="class_id">Class ID</Label><Input id="class_id" name="class_id" value={formData.class_id || ''} onChange={handleChange} /></div><div><Label htmlFor="council">Council</Label><Input id="council" name="council" value={formData.council || ''} onChange={handleChange} /></div><div><Label htmlFor="batch">Batch</Label><Input id="batch" name="batch" value={formData.batch || ''} onChange={handleChange} /></div><div><Label htmlFor="phone">Phone</Label><Input id="phone" name="phone" value={formData.phone || ''} onChange={handleChange} /></div><div><Label htmlFor="guardian">Guardian</Label><Input id="guardian" name="guardian" value={formData.guardian || ''} onChange={handleChange} /></div><div><Label htmlFor="g_phone">Guardian Phone</Label><Input id="g_phone" name="g_phone" value={formData.g_phone || ''} onChange={handleChange} /></div><div className="sm:col-span-2"><Label htmlFor="address">Address</Label><Textarea id="address" name="address" value={formData.address || ''} onChange={handleChange} /></div></div></div>
+                        </TabsContent>
+                        <TabsContent value="academics" className="overflow-y-auto pr-2 max-h-[60vh]">
+                            <div className="py-6">
+                                <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">Manage this student's academic performance.</p></div><Button type="button" onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
+                                <div className="border rounded-md">
+                                    {academicEntries.length > 0 ? (
+                                        <Accordion type="single" collapsible className="w-full">{academicEntries.map(entry => (
+                                            <AccordionItem key={entry.id} value={`item-${entry.id}`}>
+                                                <AccordionTrigger className="px-4"><div className="flex items-center justify-between w-full pr-4"><span className="font-semibold">{entry.title}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" type="button" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" type="button" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></div></AccordionTrigger>
+                                                <AccordionContent className="px-4 pb-4"><ul className="divide-y border rounded-md">{entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2"><span>{subject.subject_name}</span><div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}</ul></AccordionContent>
+                                            </AccordionItem>
+                                        ))}</Accordion>
+                                    ) : (<p className="p-8 text-center text-muted-foreground">No academic records found.</p>)}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                    <DialogFooter className="mt-4"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : 'Save Changes'}</Button></DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+        {student && <AdminMarkEditorModal isOpen={isMarkModalOpen} setIsOpen={setIsMarkModalOpen} entry={selectedEntry} student_uid={student.uid} onSave={fetchAcademicData} />}
+      </>
+    );
 }
 
 // Confirmation Modal for Deletion
@@ -181,7 +246,7 @@ export default function ManageStudentsPage() {
     const [searchQuery, setSearchQuery] = useState('');
 
     const [selectedStudent, setSelectedStudent] = useState<StudentProfile | null>(null);
-    const [academicMarks, setAcademicMarks] = useState<AcademicMark[]>([]);
+    const [academicMarks, setAcademicMarks] = useState<AcademicEntry[]>([]);
     const [isLoadingMarks, setIsLoadingMarks] = useState(false);
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -216,8 +281,8 @@ export default function ManageStudentsPage() {
         setSelectedStudent(student);
         setIsViewModalOpen(true);
         setIsLoadingMarks(true);
-        const { data } = await supabase.from('academic_marks').select('*').eq('student_uid', student.uid);
-        setAcademicMarks(data as AcademicMark[] || []);
+        const { data } = await supabase.from('academic_entries').select('*, subject_marks(*)').eq('student_uid', student.uid);
+        setAcademicMarks(data as AcademicEntry[] || []);
         setIsLoadingMarks(false);
     };
 

@@ -70,9 +70,6 @@ export default function UserProfileNav() {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/* ====================================================== */}
-        {/* START OF FIX                                         */}
-        {/* ====================================================== */}
         <DropdownMenuItem onClick={() => router.push(getDashboardLink())} className="cursor-pointer">
             <LayoutDashboard className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
@@ -81,9 +78,6 @@ export default function UserProfileNav() {
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
         </DropdownMenuItem>
-        {/* ====================================================== */}
-        {/* END OF FIX                                           */}
-        {/* ====================================================== */}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />

@@ -63,7 +63,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
         <aside className="flex h-full w-full flex-col border-r bg-background">
             <div className="flex h-16 items-center gap-2 border-b px-6">
                 <GraduationCap className="h-7 w-7 text-primary" />
-                <span className="text-lg font-bold">PMSA Admin</span>
+                <span className="text-lg font-bold">PMSA Wafy</span>
             </div>
             <nav className="flex-1 p-4">
                 {loading ? (

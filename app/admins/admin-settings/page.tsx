@@ -34,7 +34,6 @@ export default function AdminSettingsPage() {
     );
   }
 
-  // This structure makes it easy to add or remove settings based on role
   return (
     <div className="space-y-6">
         <div>

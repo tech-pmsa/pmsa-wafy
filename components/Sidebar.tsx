@@ -1,5 +1,3 @@
-// components/Sidebar.tsx (Corrected & Simplified)
-
 'use client';
 
 import React from 'react';

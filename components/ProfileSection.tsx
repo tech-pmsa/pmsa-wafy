@@ -4,8 +4,6 @@ import { useEffect, useState, useRef, ChangeEvent, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { useUserData } from '@/hooks/useUserData'
-
-// --- NEW: Import react-image-crop ---
 import ReactCrop, { type Crop } from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 
@@ -28,7 +26,12 @@ import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, Phon
 // --- Define types for new schema ---
 interface SubjectMark { id?: number; subject_name: string; marks_obtained: string; status: boolean; }
 interface AcademicEntry { id?: number; title: string; subject_marks: SubjectMark[]; }
-interface Sibling { name: string; education: string; occupation: string; responsibilities: string; }
+interface Sibling {
+    name: string;
+    education: string[]; // Changed to array of strings
+    occupation: string;
+    responsibilities: string[]; // Changed to array of strings
+}
 interface FamilyData {
     student_uid: string;
     total_family_members: number | null;
@@ -72,8 +75,16 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
     useEffect(() => { if (isOpen) { setFamilyForm(familyData); } }, [familyData, isOpen]);
 
     const handleFamilyChange = (field: keyof FamilyData, value: any) => { setFamilyForm(prev => ({ ...prev, [field]: value })) };
-    const handleSiblingChange = (type: 'brothers' | 'sisters', index: number, field: keyof Sibling, value: string) => { const siblings = [...(familyForm[type] || [])]; siblings[index] = { ...siblings[index], [field]: value }; handleFamilyChange(type, siblings); };
-    const addSibling = (type: 'brothers' | 'sisters') => { const siblings = [...(familyForm[type] || [])]; if (siblings.length < 5) { siblings.push({ name: '', education: '', occupation: '', responsibilities: '' }); handleFamilyChange(type, siblings); } };
+    const handleSiblingChange = (type: 'brothers' | 'sisters', index: number, field: keyof Sibling, value: string) => {
+        const newSiblings = [...(familyForm[type] || [])];
+        if (field === 'education' || field === 'responsibilities') {
+            newSiblings[index][field] = value.split(',').map(s => s.trim().toUpperCase());
+        } else {
+            (newSiblings[index] as any)[field] = value.toUpperCase();
+        }
+        handleFamilyChange(type, newSiblings);
+    };
+    const addSibling = (type: 'brothers' | 'sisters') => { const siblings = [...(familyForm[type] || [])]; if (siblings.length < 5) { siblings.push({ name: '', education: [], occupation: '', responsibilities: [] }); handleFamilyChange(type, siblings); } };
     const removeSibling = (type: 'brothers' | 'sisters', index: number) => { const siblings = [...(familyForm[type] || [])]; siblings.splice(index, 1); handleFamilyChange(type, siblings); };
 
     return (
@@ -125,8 +136,8 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
                                 <div><Label>Mother's Name</Label><Input value={familyForm.mother_name || ''} onChange={e => handleFamilyChange('mother_name', e.target.value)} /></div>
                                 <div><Label>Mother's Occupation</Label><Input value={familyForm.mother_occupation || ''} onChange={e => handleFamilyChange('mother_occupation', e.target.value)} /></div>
                            </div>
-                           <div className="space-y-2"><Label>Brothers</Label>{(familyForm.brothers || []).map((bro, i) => (<div key={i} className="grid grid-cols-12 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={bro.name} onChange={e => handleSiblingChange('brothers', i, 'name', e.target.value)} className="col-span-3"/><Input placeholder="Education" value={bro.education} onChange={e => handleSiblingChange('brothers', i, 'education', e.target.value)} className="col-span-3"/><Input placeholder="Occupation" value={bro.occupation} onChange={e => handleSiblingChange('brothers', i, 'occupation', e.target.value)} className="col-span-3"/><Input placeholder="Responsibilities" value={bro.responsibilities} onChange={e => handleSiblingChange('brothers', i, 'responsibilities', e.target.value)} className="col-span-2"/><Button type="button" variant="ghost" size="icon" onClick={() => removeSibling('brothers', i)} className="text-destructive col-span-1">X</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('brothers')} className="mt-2 w-full">+ Add Brother</Button></div>
-                           <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-12 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} className="col-span-3"/><Input placeholder="Education" value={sis.education} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} className="col-span-3"/><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} className="col-span-3"/><Input placeholder="Responsibilities" value={sis.responsibilities} onChange={e => handleSiblingChange('sisters', i, 'responsibilities', e.target.value)} className="col-span-2"/><Button type="button" variant="ghost" size="icon" onClick={() => removeSibling('sisters', i)} className="text-destructive col-span-1">X</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
+                           <div className="space-y-2"><Label>Brothers</Label>{(familyForm.brothers || []).map((bro, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={bro.name} onChange={e => handleSiblingChange('brothers', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(bro.education || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={bro.occupation} onChange={e => handleSiblingChange('brothers', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(bro.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('brothers', i)} className="text-destructive w-full">Remove Brother</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('brothers')} className="mt-2 w-full">+ Add Brother</Button></div>
+                           <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(sis.education || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(sis.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('sisters', i)} className="text-destructive w-full">Remove Sister</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
                            <div className="flex items-center space-x-2"><Switch id="chronically-ill" checked={familyForm.chronically_ill_members} onCheckedChange={checked => handleFamilyChange('chronically_ill_members', checked)} /><Label htmlFor="chronically-ill">Are there chronically ill members in the house?</Label></div>
                            <div><Label>House Type</Label><Select value={familyForm.house_type || ''} onValueChange={value => handleFamilyChange('house_type', value)}><SelectTrigger><SelectValue placeholder="Select house type..." /></SelectTrigger><SelectContent><SelectItem value="Own House">Own House</SelectItem><SelectItem value="Rented House">Rented House</SelectItem><SelectItem value="Living with Family">Living with Family</SelectItem><SelectItem value="Company Provided Quarters">Company Provided Quarters</SelectItem><SelectItem value="Leased House">Leased House</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></div>
                         </TabsContent>
@@ -231,21 +242,52 @@ export default function ProfileSection() {
                 {isStudent && <TabsTrigger value="family">Family Data</TabsTrigger>}
             </TabsList>
             <TabsContent value="personal" className="pt-6">
-                <div className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center text-center gap-2 md:w-1/4"><Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar><h2 className="text-2xl font-bold mt-2">{details.name}</h2><Badge variant="secondary" className="capitalize">{details.role}</Badge><p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">{isStudent ? (<><ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} /><ProfileInfoLine icon={Building} label="Class" value={details.class_id} /><ProfileInfoLine icon={Shield} label="Council" value={details.council} /><ProfileInfoLine icon={Phone} label="Phone" value={details.phone} /><ProfileInfoLine icon={User} label="Guardian" value={details.guardian} /><ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} /><ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} /><ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} /><ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} /><ProfileInfoLine icon={Home} label="Address" value={details.address} /></>) : (<><ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} /><ProfileInfoLine icon={Mail} label="Email" value={details.email} /><ProfileInfoLine icon={Building} label="Related to" value={details.batch} /></>)}</div></div>
+                <div className="flex flex-col md:flex-row gap-8">
+                    <div className="flex flex-col items-center text-center gap-2 md:w-1/4">
+                        <Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
+                        <h2 className="text-2xl font-bold mt-2">{details.name}</h2>
+                        <Badge variant="secondary" className="capitalize">{details.role}</Badge>
+                        <p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p>
+                    </div>
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">
+                        {isStudent ? (
+                            <>
+                                <ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} />
+                                <ProfileInfoLine icon={Building} label="Class" value={details.class_id} />
+                                <ProfileInfoLine icon={Shield} label="Council" value={details.council} />
+                                <ProfileInfoLine icon={Phone} label="Phone" value={details.phone} />
+                                <ProfileInfoLine icon={User} label="Guardian" value={details.guardian} />
+                                <ProfileInfoLine icon={PhoneCall} label="Guardian Phone" value={details.g_phone} />
+                                <ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} />
+                                <ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} />
+                                <ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} />
+                                <ProfileInfoLine icon={Home} label="Address" value={details.address} />
+                            </>
+                        ) : (
+                            <>
+                                <ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} />
+                                <ProfileInfoLine icon={Mail} label="Email" value={details.email} />
+                                <ProfileInfoLine icon={Building} label="Related to" value={details.batch} />
+                            </>
+                        )}
+                    </div>
+                </div>
             </TabsContent>
-            {isStudent && (<TabsContent value="academics" className="pt-6">
-                 <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
-                 <div className="border rounded-md">
-                     {academicEntries.length > 0 ? (
-                         <Accordion type="single" collapsible className="w-full">{academicEntries.map(entry => (
-                             <AccordionItem key={entry.id} value={`item-${entry.id}`}>
-                                 <AccordionTrigger className="px-4"><div className="flex items-center justify-between w-full pr-4"><span className="font-semibold">{entry.title}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></div></AccordionTrigger>
-                                 <AccordionContent className="px-4 pb-4"><ul className="divide-y border rounded-md uppercase">{entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2"><span>{subject.subject_name}</span><div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}</ul></AccordionContent>
-                             </AccordionItem>
-                         ))}</Accordion>
-                     ) : (<p className="p-8 text-center text-muted-foreground">No academic records have been added yet.</p>)}
-                 </div>
-            </TabsContent>)}
+            {isStudent && (
+                <TabsContent value="academics" className="pt-6">
+                     <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
+                     <div className="border rounded-md">
+                         {academicEntries.length > 0 ? (
+                             <Accordion type="single" collapsible className="w-full">{academicEntries.map(entry => (
+                                 <AccordionItem key={entry.id} value={`item-${entry.id}`}>
+                                     <AccordionTrigger className="px-4"><div className="flex items-center justify-between w-full pr-4"><span className="font-semibold">{entry.title}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></div></AccordionTrigger>
+                                     <AccordionContent className="px-4 pb-4"><ul className="divide-y border rounded-md uppercase">{entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2"><span>{subject.subject_name}</span><div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}</ul></AccordionContent>
+                                 </AccordionItem>
+                             ))}</Accordion>
+                         ) : (<p className="p-8 text-center text-muted-foreground">No academic records have been added yet.</p>)}
+                     </div>
+                </TabsContent>
+            )}
             {isStudent && (
                 <TabsContent value="family" className="pt-6">
                     <div className="space-y-8">
@@ -262,8 +304,8 @@ export default function ProfileSection() {
                         </div>
                         <div><h3 className="font-semibold text-lg mb-2">Siblings</h3>
                             <div className="space-y-4">
-                                {familyData.brothers && familyData.brothers.length > 0 && <div><h4 className="font-medium">Brothers</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.brothers.map((bro, i) => <Card key={i}><CardHeader><CardTitle>{bro.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {bro.education}</p><p><strong>Occupation:</strong> {bro.occupation}</p><p><strong>Responsibilities:</strong> {bro.responsibilities}</p></CardContent></Card>)}</div></div>}
-                                {familyData.sisters && familyData.sisters.length > 0 && <div><h4 className="font-medium">Sisters</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.sisters.map((sis, i) => <Card key={i}><CardHeader><CardTitle>{sis.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {sis.education}</p><p><strong>Occupation:</strong> {sis.occupation}</p><p><strong>Responsibilities:</strong> {sis.responsibilities}</p></CardContent></Card>)}</div></div>}
+                                {familyData.brothers && familyData.brothers.length > 0 && <div><h4 className="font-medium">Brothers</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.brothers.map((bro, i) => <Card key={i}><CardHeader><CardTitle>{bro.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(bro.education || []).join(', ')}</p><p><strong>Occupation:</strong> {bro.occupation}</p><p><strong>Responsibilities:</strong> {(bro.responsibilities || []).join(', ')}</p></CardContent></Card>)}</div></div>}
+                                {familyData.sisters && familyData.sisters.length > 0 && <div><h4 className="font-medium">Sisters</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.sisters.map((sis, i) => <Card key={i}><CardHeader><CardTitle>{sis.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(sis.education || []).join(', ')}</p><p><strong>Occupation:</strong> {sis.occupation}</p></CardContent></Card>)}</div></div>}
                             </div>
                         </div>
                     </div>

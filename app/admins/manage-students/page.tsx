@@ -21,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from '@/components/ui/badge';
-import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View, PlusCircle, Pencil, Briefcase, Home, Shield, Mail, Users as FamilyIcon } from 'lucide-react';
+import { User, Phone, Edit, Loader2, Camera, AlertCircle, School, Users, Trash2, Search, View, PlusCircle, Pencil, Briefcase, Home, Shield, Mail, Users as FamilyIcon, ChevronsRight } from 'lucide-react';
 
 // --- Define all necessary types ---
 interface SubjectMark { id?: number; subject_name: string; marks_obtained: string; status: boolean; }
@@ -121,7 +121,7 @@ function ViewStudentModal({ isOpen, setIsOpen, student, marks, familyData, isLoa
                                     <div><h3 className="font-semibold text-lg mb-2">Siblings</h3>
                                         <div className="space-y-4">
                                             {familyData.brothers && familyData.brothers.length > 0 && <div><h4 className="font-medium">Brothers</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.brothers?.map((bro, i) => <Card key={i}><CardHeader><CardTitle>{bro.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(bro.education || []).join(', ')}</p><p><strong>Occupation:</strong> {bro.occupation}</p><p><strong>Responsibilities:</strong> {(bro.responsibilities || []).join(', ')}</p></CardContent></Card>)}</div></div>}
-                                            {familyData.sisters && familyData.sisters.length > 0 && <div><h4 className="font-medium">Sisters</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.sisters?.map((sis, i) => <Card key={i}><CardHeader><CardTitle>{sis.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(sis.education || []).join(', ')}</p><p><strong>Occupation:</strong> {sis.occupation}</p><p><strong>Responsibilities:</strong> {(sis.responsibilities || []).join(', ')}</p></CardContent></Card>)}</div></div>}
+                                            {familyData.sisters && familyData.sisters.length > 0 && <div><h4 className="font-medium">Sisters</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.sisters?.map((sis, i) => <Card key={i}><CardHeader><CardTitle>{sis.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(sis.education || []).join(', ')}</p><p><strong>Occupation:</strong> {sis.occupation}</p></CardContent></Card>)}</div></div>}
                                         </div>
                                     </div>
                                 </div>
@@ -239,7 +239,7 @@ function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: bool
                                 <div><Label>Mother's Occupation</Label><Input value={familyForm.mother_occupation || ''} onChange={e => handleFamilyChange('mother_occupation', e.target.value)} /></div>
                            </div>
                            <div className="space-y-2"><Label>Brothers</Label>{(familyForm.brothers || []).map((bro, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={bro.name} onChange={e => handleSiblingChange('brothers', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(bro.education || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={bro.occupation} onChange={e => handleSiblingChange('brothers', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(bro.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('brothers', i)} className="text-destructive w-full">Remove Brother</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('brothers')} className="mt-2 w-full">+ Add Brother</Button></div>
-                           <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(sis.education || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(sis.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('sisters', i)} className="text-destructive w-full">Remove Sister</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
+                           <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(sis.education || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('sisters', i)} className="text-destructive w-full">Remove Sister</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
                            <div className="flex items-center space-x-2"><Switch id="chronically-ill" checked={familyForm.chronically_ill_members} onCheckedChange={checked => handleFamilyChange('chronically_ill_members', checked)} /><Label htmlFor="chronically-ill">Are there chronically ill members in the house?</Label></div>
                            <div><Label>House Type</Label><Select value={familyForm.house_type || ''} onValueChange={value => handleFamilyChange('house_type', value)}><SelectTrigger><SelectValue placeholder="Select house type..." /></SelectTrigger><SelectContent><SelectItem value="Own House">Own House</SelectItem><SelectItem value="Rented House">Rented House</SelectItem><SelectItem value="Living with Family">Living with Family</SelectItem><SelectItem value="Company Provided Quarters">Company Provided Quarters</SelectItem><SelectItem value="Leased House">Leased House</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></div>
                     </TabsContent>
@@ -256,6 +256,21 @@ function EditStudentModal({ isOpen, setIsOpen, student, onSave }: { isOpen: bool
 function DeleteConfirmationModal({ isOpen, onClose, onConfirm, title, description, isLoading }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; title: string; description: string; isLoading: boolean; }) {
     if (!isOpen) return null;
     return (<Dialog open={isOpen} onOpenChange={onClose}><DialogContent><DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader><DialogFooter><Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button><Button variant="destructive" onClick={onConfirm} disabled={isLoading}>{isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</> : 'Confirm Delete'}</Button></DialogFooter></DialogContent></Dialog>);
+}
+
+// Promote Class Modal
+function PromoteClassModal({ isOpen, onClose, className, onConfirm, isLoading }: { isOpen: boolean; onClose: () => void; className: string; onConfirm: (toClass: string) => void; isLoading: boolean; }) {
+    const [toClass, setToClass] = useState('');
+    const allClasses = ["TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4", "Foundation A", "Foundation B"];
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Promote Class: {className}</DialogTitle><DialogDescription>Select the new class to move all students from {className}.</DialogDescription></DialogHeader>
+                <div className="py-4"><Label htmlFor="to-class">Promote to Class</Label><Select value={toClass} onValueChange={setToClass}><SelectTrigger id="to-class"><SelectValue placeholder="Select a destination class..." /></SelectTrigger><SelectContent>{allClasses.map(cls => (<SelectItem key={cls} value={cls} disabled={cls === className}>{cls}</SelectItem>))}</SelectContent></Select></div>
+                <DialogFooter><Button variant="ghost" onClick={onClose} disabled={isLoading}>Cancel</Button><Button onClick={() => onConfirm(toClass)} disabled={isLoading || !toClass}>{isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Promoting...</> : 'Confirm Promotion'}</Button></DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 // Main Page Component
@@ -276,6 +291,10 @@ export default function ManageStudentsPage() {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [classToDelete, setClassToDelete] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+    const [classToPromote, setClassToPromote] = useState('');
+    const [isPromoting, setIsPromoting] = useState(false);
 
     const fetchData = async (admin: AdminProfile) => {
         setLoading(true); setError(null);
@@ -315,6 +334,8 @@ export default function ManageStudentsPage() {
     const handleEditClick = (student: StudentProfile) => { setSelectedStudent(student); setIsEditModalOpen(true); };
     const handleDeleteClick = (student: StudentProfile) => { setSelectedStudent(student); setIsDeleteModalOpen(true); };
     const handleDeleteClassClick = (classId: string) => { setClassToDelete(classId); setIsDeleteModalOpen(true); };
+    const handlePromoteClassClick = (classId: string) => { setClassToPromote(classId); setIsPromoteModalOpen(true); };
+
     const confirmDelete = async () => {
         setIsDeleting(true);
         try {
@@ -326,6 +347,26 @@ export default function ManageStudentsPage() {
             toast.success(classToDelete ? `Successfully deleted all students in ${classToDelete}.` : 'Student deleted successfully.');
             if (adminProfile) fetchData(adminProfile);
         } catch (err: any) { toast.error('Deletion failed', { description: err.message }); } finally { setIsDeleting(false); setIsDeleteModalOpen(false); setSelectedStudent(null); setClassToDelete(null); }
+    };
+
+    const confirmPromotion = async (toClassId: string) => {
+        setIsPromoting(true);
+        try {
+            const res = await fetch('/api/promote-class', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from_class_id: classToPromote, to_class_id: toClassId })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Promotion failed');
+            toast.success(data.message || "Class promoted successfully!");
+            if (adminProfile) fetchData(adminProfile);
+        } catch (err: any) {
+            toast.error('Promotion failed', { description: err.message });
+        } finally {
+            setIsPromoting(false);
+            setIsPromoteModalOpen(false);
+        }
     };
 
     const filteredStudents = useMemo(() => {
@@ -347,11 +388,12 @@ export default function ManageStudentsPage() {
                 <div className="relative w-full sm:w-auto"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" /><Input placeholder="Search by name or CIC..." className="pl-10 w-full sm:w-64" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
             </div>
             {error && <Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-            {loading ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)}</div>) : adminProfile?.role === 'officer' ? (<Tabs defaultValue={Object.keys(groupedStudents)[0] || ''} className="w-full"><TabsList className="overflow-x-auto h-auto">{Object.keys(groupedStudents).sort().map(classId => (<TabsTrigger key={classId} value={classId}>{classId}</TabsTrigger>))}</TabsList>{Object.entries(groupedStudents).map(([classId, studentList]) => (<TabsContent key={classId} value={classId} className="mt-4"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-semibold">{classId} ({studentList.length} Students)</h3><Button variant="destructive" size="sm" onClick={() => handleDeleteClassClick(classId)}><Trash2 className="mr-2 h-4 w-4" /> Delete Class</Button></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{studentList.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}</div></TabsContent>))}</Tabs>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStudents.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}</div>)}
+            {loading ? (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-56 w-full" />)}</div>) : adminProfile?.role === 'officer' ? (<Tabs defaultValue={Object.keys(groupedStudents)[0] || ''} className="w-full"><TabsList className="overflow-x-auto h-auto">{Object.keys(groupedStudents).sort().map(classId => (<TabsTrigger key={classId} value={classId}>{classId}</TabsTrigger>))}</TabsList>{Object.entries(groupedStudents).map(([classId, studentList]) => (<TabsContent key={classId} value={classId} className="mt-4"><div className="flex justify-between items-center mb-4"><h3 className="text-xl font-semibold">{classId} ({studentList.length} Students)</h3><div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => handlePromoteClassClick(classId)}><ChevronsRight className="mr-2 h-4 w-4" /> Promote Class</Button><Button variant="destructive" size="sm" onClick={() => handleDeleteClassClick(classId)}><Trash2 className="mr-2 h-4 w-4" /> Delete Class</Button></div></div><div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{studentList.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}</div></TabsContent>))}</Tabs>) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">{filteredStudents.map(student => <StudentCard key={student.uid} student={student} onView={handleViewClick} onEdit={handleEditClick} onDelete={handleDeleteClick} />)}</div>)}
 
             <ViewStudentModal isOpen={isViewModalOpen} setIsOpen={setIsViewModalOpen} student={selectedStudent} marks={academicMarks} familyData={familyData} isLoadingData={isLoadingData} />
             <EditStudentModal isOpen={isEditModalOpen} setIsOpen={setIsEditModalOpen} student={selectedStudent} onSave={() => { if(adminProfile) fetchData(adminProfile) }} />
             <DeleteConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={confirmDelete} isLoading={isDeleting} title={classToDelete ? `Delete Class: ${classToDelete}?` : `Delete Student: ${selectedStudent?.name}?`} description={classToDelete ? `Are you sure you want to delete all students in this class? This action is irreversible.` : `Are you sure you want to delete this student? This action is irreversible.`} />
+            <PromoteClassModal isOpen={isPromoteModalOpen} onClose={() => setIsPromoteModalOpen(false)} className={classToPromote} onConfirm={confirmPromotion} isLoading={isPromoting} />
         </div>
     );
 }

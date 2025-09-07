@@ -57,6 +57,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 // A colored status badge for the accordion trigger
 function PaymentStatus({ paid, total }: { paid: number; total: number }) {
+  if (total === 0) {
+        return (
+            <div className="flex flex-col items-end text-right">
+                <span className={`px-2 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-500`}>
+                    N/A
+                </span>
+                <span className="text-xs text-muted-foreground mt-1">
+                    Not Applicable
+                </span>
+            </div>
+        )
+    }
   const percentage = total > 0 ? (paid / total) * 100 : 0
   let statusText = 'Pending'
   let bgColor = 'bg-destructive/10'

@@ -77,7 +77,7 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
             const total_absent = s.total_days - s.total_present;
             const points_deducted = Math.floor(total_absent / 2) * 2;
             const points = Math.max(0, 20 - points_deducted);
-            return { ...s, percentage: s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0, total: `${s.total_present} / ${s.total_days}`, points };
+            return { ...s, percentage: s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0, total: `${s.total_present.toFixed(2)} / ${s.total_days}`, points };
         }).sort((a, b) => b.percentage - a.percentage);
 
         const totalPercentage = processed.reduce((sum, s) => sum + s.percentage, 0);
@@ -90,6 +90,7 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
+                {/* Header and stats remain as non-scrolling content */}
                 <DialogHeader>
                     <DialogTitle className="text-2xl">Class Overview: {classId}</DialogTitle>
                     <DialogDescription>Detailed attendance metrics and live status for this class.</DialogDescription>
@@ -98,7 +99,6 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
                     <StatCard title="Class Average" value={`${classData.average.toFixed(1)}%`} icon={Users} footer={`${students.length} students in class`} />
                     <StatCard title="Below 75% Attendance" value={classData.belowThreshold.toString()} icon={AlertTriangle} footer="Students needing attention" />
                 </div>
-                {/* --- NEW: Search bar for the modal --- */}
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -108,11 +108,23 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
                         className="pl-9"
                     />
                 </div>
-                <Tabs defaultValue="details" className="w-full flex-1 overflow-hidden">
-                    <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="details">Detailed List</TabsTrigger><TabsTrigger value="status">Today's Live Status</TabsTrigger></TabsList>
-                    <TabsContent value="details" className="mt-4 h-[calc(100%-40px)]">
-                        <div className="overflow-auto h-full border rounded-lg">
-                            <Table><TableHeader><TableRow><TableHead>Student</TableHead><TableHead className="hidden md:table-cell">Attendance</TableHead><TableHead className="hidden md:table-cell text-center">Days</TableHead><TableHead className="text-right">Points</TableHead></TableRow></TableHeader>
+
+                {/* This Tabs component now correctly manages the growing and scrolling area */}
+                <Tabs defaultValue="details" className="w-full flex-1 flex flex-col mt-4 overflow-hidden">
+                    <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="details">Detailed List</TabsTrigger>
+                        <TabsTrigger value="status">Today's Live Status</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="details" className="mt-4 flex-1 overflow-y-auto">
+                        <Table>
+                            <TableHeader className="sticky top-0 bg-background z-10">
+                                <TableRow>
+                                    <TableHead>Student</TableHead>
+                                    <TableHead className="hidden md:table-cell">Attendance</TableHead>
+                                    <TableHead className="hidden md:table-cell text-center">Days</TableHead>
+                                    <TableHead className="text-right">Points</TableHead>
+                                </TableRow>
+                            </TableHeader>
                             <TableBody>
                                 {classData.students.map(student => (
                                     <TableRow key={student.uid}>
@@ -122,10 +134,10 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
                                         <TableCell className={`text-right font-bold text-lg ${student.points < 10 ? 'text-destructive' : 'text-primary'}`}>{student.points} <span className="text-xs font-medium text-muted-foreground">/ 20</span></TableCell>
                                     </TableRow>
                                 ))}
-                            </TableBody></Table>
-                        </div>
+                            </TableBody>
+                        </Table>
                     </TabsContent>
-                    <TabsContent value="status" className="mt-4 h-[calc(100%-40px)] overflow-y-auto">
+                    <TabsContent value="status" className="mt-4 flex-1 overflow-y-auto">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {classData.students.map(student => (
                                 <Card key={student.uid}>

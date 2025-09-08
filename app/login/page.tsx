@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
-import { GraduationCap, LogIn, Mail, Lock, Loader2 } from "lucide-react";
+import Link from "next/link"; // --- NEW: Added Link import ---
+// --- EDITED: Added Heart, Library, and Shield icons ---
+import { GraduationCap, LogIn, Mail, Lock, Loader2, Heart, Library, Shield } from "lucide-react";
 
 // Using shadcn/ui components for a consistent look and feel
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter, // --- NEW: Added CardFooter import ---
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -24,6 +27,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const supabase = createClientComponentClient();
+  const currentYear = new Date().getFullYear();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,32 +55,25 @@ export default function LoginPage() {
     <div className="flex w-full max-w-4xl animate-fade-in rounded-2xl shadow-2xl">
         {/* Left Side: Decorative Panel */}
         <div className="hidden md:flex md:w-1/2 relative bg-[url('/imglogin.jpeg')] bg-cover p-8 rounded-l-2xl">
-            {/* ====================================================== */}
-            {/* START OF FIX: Added overlay for text readability     */}
-            {/* ====================================================== */}
-            {/* <div className="absolute inset-0 bg-brand-green-dark/70 rounded-l-2xl"></div> */}
             <div className="relative z-10 flex flex-col justify-between h-full text-white">
-            {/* ====================================================== */}
-            {/* END OF FIX                                           */}
-            {/* ====================================================== */}
                 <div>
                     <div className="flex items-center gap-3">
                         <GraduationCap className="h-8 w-8" />
                         <h1 className="text-2xl font-bold font-heading">PMSA Wafy College</h1>
                     </div>
-                    <p className="mt-4 text-lg text-brand-green-light">
+                    <p className="mt-4 text-lg text-primary-foreground/80">
                         Your portal to academic excellence and campus life.
                     </p>
                 </div>
-                <p className="text-sm text-brand-green-light/70">
-                    © {new Date().getFullYear()} PMSA Wafy College. All Rights Reserved.
+                <p className="text-sm text-primary-foreground/70">
+                    © 2024 - {currentYear} PMSA Wafy College. All Rights Reserved.
                 </p>
             </div>
         </div>
 
         {/* Right Side: Login Form */}
-        <div className="w-full md:w-1/2 bg-card rounded-r-2xl">
-            <Card className="w-full h-full p-8 border-none shadow-none rounded-l-none">
+        <div className="w-full md:w-1/2 bg-card rounded-r-2xl rounded-l-2xl md:rounded-l-none">
+            <Card className="w-full h-full p-8 border-none shadow-none">
                 <CardHeader className="text-center">
                     <CardTitle className="text-3xl font-heading text-neutral-black">Welcome Back!</CardTitle>
                     <CardDescription>
@@ -130,6 +127,32 @@ export default function LoginPage() {
                         </Button>
                     </form>
                 </CardContent>
+                {/* --- NEW: Added CardFooter with links --- */}
+                <CardFooter className="flex-col gap-4 pt-6 border-t mt-6">
+                    <div className="flex items-center gap-4 text-sm font-medium">
+                        <Link href="https://pmsalibrary.vercel.app/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
+                            <Library className="h-4 w-4" />
+                            PMSA Library
+                        </Link>
+                        <Link href="https://masapmsa.vercel.app/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
+                            <Shield className="h-4 w-4" />
+                            MASA Union
+                        </Link>
+                    </div>
+                    <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                        Made with
+                        <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                        by
+                        <a
+                            href="https://devzoranet.vercel.app/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-primary transition-colors hover:underline"
+                        >
+                            Devzora
+                        </a>
+                    </p>
+                </CardFooter>
             </Card>
         </div>
     </div>

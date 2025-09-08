@@ -1,27 +1,32 @@
 'use client'
+'use client'
 
 import CollegeLiveAttendance from '@/components/CollegeLiveAttendance';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { GraduationCap } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function StaffDashboardPage() {
+  const today = format(new Date(), 'PPP'); // e.g., "September 8th, 2025"
+
   return (
     <div className="space-y-6">
-        <Card className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+        <Card>
             <CardHeader>
                 <div className="flex items-center gap-4">
-                    <GraduationCap className="h-8 w-8" />
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                        <GraduationCap className="h-8 w-8 text-primary" />
+                    </div>
                     <div>
-                        <CardTitle className="text-2xl">Staff Dashboard</CardTitle>
-                        <CardDescription className="text-primary-foreground/80">
-                            A real-time overview of college-wide student attendance.
+                        <CardTitle className="text-2xl">College Live Attendance</CardTitle>
+                        <CardDescription>
+                            A real-time overview of student attendance for <span className="font-semibold text-primary">{today}</span>.
                         </CardDescription>
                     </div>
                 </div>
             </CardHeader>
         </Card>
 
-        {/* The main component for displaying live attendance */}
         <CollegeLiveAttendance />
     </div>
   )

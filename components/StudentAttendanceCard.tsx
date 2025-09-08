@@ -5,7 +5,8 @@ import { useUserData } from '@/hooks/useUserData'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+// --- EDITED: Import Dialog components for the new click-to-view feature ---
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { CalendarCheck2, CalendarDays, TrendingUp, TrendingDown, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -50,7 +51,7 @@ function RadialProgress({ percentage, colorClass }: { percentage: number; colorC
     );
 }
 
-// Component for Today's Real-time Status with Tooltips
+// --- EDITED: Component for Today's Real-time Status now uses a Dialog instead of Tooltip ---
 function TodaysStatus({ todayData }: { todayData: TodaysAttendanceRecord | null }) {
     if (!todayData) {
         return (
@@ -88,25 +89,34 @@ function TodaysStatus({ todayData }: { todayData: TodaysAttendanceRecord | null 
                         Icon = AlertCircle;
                     }
 
+                    const periodElement = (
+                        <div className={`p-2 rounded-md text-center ${bgColor} ${!isPresent ? 'cursor-pointer' : ''}`}>
+                            <p className="font-bold text-xs">P{i + 1}</p>
+                            <Icon className="h-5 w-5 mx-auto mt-1" />
+                        </div>
+                    );
+
+                    // If present, no need for a pop-up, just render the element.
+                    if(isPresent) {
+                        return <div key={period}>{periodElement}</div>;
+                    }
+
+                    // If absent or excused, wrap it in a Dialog for click interaction.
                     return (
-                        <TooltipProvider key={period}>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <div className={`p-2 rounded-md text-center ${bgColor} ${!isPresent ? 'cursor-pointer' : ''}`}>
-                                        <p className="font-bold text-xs">P{i + 1}</p>
-                                        <Icon className="h-5 w-5 mx-auto mt-1" />
-                                    </div>
-                                </TooltipTrigger>
-                                {!isPresent && (
-                                    <TooltipContent>
-                                        <p className="font-semibold">{detail?.reason || "Absent"}</p>
-                                        {detail?.description && (
-                                            <p className="text-sm text-muted-foreground max-w-xs">{detail.description}</p>
-                                        )}
-                                    </TooltipContent>
-                                )}
-                            </Tooltip>
-                        </TooltipProvider>
+                        <Dialog key={period}>
+                            <DialogTrigger asChild>
+                                <button className="w-full text-left">{periodElement}</button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>{detail?.reason || "Absent"} - Period {i + 1}</DialogTitle>
+                                    <DialogDescription>
+                                        Reason for your absence.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <p className="text-sm text-muted-foreground">{detail?.description || "No description provided."}</p>
+                            </DialogContent>
+                        </Dialog>
                     )
                 })}
             </div>
@@ -136,7 +146,7 @@ export default function StudentAttendanceCard() {
                 else setSummaryData(summary);
 
                 if (todayError && todayError.code !== 'PGRST116') console.error("Error fetching today's attendance:", todayError.message);
-                else setTodayData(todayRecord);
+                else setTodayData(todayRecord as TodaysAttendanceRecord | null);
 
                 setLoading(false);
             };
@@ -237,13 +247,13 @@ export default function StudentAttendanceCard() {
                             <p className="text-xs text-neutral-dark">Total Days</p>
                         </div>
                     </div>
-                    <div className={`flex items-center justify-center gap-2 rounded-lg p-3 text-center ${attendanceInfo.colorClass.replace('text-', 'bg-')}/10`}>
-                       <attendanceInfo.Icon className={`h-5 w-5 ${attendanceInfo.colorClass}`} />
-                       <div>
+                     <div className={`flex items-center justify-center gap-2 rounded-lg p-3 text-center ${attendanceInfo.colorClass.replace('text-', 'bg-')}/10`}>
+                        <attendanceInfo.Icon className={`h-5 w-5 ${attendanceInfo.colorClass}`} />
+                        <div>
                            <p className={`font-semibold ${attendanceInfo.colorClass}`}>{attendanceInfo.status} Standing</p>
                            <p className="text-xs text-neutral-dark">{attendanceInfo.description}</p>
-                       </div>
-                   </div>
+                        </div>
+                    </div>
                     <div className="border-t pt-4">
                         <TodaysStatus todayData={todayData} />
                     </div>

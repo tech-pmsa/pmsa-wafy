@@ -72,7 +72,7 @@ export default function AddBulkStudents() {
       const result: UploadResult = await res.json()
       setUploadResult(result)
       if (!res.ok) throw new Error(result.errors[0]?.reason || 'An unknown error occurred.')
-      toast.success('Bulk upload processed!', { description: `${result.createdCount} students added.`})
+      toast.success('Bulk upload processed!', { description: `${result.createdCount} students added.` })
     } catch (err: any) {
       toast.error('Upload failed.', { description: err.message })
     } finally {

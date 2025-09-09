@@ -48,7 +48,7 @@ export async function GET() {
       const values = response.data.values || []
       if (values.length === 0) continue
 
-      // Locate the header row (e.g., contains "CIC")
+      // Locate the header row
       const headerIndex = values.findIndex(row =>
         row.some(cell => cell?.toLowerCase?.().includes('cic'))
       )

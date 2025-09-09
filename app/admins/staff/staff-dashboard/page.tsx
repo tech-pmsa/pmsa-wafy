@@ -7,27 +7,27 @@ import { GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function StaffDashboardPage() {
-  const today = format(new Date(), 'PPP'); // e.g., "September 8th, 2025"
+    const today = format(new Date(), 'PPP');
 
-  return (
-    <div className="space-y-6">
-        <Card>
-            <CardHeader>
-                <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                        <GraduationCap className="h-8 w-8 text-primary" />
+    return (
+        <div className="space-y-6">
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-primary/10 rounded-lg">
+                            <GraduationCap className="h-8 w-8 text-primary" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-2xl">College Live Attendance</CardTitle>
+                            <CardDescription>
+                                A real-time overview of student attendance for <span className="font-semibold text-primary">{today}</span>.
+                            </CardDescription>
+                        </div>
                     </div>
-                    <div>
-                        <CardTitle className="text-2xl">College Live Attendance</CardTitle>
-                        <CardDescription>
-                            A real-time overview of student attendance for <span className="font-semibold text-primary">{today}</span>.
-                        </CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-        </Card>
+                </CardHeader>
+            </Card>
 
-        <CollegeLiveAttendance />
-    </div>
-  )
+            <CollegeLiveAttendance />
+        </div>
+    )
 }

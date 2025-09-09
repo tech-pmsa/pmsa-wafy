@@ -8,7 +8,7 @@ interface UserData {
   loading: boolean;
   user: User | null;
   role: string | null;
-  details: { [key: string]: any } | null; // To hold profile or student details
+  details: { [key: string]: any } | null;
 }
 
 export function useUserData(): UserData {
@@ -37,7 +37,7 @@ export function useUserData(): UserData {
         // Try profiles table first
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('*') // Fetch all columns for admins/staff as well
+          .select('*')
           .eq('uid', user.id)
           .single();
 
@@ -51,25 +51,19 @@ export function useUserData(): UserData {
           return;
         }
 
-        // ======================================================
-        // START OF FIX
-        // ======================================================
         // Then try students table, fetching ALL columns
         const { data: student, error: studentError } = await supabase
           .from('students')
           .select('*') // This now fetches all student data
           .eq('uid', user.id)
           .single();
-        // ======================================================
-        // END OF FIX
-        // ======================================================
 
         if (student && !studentError) {
           setData({
             loading: false,
             user,
             role: student.role,
-            details: student, // The full student object is now in details
+            details: student,
           });
           return;
         }

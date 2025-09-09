@@ -5,7 +5,6 @@ import { useUserData } from '@/hooks/useUserData'
 import { supabase } from '@/lib/supabaseClient'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-// --- EDITED: Import Dialog components for the new click-to-view feature ---
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { CalendarCheck2, CalendarDays, TrendingUp, TrendingDown, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
@@ -51,7 +50,7 @@ function RadialProgress({ percentage, colorClass }: { percentage: number; colorC
     );
 }
 
-// --- EDITED: Component for Today's Real-time Status now uses a Dialog instead of Tooltip ---
+//Component for Today's Real-time Status now uses a Dialog instead of Tooltip
 function TodaysStatus({ todayData }: { todayData: TodaysAttendanceRecord | null }) {
     if (!todayData) {
         return (
@@ -97,7 +96,7 @@ function TodaysStatus({ todayData }: { todayData: TodaysAttendanceRecord | null 
                     );
 
                     // If present, no need for a pop-up, just render the element.
-                    if(isPresent) {
+                    if (isPresent) {
                         return <div key={period}>{periodElement}</div>;
                     }
 
@@ -247,11 +246,11 @@ export default function StudentAttendanceCard() {
                             <p className="text-xs text-neutral-dark">Total Days</p>
                         </div>
                     </div>
-                     <div className={`flex items-center justify-center gap-2 rounded-lg p-3 text-center ${attendanceInfo.colorClass.replace('text-', 'bg-')}/10`}>
+                    <div className={`flex items-center justify-center gap-2 rounded-lg p-3 text-center ${attendanceInfo.colorClass.replace('text-', 'bg-')}/10`}>
                         <attendanceInfo.Icon className={`h-5 w-5 ${attendanceInfo.colorClass}`} />
                         <div>
-                           <p className={`font-semibold ${attendanceInfo.colorClass}`}>{attendanceInfo.status} Standing</p>
-                           <p className="text-xs text-neutral-dark">{attendanceInfo.description}</p>
+                            <p className={`font-semibold ${attendanceInfo.colorClass}`}>{attendanceInfo.status} Standing</p>
+                            <p className="text-xs text-neutral-dark">{attendanceInfo.description}</p>
                         </div>
                     </div>
                     <div className="border-t pt-4">

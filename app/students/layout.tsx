@@ -6,7 +6,6 @@ import Footer from '@/components/Footer';
 export default function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-neutral-light">
-      {/* This div handles showing the sidebar ONLY on desktop */}
       <div className="hidden md:block w-64 border-r bg-background">
         <Sidebar />
       </div>

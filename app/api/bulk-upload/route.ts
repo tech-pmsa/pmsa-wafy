@@ -26,25 +26,25 @@ export async function POST(req: Request) {
 
     // Parse file based on type
     if (file.name.endsWith('.xlsx')) {
-        const workbook = XLSX.read(buffer, { type: 'buffer' })
-        const sheetName = workbook.SheetNames[0]
-        students = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName])
+      const workbook = XLSX.read(buffer, { type: 'buffer' })
+      const sheetName = workbook.SheetNames[0]
+      students = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName])
     } else if (file.name.endsWith('.csv')) {
-        const csvText = new TextDecoder('utf-8').decode(buffer)
-        students = parse(csvText, { header: true, skipEmptyLines: true }).data
+      const csvText = new TextDecoder('utf-8').decode(buffer)
+      students = parse(csvText, { header: true, skipEmptyLines: true }).data
     } else {
-        throw new Error('Unsupported file type. Please upload XLSX or CSV.')
+      throw new Error('Unsupported file type. Please upload XLSX or CSV.')
     }
 
     if (students.length === 0) {
-        throw new Error('No student data found in the file.')
+      throw new Error('No student data found in the file.')
     }
 
     // Validate headers
     const headers = Object.keys(students[0]);
     const missingHeaders = REQUIRED_COLUMNS.filter(col => !headers.includes(col));
     if (missingHeaders.length > 0) {
-        throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
+      throw new Error(`Missing required columns: ${missingHeaders.join(', ')}`);
     }
 
     let createdCount = 0
@@ -93,27 +93,27 @@ export async function POST(req: Request) {
         role: 'student',
       })
 
-       if (insertError) {
-            // If DB insert fails, it's good practice to delete the created auth user
-            await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
-            failedCount++;
-            errors.push({ cic, reason: insertError.message });
-            continue;
-       }
+      if (insertError) {
+        // If DB insert fails, it's good practice to delete the created auth user
+        await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
+        failedCount++;
+        errors.push({ cic, reason: insertError.message });
+        continue;
+      }
 
       createdCount++
     }
 
     return NextResponse.json({
-        success: true,
-        createdCount,
-        failedCount,
-        errors,
+      success: true,
+      createdCount,
+      failedCount,
+      errors,
     })
   } catch (err: any) {
     return NextResponse.json(
-        { success: false, createdCount: 0, failedCount: 0, errors: [{ cic: 'N/A', reason: err.message }] },
-        { status: 500 }
+      { success: false, createdCount: 0, failedCount: 0, errors: [{ cic: 'N/A', reason: err.message }] },
+      { status: 500 }
     )
   }
 }

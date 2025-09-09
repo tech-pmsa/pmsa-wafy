@@ -3,7 +3,6 @@
 import React from 'react'
 import { useUserData } from '@/hooks/useUserData'
 
-// Import the dedicated admin/officer components
 import CollegeAttendanceOverview from '@/components/admin/CollegeAttendanceOverview'
 import FeeManagementDashboard from '@/components/FeeManagementDashboard'
 import AchievementViewer from '@/components/admin/AchievementViewer'
@@ -13,7 +12,6 @@ const OfficerDashboardPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold font-heading">
           Welcome, {details?.name || 'Officer'}
@@ -23,7 +21,6 @@ const OfficerDashboardPage = () => {
         </p>
       </div>
 
-      {/* Main Dashboard Components */}
       <div className="space-y-8">
         <CollegeAttendanceOverview />
         <FeeManagementDashboard />

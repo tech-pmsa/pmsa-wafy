@@ -5,11 +5,10 @@ import { toast } from 'sonner'
 
 // Shadcn/UI & Icon Components
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, Trash2, AlertTriangle } from 'lucide-react'
 
 // The confirmation phrase to prevent accidental deletion
@@ -40,8 +39,8 @@ export default function ClearAttendance() {
             }
 
             toast.success('All attendance data has been successfully cleared.');
-            setIsDialogOpen(false); // Close the dialog on success
-            setConfirmationInput(''); // Reset the input
+            setIsDialogOpen(false);
+            setConfirmationInput('');
 
         } catch (error: any) {
             toast.error('Deletion Failed', {

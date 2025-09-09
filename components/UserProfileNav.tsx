@@ -1,5 +1,3 @@
-// components/UserProfileNav.tsx (Corrected)
-
 'use client'
 
 import React from 'react';
@@ -32,7 +30,6 @@ export default function UserProfileNav() {
 
   const getDashboardLink = () => {
     if (!role) return '/login';
-    // Simplified dashboard link logic
     return role === 'student'
       ? '/students/student-dashboard'
       : `/admins/${role}/${role}-dashboard`;
@@ -59,24 +56,24 @@ export default function UserProfileNav() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-auto p-1.5 flex items-center gap-2">
-            <span className="font-medium text-sm hidden sm:inline-block">{details.name}</span>
-            <Avatar className="h-9 w-9">
-                <AvatarImage src={details.img_url} alt={details.name} className='object-cover' />
-                <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
-            </Avatar>
-            <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:inline-block"/>
+          <span className="font-medium text-sm hidden sm:inline-block">{details.name}</span>
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={details.img_url} alt={details.name} className='object-cover' />
+            <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
+          </Avatar>
+          <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:inline-block" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push(getDashboardLink())} className="cursor-pointer">
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
+          <LayoutDashboard className="mr-2 h-4 w-4" />
+          <span>Dashboard</span>
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => router.push('/admins/admin-settings')} className="cursor-pointer">
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">

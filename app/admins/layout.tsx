@@ -7,7 +7,6 @@ import { Toaster } from '@/components/ui/sonner';
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-neutral-light">
-      {/* This div handles showing the sidebar ONLY on desktop */}
       <div className="hidden md:block w-64 border-r bg-background">
         <AdminSidebar />
       </div>

@@ -18,9 +18,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Send, Search } from 'lucide-react'
+import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Search } from 'lucide-react'
 
-// --- Type Definitions for the New Schema ---
+//Type Definitions
 interface Student { uid: string; name: string; }
 interface PeriodDetail {
     status: 'Present' | 'Absent';
@@ -32,7 +32,7 @@ const periods = Array.from({ length: 8 }, (_, i) => `period_${i + 1}`);
 const absenceReasons = ['Home', 'Medical', 'Cic Related', 'Wsf Related', 'Exam Related'];
 const excusedAbsences = ['Cic Related', 'Wsf Related', 'Exam Related'];
 
-// --- Reason Modal for Marking Absences ---
+//Reason Modal for Marking Absences
 function ReasonModal({ isOpen, onClose, onSave, studentName, lastReason }: { isOpen: boolean, onClose: () => void, onSave: (reason: PeriodDetail) => void, studentName: string, lastReason: PeriodDetail | null }) {
     const [reason, setReason] = useState<PeriodDetail['reason']>('Home');
     const [description, setDescription] = useState('');
@@ -87,14 +87,10 @@ export default function AttendanceForm() {
     const [isLeaveDay, setIsLeaveDay] = useState(false);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-
-    // --- EDITED: Separate loading states for each button ---
     const [isUpdating, setIsUpdating] = useState(false);
     const [isLocking, setIsLocking] = useState(false);
-
-    // State for the reason modal
     const [modalState, setModalState] = useState<{ isOpen: boolean; studentUid: string | null; period: string | null; }>({ isOpen: false, studentUid: null, period: null });
-    const [lastReasons, setLastReasons] = useState<{[uid: string]: PeriodDetail}>({});
+    const [lastReasons, setLastReasons] = useState<{ [uid: string]: PeriodDetail }>({});
 
     const classId = useMemo(() => details?.designation, [details]);
 
@@ -117,7 +113,7 @@ export default function AttendanceForm() {
         if (studentsData) {
             setStudents(studentsData);
             const initialAttendance: { [uid: string]: AttendanceRecord } = {};
-            const initialLastReasons: {[uid: string]: PeriodDetail} = {};
+            const initialLastReasons: { [uid: string]: PeriodDetail } = {};
             const isDayLocked = attendanceData?.[0]?.status_locked || false;
             setIsLocked(isDayLocked);
             setIsLeaveDay(attendanceData?.[0]?.is_leave_day || false);
@@ -192,7 +188,6 @@ export default function AttendanceForm() {
         setLastReasons(prev => ({ ...prev, [studentUid]: reason }));
     };
 
-    // --- EDITED: Refactored submission logic ---
     const handleSubmission = async (shouldLock: boolean) => {
         if (!classId) { toast.error("Class ID is missing."); return; }
 
@@ -200,9 +195,6 @@ export default function AttendanceForm() {
 
         const date = format(selectedDate, 'yyyy-MM-dd');
 
-        // This is a more robust way to build the payload for each student.
-        // It explicitly creates the object instead of relying on a spread operator,
-        // which can sometimes cause issues with complex objects.
         const updates = students.map(student => {
             const studentAttendance = attendance[student.uid];
             const record: any = {
@@ -212,7 +204,6 @@ export default function AttendanceForm() {
                 is_leave_day: isLeaveDay,
                 status_locked: shouldLock,
             };
-            // Explicitly assign each period object to its corresponding column name.
             for (const p of periods) {
                 record[p] = studentAttendance[p];
             }
@@ -265,22 +256,24 @@ export default function AttendanceForm() {
                         {filteredStudents.map(student => {
                             const studentAttendance = attendance[student.uid];
                             return (
-                            <Card key={student.uid} className={`transition-opacity ${isLocked || isLeaveDay ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                                <CardHeader className="flex flex-row items-center justify-between p-4"><h3 className="font-semibold">{student.name}</h3><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => markAll(student.uid, true)} disabled={isLocked || isLeaveDay}><Check className="h-4 w-4 mr-1" /> All Present</Button><Button variant="outline" size="sm" onClick={() => markAll(student.uid, false)} disabled={isLocked || isLeaveDay}><X className="h-4 w-4 mr-1" /> All Absent</Button></div></CardHeader>
-                                <CardContent className="p-4 pt-0">
-                                    <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                                        {periods.map((period, i) => {
-                                            const periodData = studentAttendance?.[period];
-                                            const isPresent = periodData?.status === 'Present';
-                                            return (
-                                            <Button key={period} variant={isPresent ? 'default' : 'secondary'} className={`h-10 w-full text-xs ${isPresent ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`} onClick={() => handlePeriodClick(student.uid, period)} disabled={isLocked || isLeaveDay}>
-                                                P{i + 1}
-                                            </Button>
-                                        )})}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )})}
+                                <Card key={student.uid} className={`transition-opacity ${isLocked || isLeaveDay ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                                    <CardHeader className="flex flex-row items-center justify-between p-4"><h3 className="font-semibold">{student.name}</h3><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => markAll(student.uid, true)} disabled={isLocked || isLeaveDay}><Check className="h-4 w-4 mr-1" /> All Present</Button><Button variant="outline" size="sm" onClick={() => markAll(student.uid, false)} disabled={isLocked || isLeaveDay}><X className="h-4 w-4 mr-1" /> All Absent</Button></div></CardHeader>
+                                    <CardContent className="p-4 pt-0">
+                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                                            {periods.map((period, i) => {
+                                                const periodData = studentAttendance?.[period];
+                                                const isPresent = periodData?.status === 'Present';
+                                                return (
+                                                    <Button key={period} variant={isPresent ? 'default' : 'secondary'} className={`h-10 w-full text-xs ${isPresent ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`} onClick={() => handlePeriodClick(student.uid, period)} disabled={isLocked || isLeaveDay}>
+                                                        P{i + 1}
+                                                    </Button>
+                                                )
+                                            })}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )
+                        })}
                     </div>
                 )}
             </div>

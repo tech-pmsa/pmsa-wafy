@@ -6,7 +6,7 @@ import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs'
 
 // Helper function to fetch user role from multiple tables
 async function getUserRole(supabase: any, uid: string): Promise<string | null> {
-  // Check profiles table first (admins, staff, etc.)
+  // Check profiles table first
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -28,7 +28,7 @@ async function getUserRole(supabase: any, uid: string): Promise<string | null> {
     return student.role;
   }
 
-  return null; // No role found in any table
+  return null;
 }
 
 export async function middleware(req: NextRequest) {
@@ -53,47 +53,41 @@ export async function middleware(req: NextRequest) {
     // If no role is found, redirect to an unauthorized page
     if (!role) {
       if (pathname !== '/unauthorized') {
-          return NextResponse.redirect(new URL('/unauthorized', req.url));
+        return NextResponse.redirect(new URL('/unauthorized', req.url));
       }
       return res;
     }
 
     // Define role-to-path mappings for cleaner logic
     const roleRedirects: { [key: string]: string } = {
-        officer: '/admins/officer',
-        class: '/admins/classroom',
-        'class-leader': '/admins/classleader',
-        student: '/students',
-        staff: '/admins/staff',
+      officer: '/admins/officer',
+      class: '/admins/classroom',
+      'class-leader': '/admins/classleader',
+      student: '/students',
+      staff: '/admins/staff',
     };
 
     const requiredPath = roleRedirects[role];
 
-    // ======================================================
-    // START OF FIX
-    // ======================================================
     // Allow access to the shared settings page for all authenticated users
     if (pathname.startsWith('/admins/admin-settings')) {
-        return res; // Continue without redirecting
+      return res; // Continue without redirecting
     }
     if (pathname.startsWith('/admins/manage-students')) {
-        return res; // Continue without redirecting
+      return res; // Continue without redirecting
     }
-    // ======================================================
-    // END OF FIX
-    // ======================================================
 
     // If user is on a path they are not authorized for, redirect them
     if (requiredPath && !pathname.startsWith(requiredPath)) {
-        // Redirect to the correct dashboard for their role
-        const dashboardPath = `${requiredPath}/${role}-dashboard`;
-        return NextResponse.redirect(new URL(dashboardPath, req.url));
+      // Redirect to the correct dashboard for their role
+      const dashboardPath = `${requiredPath}/${role}-dashboard`;
+      return NextResponse.redirect(new URL(dashboardPath, req.url));
     }
 
     // If a logged-in user tries to access the login page, redirect them to their dashboard
     if (pathname === '/login') {
-        const dashboardPath = `${roleRedirects[role]}/${role}-dashboard`;
-        return NextResponse.redirect(new URL(dashboardPath, req.url));
+      const dashboardPath = `${roleRedirects[role]}/${role}-dashboard`;
+      return NextResponse.redirect(new URL(dashboardPath, req.url));
     }
   }
 

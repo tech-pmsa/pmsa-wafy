@@ -3,7 +3,6 @@
 import React from 'react'
 import { useUserData } from '@/hooks/useUserData'
 
-// Import the dedicated components
 import ClassAttendanceDashboard from '@/components/admin/ClassAttendanceDashboard'
 import FeeManagementDashboard from '@/components/FeeManagementDashboard'
 import AchievementViewer from '@/components/admin/AchievementViewer'
@@ -13,7 +12,6 @@ const ClassroomDashboardPage = () => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Welcome Header */}
       <div>
         <h1 className="text-3xl font-bold font-heading">
           {details?.designation || 'Class'} Dashboard
@@ -23,7 +21,6 @@ const ClassroomDashboardPage = () => {
         </p>
       </div>
 
-      {/* Main Dashboard Components */}
       <div className="space-y-8">
         <ClassAttendanceDashboard />
         <FeeManagementDashboard />

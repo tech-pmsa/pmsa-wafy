@@ -1,4 +1,3 @@
-// app/admins/classroom/notifications/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -8,10 +7,9 @@ import { toast } from 'sonner'
 
 // Shadcn/UI & Icon Components
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { CheckCircle2, XCircle, Inbox, Link as LinkIcon, Loader2, User } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
@@ -24,47 +22,46 @@ type Achievement = {
   cic: string;
   proof_url: string;
   submitted_at: string;
-  // Assuming students table has an img_url
   students: { img_url: string | null } | null;
 }
 
 // Reusable component for each notification card
 function AchievementCard({ achievement, onApprove, onDecline }: { achievement: Achievement, onApprove: () => void, onDecline: () => void }) {
-    return (
-        <Card className="overflow-hidden">
-            <CardHeader className="flex flex-row items-start gap-4 p-4">
-                <Avatar>
-                    <AvatarImage src={achievement.students?.img_url || undefined} />
-                    <AvatarFallback><User /></AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                    <CardTitle>{achievement.title}</CardTitle>
-                    <CardDescription>Submitted by <span className="font-medium text-foreground">{achievement.name}</span> ({achievement.cic})</CardDescription>
-                    <p className="text-sm text-muted-foreground mt-2">{achievement.description}</p>
-                </div>
-                {achievement.proof_url && (
-                    <Button asChild variant="outline" size="icon" className="flex-shrink-0">
-                        <a href={achievement.proof_url} target="_blank" rel="noreferrer" title="View Proof">
-                            <LinkIcon className="h-4 w-4" />
-                        </a>
-                    </Button>
-                )}
-            </CardHeader>
-            <CardFooter className="bg-muted/50 p-3 flex justify-between items-center">
-                <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(achievement.submitted_at), { addSuffix: true })}
-                </p>
-                <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={onDecline}>
-                        <XCircle className="h-4 w-4 mr-2 text-destructive" /> Decline
-                    </Button>
-                    <Button size="sm" onClick={onApprove} className="bg-green-600 hover:bg-green-700">
-                        <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
-                    </Button>
-                </div>
-            </CardFooter>
-        </Card>
-    )
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="flex flex-row items-start gap-4 p-4">
+        <Avatar>
+          <AvatarImage src={achievement.students?.img_url || undefined} />
+          <AvatarFallback><User /></AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <CardTitle>{achievement.title}</CardTitle>
+          <CardDescription>Submitted by <span className="font-medium text-foreground">{achievement.name}</span> ({achievement.cic})</CardDescription>
+          <p className="text-sm text-muted-foreground mt-2">{achievement.description}</p>
+        </div>
+        {achievement.proof_url && (
+          <Button asChild variant="outline" size="icon" className="flex-shrink-0">
+            <a href={achievement.proof_url} target="_blank" rel="noreferrer" title="View Proof">
+              <LinkIcon className="h-4 w-4" />
+            </a>
+          </Button>
+        )}
+      </CardHeader>
+      <CardFooter className="bg-muted/50 p-3 flex justify-between items-center">
+        <p className="text-xs text-muted-foreground">
+          {formatDistanceToNow(new Date(achievement.submitted_at), { addSuffix: true })}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={onDecline}>
+            <XCircle className="h-4 w-4 mr-2 text-destructive" /> Decline
+          </Button>
+          <Button size="sm" onClick={onApprove} className="bg-green-600 hover:bg-green-700">
+            <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
+          </Button>
+        </div>
+      </CardFooter>
+    </Card>
+  )
 }
 
 export default function AchievementNotificationsPage() {
@@ -77,13 +74,12 @@ export default function AchievementNotificationsPage() {
   useEffect(() => {
     const batch = details?.batch;
     if (userLoading || !batch) {
-        if (!userLoading) setLoading(false);
-        return;
+      if (!userLoading) setLoading(false);
+      return;
     }
 
     const fetchAchievements = async () => {
       setLoading(true)
-      // Fetch achievements and related student's image
       const { data, error } = await supabase
         .from('achievements')
         .select('*, students(img_url)')
@@ -109,9 +105,9 @@ export default function AchievementNotificationsPage() {
     let error = null;
 
     if (action === 'approve') {
-        ({ error } = await supabase.from('achievements').update({ approved: true }).eq('id', achievement.id));
+      ({ error } = await supabase.from('achievements').update({ approved: true }).eq('id', achievement.id));
     } else if (action === 'decline') {
-        ({ error } = await supabase.from('achievements').delete().eq('id', achievement.id));
+      ({ error } = await supabase.from('achievements').delete().eq('id', achievement.id));
     }
 
     if (!error) {
@@ -133,50 +129,50 @@ export default function AchievementNotificationsPage() {
 
       {loading || userLoading ? (
         <div className="space-y-4">
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
         </div>
       ) : achievements.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center py-16 bg-card rounded-lg border">
-            <Inbox className="h-16 w-16 text-muted-foreground/50" />
-            <h3 className="mt-4 text-xl font-semibold">All Caught Up!</h3>
-            <p className="mt-2 text-sm text-muted-foreground">There are no pending achievements to review.</p>
+          <Inbox className="h-16 w-16 text-muted-foreground/50" />
+          <h3 className="mt-4 text-xl font-semibold">All Caught Up!</h3>
+          <p className="mt-2 text-sm text-muted-foreground">There are no pending achievements to review.</p>
         </div>
       ) : (
         <div className="space-y-4">
-            {achievements.map((ach) => (
-                <AchievementCard
-                    key={ach.id}
-                    achievement={ach}
-                    onApprove={() => openConfirmationDialog('approve', ach)}
-                    onDecline={() => openConfirmationDialog('decline', ach)}
-                />
-            ))}
+          {achievements.map((ach) => (
+            <AchievementCard
+              key={ach.id}
+              achievement={ach}
+              onApprove={() => openConfirmationDialog('approve', ach)}
+              onDecline={() => openConfirmationDialog('decline', ach)}
+            />
+          ))}
         </div>
       )}
 
       <AlertDialog open={dialogState.isOpen} onOpenChange={(isOpen) => setDialogState({ ...dialogState, isOpen })}>
-          <AlertDialogContent>
-              <AlertDialogHeader>
-                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                      You are about to {dialogState.action} the achievement titled "{dialogState.achievement?.title}".
-                      {dialogState.action === 'decline' && ' This action is permanent and cannot be undone.'}
-                  </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                  <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                      onClick={handleConfirmAction}
-                      disabled={isSubmitting}
-                      className={dialogState.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
-                  >
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Confirm {dialogState.action === 'approve' ? 'Approval' : 'Decline'}
-                  </AlertDialogAction>
-              </AlertDialogFooter>
-          </AlertDialogContent>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to {dialogState.action} the achievement titled "{dialogState.achievement?.title}".
+              {dialogState.action === 'decline' && ' This action is permanent and cannot be undone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              disabled={isSubmitting}
+              className={dialogState.action === 'approve' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm {dialogState.action === 'approve' ? 'Approval' : 'Decline'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
       </AlertDialog>
     </div>
   )

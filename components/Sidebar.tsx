@@ -6,10 +6,8 @@ import { usePathname } from 'next/navigation';
 import { GraduationCap, LayoutDashboard, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Simplified navigation for a better student experience
 const navItems = [
     { href: '/students/student-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    // Corrected the path to the unified settings page
     { href: '/admins/admin-settings', label: 'Settings', icon: Settings },
 ];
 
@@ -30,7 +28,6 @@ export default function Sidebar() {
                                 href={item.href}
                                 className={cn(
                                     "flex items-center gap-3 rounded-lg px-3 py-2 text-neutral-dark transition-all hover:text-neutral-black hover:bg-neutral-medium/50",
-                                    // Updated logic to correctly highlight the active page
                                     pathname === item.href && "bg-brand-green-light text-brand-green-dark font-semibold"
                                 )}
                             >

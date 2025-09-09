@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, ChangeEvent, FormEvent, useMemo } from 'react';
-import Image from 'next/image';
 import { toast } from 'sonner';
 
 // Shadcn/UI & Icon Components
@@ -17,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Mail, Briefcase, Edit, Loader2, Camera, AlertCircle, View, Shield } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 
-// --- NEW: Define types for staff and council ---
 interface StaffProfile {
     uid: string;
     name: string;
@@ -70,7 +68,6 @@ function StaffCard({ staff, onView, onEdit }: { staff: StaffProfile; onView: (st
     );
 }
 
-// --- NEW: View Details Modal ---
 function ViewStaffModal({ isOpen, setIsOpen, staff, councilDetails, isLoadingCouncil }: { isOpen: boolean; setIsOpen: (open: boolean) => void; staff: StaffProfile | null; councilDetails: ClassCouncil | null; isLoadingCouncil: boolean; }) {
     if (!staff) return null;
 
@@ -111,7 +108,7 @@ function ViewStaffModal({ isOpen, setIsOpen, staff, councilDetails, isLoadingCou
                             </div>
                         </div>
                     ) : (
-                       <p className="text-center text-muted-foreground">No additional details to display.</p>
+                        <p className="text-center text-muted-foreground">No additional details to display.</p>
                     )}
                 </div>
                 <DialogFooter>
@@ -122,7 +119,6 @@ function ViewStaffModal({ isOpen, setIsOpen, staff, councilDetails, isLoadingCou
     );
 }
 
-// Edit Modal Component (Unchanged)
 function EditStaffModal({ isOpen, setIsOpen, staff, onSave }: { isOpen: boolean; setIsOpen: (open: boolean) => void; staff: StaffProfile | null; onSave: () => void; }) {
     const [name, setName] = useState('');
     const [preview, setPreview] = useState<string | null>(null);
@@ -177,8 +173,6 @@ export default function ManageStaffPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedStaff, setSelectedStaff] = useState<StaffProfile | null>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-    // --- NEW: State for the view modal and council details ---
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [councilDetails, setCouncilDetails] = useState<ClassCouncil | null>(null);
     const [isCouncilLoading, setIsCouncilLoading] = useState(false);
@@ -203,7 +197,6 @@ export default function ManageStaffPage() {
         if (!staffList) return {};
         return staffList.reduce((acc, staff) => {
             let key = staff.designation || staff.role || 'Unassigned';
-            // Group 'AL-4 Class' under 'AL-4'
             if (key.endsWith(' Class')) {
                 key = key.replace(' Class', '').trim();
             }
@@ -217,17 +210,16 @@ export default function ManageStaffPage() {
 
     const tabNames = Object.keys(groupedStaff).sort();
 
-    // --- NEW: Handler for the view button ---
     const handleViewClick = async (staff: StaffProfile) => {
         setSelectedStaff(staff);
         setIsViewModalOpen(true);
-        setCouncilDetails(null); // Reset previous data
+        setCouncilDetails(null);
 
         if (staff.designation?.endsWith(' Class')) {
             setIsCouncilLoading(true);
             try {
                 const { data, error } = await supabase.from('class_council').select('*').eq('uid', staff.uid).single();
-                if (error && error.code !== 'PGRST116') throw error; // Ignore "no rows" error
+                if (error && error.code !== 'PGRST116') throw error;
                 if (data) setCouncilDetails(data);
             } catch (err: any) {
                 toast.error("Failed to fetch council details.", { description: err.message });

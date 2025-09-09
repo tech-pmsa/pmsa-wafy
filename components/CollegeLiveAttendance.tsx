@@ -1,5 +1,4 @@
 'use client'
-'use client'
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
@@ -11,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Input } from '@/components/ui/input'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
-import { Search, CheckCircle2, XCircle, AlertCircle, Users } from 'lucide-react'
+import { Search, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import { Button } from '@/components/ui/button'
 
@@ -31,7 +30,6 @@ export default function CollegeLiveAttendance() {
     const [allAttendance, setAllAttendance] = useState<StudentFullAttendance[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    // --- NEW: State to manage the active filter for each class accordion ---
     const [periodFilters, setPeriodFilters] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -80,8 +78,8 @@ export default function CollegeLiveAttendance() {
                 if (updatedRecord.date === format(new Date(), 'yyyy-MM-dd')) {
                     setAllAttendance(prev => prev.map(student =>
                         student.uid === updatedRecord.student_uid
-                        ? { ...student, today_attendance: updatedRecord }
-                        : student
+                            ? { ...student, today_attendance: updatedRecord }
+                            : student
                     ));
                 }
             }).subscribe();
@@ -146,9 +144,9 @@ export default function CollegeLiveAttendance() {
                                 <div className="space-y-4 border-t pt-4">
                                     {/* --- NEW: Period Filter Buttons --- */}
                                     <div className="flex flex-wrap gap-2">
-                                        <Button size="sm" variant={activeFilter === 'all' ? 'default' : 'outline'} onClick={() => setPeriodFilters(prev => ({...prev, [classId]: 'all'}))}>All Students</Button>
+                                        <Button size="sm" variant={activeFilter === 'all' ? 'default' : 'outline'} onClick={() => setPeriodFilters(prev => ({ ...prev, [classId]: 'all' }))}>All Students</Button>
                                         {periods.map((period, i) => (
-                                            <Button key={period} size="sm" variant={activeFilter === period ? 'default' : 'outline'} onClick={() => setPeriodFilters(prev => ({...prev, [classId]: period}))}>P{i+1}</Button>
+                                            <Button key={period} size="sm" variant={activeFilter === period ? 'default' : 'outline'} onClick={() => setPeriodFilters(prev => ({ ...prev, [classId]: period }))}>P{i + 1}</Button>
                                         ))}
                                     </div>
 

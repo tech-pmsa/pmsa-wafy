@@ -20,12 +20,12 @@ function ReviewItem({ label, value }: { label: string; value: string | undefined
 }
 
 const initialFormData = {
-    name: '', cic: '', class_id: '', council: '', batch: '', phone: '',
-    guardian: '', g_phone: '', address: '', sslc: '', plustwo: '', plustwo_streams: '',
+  name: '', cic: '', class_id: '', council: '', batch: '', phone: '',
+  guardian: '', g_phone: '', address: '', sslc: '', plustwo: '', plustwo_streams: '',
 };
 
 const classOptions = [
-    "TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4", "Foundation A", "Foundation B"
+  "TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4", "Foundation A", "Foundation B"
 ];
 
 export default function AddStudents() {
@@ -88,8 +88,8 @@ export default function AddStudents() {
       <CardHeader>
         <div className="mb-4"><Label className="text-sm font-medium text-muted-foreground">Step {step} of 4</Label><Progress value={(step / 4) * 100} className="mt-1" /></div>
         <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><currentStepInfo.icon className="h-6 w-6 text-primary" /></div>
-            <div><CardTitle>{currentStepInfo.title}</CardTitle><CardDescription>{currentStepInfo.description}</CardDescription></div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10"><currentStepInfo.icon className="h-6 w-6 text-primary" /></div>
+          <div><CardTitle>{currentStepInfo.title}</CardTitle><CardDescription>{currentStepInfo.description}</CardDescription></div>
         </div>
       </CardHeader>
       <form onSubmit={handleSubmit}>

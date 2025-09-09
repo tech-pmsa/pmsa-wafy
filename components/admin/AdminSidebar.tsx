@@ -1,4 +1,3 @@
-// components/AdminSidebar.tsx
 'use client';
 
 import React, { useEffect, useState } from 'react';
@@ -20,9 +19,8 @@ const allNavItems = [
     { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
 ];
 
-// Define props to accept the click handler
 interface AdminSidebarProps {
-  onLinkClick?: () => void;
+    onLinkClick?: () => void;
 }
 
 export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
@@ -46,7 +44,6 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
             };
             fetchCount();
 
-            // Listen for real-time changes
             const channel = supabase.channel('achievement-notifications')
                 .on('postgres_changes', { event: '*', schema: 'public', table: 'achievements' }, fetchCount)
                 .subscribe();
@@ -76,7 +73,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
                             <li key={item.href}>
                                 <Link
                                     href={item.href}
-                                    onClick={onLinkClick} // Call the closing function on click
+                                    onClick={onLinkClick}
                                     className={cn(
                                         "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-primary/10",
                                         (pathname === item.href || pathname.startsWith(`${item.href}/`)) && "bg-primary/10 text-primary font-semibold"

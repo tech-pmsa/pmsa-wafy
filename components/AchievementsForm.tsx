@@ -12,19 +12,15 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent } from '@/components/ui/card'
-import { Award, FileText, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
+import { Award, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 export default function AchievementsForm() {
-  const { user, details, loading: userLoading } = useUserData(); // CORRECTED: Using the new hook
+  const { user, details, loading: userLoading } = useUserData();
   const [isOpen, setIsOpen] = useState(false)
-
-  // Form State
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [proofFile, setProofFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-
-  // UI State
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
@@ -41,7 +37,7 @@ export default function AchievementsForm() {
       }
       setProofFile(file)
       setPreviewUrl(URL.createObjectURL(file))
-      setErrorMsg(''); // Clear previous errors
+      setErrorMsg('');
     }
   }
 
@@ -64,7 +60,6 @@ export default function AchievementsForm() {
       return
     }
 
-    // CORRECTED: Check for user and details from the new hook
     if (!user || !details?.name || !details?.cic || !details?.batch) {
       setErrorMsg('Your user data is incomplete. Please try logging in again.')
       return
@@ -76,7 +71,7 @@ export default function AchievementsForm() {
     if (proofFile) {
       const filePath = `${user.id}/${Date.now()}-${proofFile.name}`
       const { error: uploadError } = await supabase.storage
-        .from('achievements') // Make sure this bucket exists and has correct policies
+        .from('achievements')
         .upload(filePath, proofFile)
 
       if (uploadError) {
@@ -96,10 +91,10 @@ export default function AchievementsForm() {
         title,
         description,
         proof_url: proofUrl,
-        student_uid: user.id, // CORRECTED
-        name: details.name, // CORRECTED
-        cic: details.cic, // CORRECTED
-        batch: details.batch, // CORRECTED
+        student_uid: user.id,
+        name: details.name,
+        cic: details.cic,
+        batch: details.batch,
         approved: false,
       },
     ])
@@ -170,7 +165,7 @@ export default function AchievementsForm() {
           <div className="space-y-2">
             <Label htmlFor="proof-file">Proof (Optional)</Label>
             <Input id="proof-file" type="file" onChange={handleFileChange} ref={fileInputRef} className="file:text-primary file:font-semibold" accept="image/png, image/jpeg, application/pdf" />
-             <p className="text-xs text-muted-foreground">Upload a certificate, photo, or PDF. Max file size: 5MB.</p>
+            <p className="text-xs text-muted-foreground">Upload a certificate, photo, or PDF. Max file size: 5MB.</p>
           </div>
 
           {previewUrl && (

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useMemo } from 'react'
-import { useUserData } from '@/hooks/useUserData' // CORRECTED: Using the consolidated hook
+import { useUserData } from '@/hooks/useUserData'
 import { CheckCircle2, XCircle, MinusCircle, Loader2 } from 'lucide-react'
 
 // Shadcn/UI Components
@@ -11,15 +11,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 // Helper type for sheet data
 type SheetData = Record<string, { headers: string[]; rows: string[][] }>
 
-// A new, simplified component to show the student's own fee details.
 export default function StudentFeeDashboard() {
-  const { loading: userLoading, details } = useUserData(); // CORRECTED: Using the new hook
+  const { loading: userLoading, details } = useUserData();
   const [sheetData, setSheetData] = useState<SheetData | null>(null);
   const [isFetching, setIsFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const batch = details?.batch; // CORRECTED: Getting batch from details object
+    const batch = details?.batch;
 
     // Don't fetch until we know the user's batch
     if (userLoading || !batch) {
@@ -40,9 +39,9 @@ export default function StudentFeeDashboard() {
         const studentSheetName = Object.keys(data).find(name => name.toLowerCase().trim() === batch.toLowerCase().trim());
 
         if (studentSheetName) {
-           setSheetData({ [studentSheetName]: data[studentSheetName] });
+          setSheetData({ [studentSheetName]: data[studentSheetName] });
         } else {
-           setError("No fee schedule found for your batch.");
+          setError("No fee schedule found for your batch.");
         }
 
       } catch (err: any) {
@@ -53,11 +52,11 @@ export default function StudentFeeDashboard() {
       }
     };
     fetchData();
-  }, [userLoading, details]); // CORRECTED: Dependency array now uses details
+  }, [userLoading, details]);
 
   // Memoize the processed data for the specific student
   const studentFeeDetails = useMemo(() => {
-    const cic = details?.cic; // CORRECTED: Getting cic from details object
+    const cic = details?.cic;
     if (!sheetData || !cic) return null;
 
     const sheetName = Object.keys(sheetData)[0];
@@ -91,7 +90,7 @@ export default function StudentFeeDashboard() {
     const totalPaidAmount = payments.reduce((sum, p) => sum + p.amount, 0);
 
     return { payments, paidCount, totalApplicableMonths, totalPaidAmount };
-  }, [sheetData, details]); // CORRECTED: Dependency array now uses details
+  }, [sheetData, details]);
 
   const renderContent = () => {
     if (userLoading || isFetching) {
@@ -104,13 +103,13 @@ export default function StudentFeeDashboard() {
     }
 
     if (error) {
-       return (
-         <Alert variant="destructive">
-            <XCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-         </Alert>
-       )
+      return (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )
     }
 
     if (!studentFeeDetails) {
@@ -123,20 +122,20 @@ export default function StudentFeeDashboard() {
       <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
         <AccordionItem value="item-1" className="border-none">
           <AccordionTrigger className="hover:no-underline">
-              <div className="flex w-full items-center justify-between rounded-lg bg-neutral-light p-4">
-                  <div>
-                      <p className="font-semibold text-neutral-black">Monthly Payment Status</p>
-                      <p className="text-sm text-neutral-dark">
-                          {paidCount} of {totalApplicableMonths} months paid
-                      </p>
-                  </div>
-                   <div className="text-right">
-                      <p className="font-semibold text-brand-green">
-                          {totalPaidAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
-                      </p>
-                      <p className="text-sm text-neutral-dark">Total Paid</p>
-                  </div>
+            <div className="flex w-full items-center justify-between rounded-lg bg-neutral-light p-4">
+              <div>
+                <p className="font-semibold text-neutral-black">Monthly Payment Status</p>
+                <p className="text-sm text-neutral-dark">
+                  {paidCount} of {totalApplicableMonths} months paid
+                </p>
               </div>
+              <div className="text-right">
+                <p className="font-semibold text-brand-green">
+                  {totalPaidAmount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}
+                </p>
+                <p className="text-sm text-neutral-dark">Total Paid</p>
+              </div>
+            </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

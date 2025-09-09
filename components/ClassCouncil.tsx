@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useUserData } from '@/hooks/useUserData' // CORRECTED
+import { useUserData } from '@/hooks/useUserData'
 import { supabase } from '@/lib/supabaseClient'
 import { toast } from 'sonner'
 
@@ -27,7 +27,7 @@ const councilPositions = [
 ]
 
 export default function ClassCouncil() {
-  const { user, loading: userLoading } = useUserData() // CORRECTED
+  const { user, loading: userLoading } = useUserData()
   const [council, setCouncil] = useState<any>(null)
   const [originalCouncil, setOriginalCouncil] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -53,7 +53,7 @@ export default function ClassCouncil() {
         setOriginalCouncil(data)
       } else {
         // If no record exists, create a blank one to allow editing
-        const blankCouncil = councilPositions.reduce((acc, pos) => ({...acc, [pos.key]: ''}), { uid: user.id })
+        const blankCouncil = councilPositions.reduce((acc, pos) => ({ ...acc, [pos.key]: '' }), { uid: user.id })
         setCouncil(blankCouncil)
         setOriginalCouncil(blankCouncil)
       }

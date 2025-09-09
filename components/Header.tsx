@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState } from 'react'; // Import useState
+import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import UserProfileNav from '@/components/UserProfileNav';
 import { Menu, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from './ui/button';
 
-// Import both sidebars and the hook to get user data
 import Sidebar from './Sidebar';
 import AdminSidebar from './admin/AdminSidebar';
 import { useUserData } from '@/hooks/useUserData';
@@ -17,20 +16,20 @@ const generateTitle = (path: string) => {
     const lastSegment = path.split('/').pop() || 'dashboard';
     return lastSegment
         .replace(/-/g, ' ')
-        .replace(/\b\w/g, char => char.toUpperCase()); // Capitalize each word
+        .replace(/\b\w/g, char => char.toUpperCase());
 };
 
 export default function Header() {
     const pathname = usePathname();
-    const { role, loading } = useUserData(); // Get the user's role and loading state
+    const { role, loading } = useUserData();
     const title = generateTitle(pathname);
-    const [isSheetOpen, setIsSheetOpen] = useState(false); // State to control the Sheet
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
 
     // Determine if the user has an administrative role
     const isAdmin = role === 'officer' || role === 'class' || role === 'class-leader';
 
     const handleLinkClick = () => {
-        setIsSheetOpen(false); // Function to close the sheet
+        setIsSheetOpen(false);
     };
 
     return (

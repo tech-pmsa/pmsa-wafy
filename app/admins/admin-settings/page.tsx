@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, User } from 'lucide-react'
 
+// Import your setting components
 import AddStudents from '@/components/AddStudents'
 import ClassCouncil from '@/components/ClassCouncil'
 import AddBulkStudents from '@/components/AddBulkStudents'
@@ -41,6 +42,7 @@ export default function AdminSettingsPage() {
                 <p className="text-muted-foreground">Manage your profile and system settings.</p>
             </div>
 
+            {/* Profile Section - Visible to all roles */}
             <ProfileSection />
 
             {/* Class Teacher Specific Settings */}
@@ -56,6 +58,7 @@ export default function AdminSettingsPage() {
                 </Card>
             )}
 
+            {/* Officer Specific Settings */}
             {role === 'officer' && (
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -78,7 +81,6 @@ export default function AdminSettingsPage() {
                             </CardContent>
                         </Card>
                     </div>
-
                     <ClearAttendance />
                 </div>
             )}

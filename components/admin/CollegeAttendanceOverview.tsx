@@ -73,7 +73,7 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
       const total_absent = s.total_days - s.total_present;
       const points_deducted = Math.floor(total_absent / 2) * 2;
       const points = Math.max(0, 20 - points_deducted);
-      return { ...s, percentage: s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0, total: `${s.total_present.toFixed(2)} / ${s.total_days}`, points };
+      return { ...s, percentage: s.total_days > 0 ? (s.total_present / s.total_days) * 100 : 0, total: `${s.total_present} / ${s.total_days}`, points };
     }).sort((a, b) => b.percentage - a.percentage);
 
     const totalPercentage = processed.reduce((sum, s) => sum + s.percentage, 0);
@@ -148,10 +148,10 @@ function ClassDetailModal({ isOpen, onClose, classId, students }: { isOpen: bool
                           else if (isExcused) { Icon = AlertCircle; color = "text-blue-600"; }
                           const periodElement = (<div className={`flex flex-col items-center p-1 rounded-md border ${color.replace('text-', 'border-')}/40`}><span className="text-xs font-bold">P{i + 1}</span><Icon className={`h-4 w-4 ${color}`} /></div>);
                           if (isPresent) { return <div key={period}>{periodElement}</div>; }
-                          return (<Dialog key={period}><DialogTrigger asChild><button className="w-full text-left">{periodElement}</button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{detail?.reason || "Absent"} - Period {i + 1}</DialogTitle><DialogDescription>Reason for {student.name}'s absence.</DialogDescription></DialogHeader><p className="text-sm text-muted-foreground">{detail?.description || "No description provided."}</p></DialogContent></Dialog>)
+                          return (<Dialog key={period}><DialogTrigger asChild><button className="w-full text-left">{periodElement}</button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>{detail?.reason || "Absent"} - Period {i + 1}</DialogTitle><DialogDescription>Reason for {student.name}'s absence.</DialogDescription></DialogHeader><p className="text-sm text-muted-foreground">{detail?.description || "No reason provided."}</p></DialogContent></Dialog>)
                         })}
                       </div>
-                    ) : (<p className="text-sm text-muted-foreground italic">Pending...</p>)}
+                    ) : (<p className="text-sm text-muted-foreground italic">Class leader not updated the present</p>)}
                   </CardContent>
                 </Card>
               ))}

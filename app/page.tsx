@@ -39,6 +39,9 @@ export default function Home() {
         case 'class-leader':
           router.replace('/admins/classleader/class-leader-dashboard');
           break;
+        case 'staff':
+          router.replace('/admins/staff/staff-dashboard');
+          break;
         case 'student':
           router.replace('/students/student-dashboard');
           break;

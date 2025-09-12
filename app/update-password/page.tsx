@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
-import { toast } from 'sonner';
 import Link from 'next/link';
 
 // Shadcn/UI & Icon Components
@@ -11,32 +10,22 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Loader2, KeyRound, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function UpdatePasswordPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const supabase = createClientComponentClient();
 
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
-    const [isSuccess, setIsSuccess] = useState(false);
-
-    // This effect checks if the password reset token is present in the URL when the page loads.
-    // If not, it means the user shouldn't be here, so we redirect them.
-    useEffect(() => {
-        const errorDescription = searchParams.get('error_description');
-        if (errorDescription) {
-            setError(errorDescription);
-        }
-    }, [searchParams]);
 
     const handleUpdatePassword = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setSuccess('');
 
         if (password !== confirmPassword) {
             setError("Passwords do not match. Please try again.");
@@ -48,42 +37,18 @@ export default function UpdatePasswordPage() {
         }
 
         setLoading(true);
-
-        // This function uses the secure token from the URL to update the user's password.
         const { error: updateError } = await supabase.auth.updateUser({ password });
-
         setLoading(false);
 
         if (updateError) {
             setError(updateError.message);
-            toast.error("Update Failed", { description: updateError.message });
         } else {
-            setIsSuccess(true);
-            toast.success("Password Updated!", {
-                description: "Your password has been changed successfully. You can now log in.",
-            });
+            setSuccess('Your password has been updated successfully! Redirecting to login...');
+            setTimeout(() => {
+                router.push('/login');
+            }, 2000);
         }
     };
-
-    // If the password has been successfully updated, show a success message and a link to log in.
-    if (isSuccess) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
-                <Card className="w-full max-w-md animate-fade-in">
-                    <CardHeader className="text-center">
-                        <CheckCircle2 className="mx-auto h-12 w-12 text-green-500" />
-                        <CardTitle className="mt-4">Password Updated!</CardTitle>
-                        <CardDescription>Your password has been successfully reset.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Link href="/login" className="w-full">
-                           <Button className="w-full">Proceed to Login</Button>
-                        </Link>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-muted/40 p-4">
@@ -118,17 +83,30 @@ export default function UpdatePasswordPage() {
                                 placeholder="••••••••"
                             />
                         </div>
+
                         {error && (
-                            <Alert variant="destructive">
-                                <AlertTitle>Error</AlertTitle>
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
+                             <div className="flex items-center gap-3 p-3 rounded-lg text-sm bg-red-100 text-red-800">
+                                <AlertCircle size={20} />
+                                <span className="font-medium">{error}</span>
+                            </div>
                         )}
-                        <Button type="submit" disabled={loading} className="w-full">
+                        {success && (
+                            <div className="flex items-center gap-3 p-3 rounded-lg text-sm bg-green-100 text-green-800">
+                                <CheckCircle2 size={20} />
+                                <span className="font-medium">{success}</span>
+                            </div>
+                        )}
+
+                        <Button type="submit" disabled={loading || !!success} className="w-full">
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <KeyRound className="mr-2 h-4 w-4" />}
                             {loading ? "Updating..." : "Update Password"}
                         </Button>
                     </form>
+                    {success && (
+                        <Button variant="outline" asChild className="w-full mt-4">
+                            <Link href="/login">Go to Login</Link>
+                        </Button>
+                    )}
                 </CardContent>
             </Card>
         </div>

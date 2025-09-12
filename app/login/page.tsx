@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Link from "next/link";
 import { GraduationCap, LogIn, Mail, Lock, Loader2, Heart, Library, Shield } from "lucide-react";
+import { toast } from "sonner";
+
+// Shadcn/UI & Icon Components
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -16,6 +19,84 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+// --- NEW: Imports for the Forgot Password Modal ---
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogClose,
+    DialogFooter,
+} from "@/components/ui/dialog";
+
+// --- NEW: A dedicated modal for the password reset flow ---
+function ForgotPasswordModal() {
+    const [isOpen, setIsOpen] = useState(false);
+    const [email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const supabase = createClientComponentClient();
+
+    const handlePasswordReset = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setLoading(true);
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        // IMPORTANT: You must create a page at this URL to handle the password update.
+        redirectTo: `${window.location.origin}/update-password`,
+      });
+
+      setLoading(false);
+      if (error) {
+        toast.error("Error", { description: "Failed to send reset link. Please try again." });
+      } else {
+        toast.success("Check your email", {
+          description: "If an account exists, a password reset link has been sent.",
+          duration: 6000,
+        });
+        setIsOpen(false); // Close the modal on success
+      }
+    };
+
+    return (
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
+          <Button variant="link" className="px-0 text-sm font-medium text-primary hover:underline">
+            Forgot Password?
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <form onSubmit={handlePasswordReset}>
+            <DialogHeader>
+              <DialogTitle>Reset Your Password</DialogTitle>
+              <DialogDescription>
+                Enter your email address below. If an account is associated with it, we'll send you a link to reset your password.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="reset-email">Email Address</Label>
+              <Input
+                id="reset-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@pmsa.com"
+              />
+            </div>
+            <DialogFooter>
+              <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Send Reset Link
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
@@ -93,7 +174,11 @@ export default function LoginPage() {
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="password">Password</Label>
+                                    {/* --- NEW: Forgot Password Link --- */}
+                                    <ForgotPasswordModal />
+                                </div>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-neutral-dark" />
                                     <Input

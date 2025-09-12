@@ -21,29 +21,17 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked, PlusCircle, Trash2, CropIcon, Users as FamilyIcon } from 'lucide-react'
+import { Pencil, User, Mail, Phone, Briefcase, Building, Shield, UserCheck, PhoneCall, Home, Loader2, Lock, BookMarked, PlusCircle, Trash2, CropIcon, Users as FamilyIcon, KeyRound } from 'lucide-react'
+import { toast } from 'sonner'
 
+// --- Type Definitions ---
 interface SubjectMark { id?: number; subject_name: string; marks_obtained: string; status: boolean; }
 interface AcademicEntry { id?: number; title: string; subject_marks: SubjectMark[]; }
-interface Sibling {
-    name: string;
-    education: string[];
-    occupation: string;
-    responsibilities: string[];
-}
+interface Sibling { name: string; education: string[]; occupation: string; responsibilities: string[]; }
 interface FamilyData {
-    student_uid: string;
-    total_family_members: number | null;
-    father_name: string | null;
-    father_occupation: string | null;
-    father_staying_place: string | null;
-    father_responsibilities: string[];
-    mother_name: string | null;
-    mother_occupation: string | null;
-    brothers: Sibling[];
-    sisters: Sibling[];
-    chronically_ill_members: boolean;
-    house_type: string | null;
+    student_uid: string; total_family_members: number | null; father_name: string | null; father_occupation: string | null;
+    father_staying_place: string | null; father_responsibilities: string[]; mother_name: string | null; mother_occupation: string | null;
+    brothers: Sibling[]; sisters: Sibling[]; chronically_ill_members: boolean; house_type: string | null;
 }
 
 function ProfileInfoLine({ icon: Icon, label, value, isList = false }: { icon: React.ElementType, label: string, value: any, isList?: boolean }) {
@@ -63,6 +51,74 @@ function MarkEditorModal({ isOpen, setIsOpen, entry, onSave }: { isOpen: boolean
     const removeSubject = (index: number) => { setSubjects(subjects.filter((_, i) => i !== index)); };
     const handleSave = async (e: FormEvent) => { e.preventDefault(); if (!user) return; setIsSaving(true); try { const { data: entryData, error: entryError } = await supabase.from('academic_entries').upsert({ id: entry?.id, student_uid: user.id, title }).select().single(); if (entryError) throw entryError; const subjectMarksToSave = subjects.map(subject => ({ ...subject, entry_id: entryData.id, })); const { error: subjectsError } = await supabase.from('subject_marks').upsert(subjectMarksToSave); if (subjectsError) throw subjectsError; if (entry) { const subjectsToDelete = entry.subject_marks.filter(oldSub => !subjects.some(newSub => newSub.id === oldSub.id)); if (subjectsToDelete.length > 0) { const { error: deleteError } = await supabase.from('subject_marks').delete().in('id', subjectsToDelete.map(s => s.id!)); if (deleteError) throw deleteError; } } onSave(); setIsOpen(false); } catch (error: any) { console.error("Error saving marks:", error); } finally { setIsSaving(false); } };
     return (<Dialog open={isOpen} onOpenChange={setIsOpen}><DialogContent className="max-w-2xl"><form onSubmit={handleSave}><DialogHeader><DialogTitle>{entry?.id ? 'Edit' : 'Add'} Academic Entry</DialogTitle><DialogDescription>Add an exam/semester and its subject marks.</DialogDescription></DialogHeader><div className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-4"><div><Label htmlFor="title">Exam / Semester Title</Label><Input id="title" placeholder="e.g., SSLC" value={title} onChange={(e) => setTitle(e.target.value.toUpperCase())} className="uppercase" required /></div><Label>Subjects & Marks</Label><div className="space-y-3">{subjects.map((subject, index) => (<div key={index} className="grid grid-cols-12 gap-2 items-center p-2 border rounded-md"><Input placeholder="Subject Name" value={subject.subject_name} onChange={(e) => handleSubjectChange(index, 'subject_name', e.target.value.toUpperCase())} className="col-span-5 uppercase" required /><Input placeholder="Mark/Grade" value={subject.marks_obtained} onChange={(e) => handleSubjectChange(index, 'marks_obtained', e.target.value.toUpperCase())} className="col-span-3 uppercase" required /><div className="col-span-3 flex items-center justify-center gap-2"><Label htmlFor={`status-${index}`} className={subject.status ? 'text-green-600' : 'text-red-600'}>{subject.status ? 'Pass' : 'Fail'}</Label><Switch id={`status-${index}`} checked={subject.status} onCheckedChange={(checked) => handleSubjectChange(index, 'status', checked)} /></div><Button type="button" variant="ghost" size="icon" onClick={() => removeSubject(index)} className="col-span-1 text-destructive"><Trash2 className="h-4 w-4" /></Button></div>))}</div><Button type="button" variant="outline" onClick={addSubject} className="w-full"><PlusCircle className="mr-2 h-4 w-4" /> Add Subject</Button></div><DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={isSaving}>{isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save</Button></DialogFooter></form></DialogContent></Dialog>);
+}
+
+function EmailChangeModal() {
+    const [isOpen, setIsOpen] = useState(false);
+    const [newEmail, setNewEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleChangeEmail = async (e: FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        try {
+            const res = await fetch('/api/update-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_email: newEmail, password }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            toast.success("Email updated successfully!", {
+                description: "You may need to log out and log back in to see the change everywhere.",
+                duration: 6000,
+            });
+            setIsOpen(false);
+            setNewEmail('');
+            setPassword('');
+        } catch (error: any) {
+            toast.error("Update Failed", { description: error.message });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button variant="outline" className="w-full">Change Email</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <form onSubmit={handleChangeEmail}>
+                    <DialogHeader>
+                        <DialogTitle>Change Your Email Address</DialogTitle>
+                        <DialogDescription>
+                            Enter your new email and current password to confirm the change.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div>
+                            <Label htmlFor="new-email">New Email Address</Label>
+                            <Input id="new-email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} required />
+                        </div>
+                        <div>
+                            <Label htmlFor="current-password">Current Password (for verification)</Label>
+                            <Input id="current-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Update Email
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, familyData, onSave, isSaving, preview, onFileChange }: any) {
@@ -95,15 +151,16 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
                     <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="personal">Personal</TabsTrigger>{isStudent && <TabsTrigger value="family">Family</TabsTrigger>}</TabsList>
                     <TabsContent value="personal" className="overflow-y-auto max-h-[60vh] p-1 pr-4">
                         <div className="flex flex-col md:flex-row gap-8 py-4">
-                            <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8">
+                             <div className="flex flex-col items-center gap-4 pt-4 md:w-1/3 md:border-r md:pr-8">
                                 <Avatar className="h-32 w-32"><AvatarImage src={preview} alt="Avatar Preview" className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
                                 <Button variant="outline" onClick={() => fileInputRef.current?.click()}>Change Photo</Button>
                                 <Input type="file" accept="image/*" onChange={onFileChange} ref={fileInputRef} className="hidden" />
+                                <EmailChangeModal />
                             </div>
                             <div className="grid gap-4 md:w-2/3 sm:grid-cols-2">
-                                {isStudent ? (
+                                <div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Full Name</Label><Input id="name" value={personalForm.name || ''} onChange={(e) => setPersonalForm({ ...personalForm, name: e.target.value })} /></div>
+                                 {isStudent ? (
                                     <>
-                                        <div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Full Name</Label><Input id="name" value={personalForm.name || ''} onChange={(e) => setPersonalForm({ ...personalForm, name: e.target.value })} /></div>
                                         <ReadOnlyField label="CIC" value={personalForm.cic} icon={UserCheck} />
                                         <ReadOnlyField label="Class" value={personalForm.class_id} icon={Building} />
                                         <ReadOnlyField label="Batch" value={personalForm.batch} icon={Shield} />
@@ -114,8 +171,7 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
                                     </>
                                 ) : (
                                     <>
-                                        <ReadOnlyField label="Email" value={personalForm.email} icon={Mail} />
-                                        <ReadOnlyField label='Designation' value={personalForm.designation} icon={Shield} />
+                                        <ReadOnlyField label='Designation' value={personalForm.designation} icon={Shield}/>
                                         <div className="space-y-2"><Label htmlFor="relation">Related to</Label><Input id="relation" value={personalForm.batch || ''} onChange={(e) => setPersonalForm({ ...personalForm, batch: e.target.value })} /></div>
                                     </>
                                 )}
@@ -124,21 +180,21 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
                     </TabsContent>
                     {isStudent && (
                         <TabsContent value="family" className="overflow-y-auto max-h-[60vh] p-1 pr-4 space-y-4">
-                            <div><Label>Total Family Members</Label><Input type="number" value={familyForm.total_family_members || ''} onChange={e => handleFamilyChange('total_family_members', parseInt(e.target.value) || null)} /></div>
-                            <div className="grid grid-cols-2 gap-4">
+                           <div><Label>Total Family Members</Label><Input type="number" value={familyForm.total_family_members || ''} onChange={e => handleFamilyChange('total_family_members', parseInt(e.target.value) || null)} /></div>
+                           <div className="grid grid-cols-2 gap-4">
                                 <div><Label>Father's Name</Label><Input value={familyForm.father_name || ''} onChange={e => handleFamilyChange('father_name', e.target.value)} /></div>
                                 <div><Label>Father's Occupation</Label><Input value={familyForm.father_occupation || ''} onChange={e => handleFamilyChange('father_occupation', e.target.value)} /></div>
-                            </div>
-                            <div><Label>Father's Staying Place</Label><Input value={familyForm.father_staying_place || ''} onChange={e => handleFamilyChange('father_staying_place', e.target.value)} /></div>
-                            <div><Label>Father's Public Responsibilities (comma-separated)</Label><Textarea value={(familyForm.father_responsibilities || []).join(', ')} onChange={e => handleFamilyChange('father_responsibilities', e.target.value.split(',').map(s => s.trim()))} /></div>
-                            <div className="grid grid-cols-2 gap-4">
+                           </div>
+                           <div><Label>Father's Staying Place</Label><Input value={familyForm.father_staying_place || ''} onChange={e => handleFamilyChange('father_staying_place', e.target.value)} /></div>
+                           <div><Label>Father's Public Responsibilities (comma-separated)</Label><Textarea value={(familyForm.father_responsibilities || []).join(', ')} onChange={e => handleFamilyChange('father_responsibilities', e.target.value.split(',').map(s => s.trim()))} /></div>
+                           <div className="grid grid-cols-2 gap-4">
                                 <div><Label>Mother's Name</Label><Input value={familyForm.mother_name || ''} onChange={e => handleFamilyChange('mother_name', e.target.value)} /></div>
                                 <div><Label>Mother's Occupation</Label><Input value={familyForm.mother_occupation || ''} onChange={e => handleFamilyChange('mother_occupation', e.target.value)} /></div>
-                            </div>
-                            <div className="space-y-2"><Label>Brothers</Label>{(familyForm.brothers || []).map((bro, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={bro.name} onChange={e => handleSiblingChange('brothers', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(bro.education || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={bro.occupation} onChange={e => handleSiblingChange('brothers', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(bro.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('brothers', i)} className="text-destructive w-full">Remove Brother</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('brothers')} className="mt-2 w-full">+ Add Brother</Button></div>
-                            <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(sis.education || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('sisters', i)} className="text-destructive w-full">Remove Sister</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
-                            <div className="flex items-center space-x-2"><Switch id="chronically-ill" checked={familyForm.chronically_ill_members} onCheckedChange={checked => handleFamilyChange('chronically_ill_members', checked)} /><Label htmlFor="chronically-ill">Are there chronically ill members in the house?</Label></div>
-                            <div><Label>House Type</Label><Select value={familyForm.house_type || ''} onValueChange={value => handleFamilyChange('house_type', value)}><SelectTrigger><SelectValue placeholder="Select house type..." /></SelectTrigger><SelectContent><SelectItem value="Own House">Own House</SelectItem><SelectItem value="Rented House">Rented House</SelectItem><SelectItem value="Living with Family">Living with Family</SelectItem><SelectItem value="Company Provided Quarters">Company Provided Quarters</SelectItem><SelectItem value="Leased House">Leased House</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></div>
+                           </div>
+                           <div className="space-y-2"><Label>Brothers</Label>{(familyForm.brothers || []).map((bro, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={bro.name} onChange={e => handleSiblingChange('brothers', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(bro.education || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={bro.occupation} onChange={e => handleSiblingChange('brothers', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(bro.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('brothers', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('brothers', i)} className="text-destructive w-full">Remove Brother</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('brothers')} className="mt-2 w-full">+ Add Brother</Button></div>
+                           <div className="space-y-2"><Label>Sisters</Label>{(familyForm.sisters || []).map((sis, i) => (<div key={i} className="grid grid-cols-1 gap-2 p-2 border rounded-md items-center"><Input placeholder="Name" value={sis.name} onChange={e => handleSiblingChange('sisters', i, 'name', e.target.value)} /><Textarea placeholder="Education (comma-separated)" value={(sis.education || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'education', e.target.value)} /><Input placeholder="Occupation" value={sis.occupation} onChange={e => handleSiblingChange('sisters', i, 'occupation', e.target.value)} /><Textarea placeholder="Responsibilities (comma-separated)" value={(sis.responsibilities || []).join(', ')} onChange={e => handleSiblingChange('sisters', i, 'responsibilities', e.target.value)} /><Button type="button" variant="ghost" size="sm" onClick={() => removeSibling('sisters', i)} className="text-destructive w-full">Remove Sister</Button></div>))}<Button type="button" variant="outline" onClick={() => addSibling('sisters')} className="mt-2 w-full">+ Add Sister</Button></div>
+                           <div className="flex items-center space-x-2"><Switch id="chronically-ill" checked={familyForm.chronically_ill_members} onCheckedChange={checked => handleFamilyChange('chronically_ill_members', checked)} /><Label htmlFor="chronically-ill">Are there chronically ill members in the house?</Label></div>
+                           <div><Label>House Type</Label><Select value={familyForm.house_type || ''} onValueChange={value => handleFamilyChange('house_type', value)}><SelectTrigger><SelectValue placeholder="Select house type..." /></SelectTrigger><SelectContent><SelectItem value="Own House">Own House</SelectItem><SelectItem value="Rented House">Rented House</SelectItem><SelectItem value="Living with Family">Living with Family</SelectItem><SelectItem value="Company Provided Quarters">Company Provided Quarters</SelectItem><SelectItem value="Leased House">Leased House</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></div>
                         </TabsContent>
                     )}
                 </Tabs>
@@ -151,20 +207,16 @@ function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonalForm, f
 export default function ProfileSection() {
     const router = useRouter();
     const { user, details, role, loading } = useUserData();
-
     const [editOpen, setEditOpen] = useState(false);
     const [isMarkModalOpen, setIsMarkModalOpen] = useState(false);
-
     const [personalForm, setPersonalForm] = useState<any>({});
     const [familyData, setFamilyData] = useState<Partial<FamilyData>>({});
     const [academicEntries, setAcademicEntries] = useState<AcademicEntry[]>([]);
     const [selectedEntry, setSelectedEntry] = useState<AcademicEntry | null>(null);
-
     const [preview, setPreview] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
     const [imgSrc, setImgSrc] = useState('');
     const [crop, setCrop] = useState<Crop>();
     const [isCropperOpen, setIsCropperOpen] = useState(false);
@@ -205,13 +257,17 @@ export default function ProfileSection() {
                 if (familyError) throw familyError;
             }
 
-            router.refresh(); setEditOpen(false);
-        } catch (error: any) { console.error("Save Error:", error); }
+            toast.success("Profile changes saved successfully!");
+            router.refresh();
+            setEditOpen(false);
+        } catch (error: any) {
+            console.error("Save Error:", error);
+            toast.error("Save failed", { description: error.message });
+        }
         finally { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; setIsSaving(false); }
     }
 
     const handleEntryDelete = async (entryId: number) => { const { error } = await supabase.from('academic_entries').delete().eq('id', entryId); if (!error) fetchAcademicData(); };
-
     if (loading) { return (<Card><CardHeader><Skeleton className="h-8 w-48" /></CardHeader><CardContent className="flex flex-col md:flex-row gap-8"><div className="flex flex-col items-center md:w-1/4"><Skeleton className="h-32 w-32 rounded-full" /><Skeleton className="h-6 w-3/4 mt-4" /><Skeleton className="h-5 w-1/2 mt-2" /></div><div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-6"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div></CardContent></Card>); }
     if (!details) { return <p className="text-center mt-10 text-muted-foreground">Could not load user profile.</p> }
     const isStudent = role === 'student';
@@ -246,7 +302,7 @@ export default function ProfileSection() {
                                     <Avatar className="w-32 h-32 border-4 border-background shadow-md"><AvatarImage src={details.img_url} alt={details.name} className='object-cover' /><AvatarFallback><User className="h-16 w-16" /></AvatarFallback></Avatar>
                                     <h2 className="text-2xl font-bold mt-2">{details.name}</h2>
                                     <Badge variant="secondary" className="capitalize">{details.role}</Badge>
-                                    <p className="text-sm text-muted-foreground">{isStudent ? details.batch : details.email}</p>
+                                    <p className="text-sm text-muted-foreground">{details.email}</p>
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-8 border-t md:border-t-0 md:border-l pl-0 md:pl-8 pt-6 md:pt-0">
                                     {isStudent ? (
@@ -265,7 +321,6 @@ export default function ProfileSection() {
                                     ) : (
                                         <>
                                             <ProfileInfoLine icon={Briefcase} label="Designation" value={details.designation} />
-                                            <ProfileInfoLine icon={Mail} label="Email" value={details.email} />
                                             <ProfileInfoLine icon={Building} label="Related to" value={details.batch} />
                                         </>
                                     )}
@@ -274,17 +329,17 @@ export default function ProfileSection() {
                         </TabsContent>
                         {isStudent && (
                             <TabsContent value="academics" className="pt-6">
-                                <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
-                                <div className="border rounded-md">
-                                    {academicEntries.length > 0 ? (
-                                        <Accordion type="single" collapsible className="w-full">{academicEntries.map(entry => (
-                                            <AccordionItem key={entry.id} value={`item-${entry.id}`}>
-                                                <AccordionTrigger className="px-4"><div className="flex items-center justify-between w-full pr-4"><span className="font-semibold">{entry.title}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></div></AccordionTrigger>
-                                                <AccordionContent className="px-4 pb-4"><ul className="divide-y border rounded-md uppercase">{entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2"><span>{subject.subject_name}</span><div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}</ul></AccordionContent>
-                                            </AccordionItem>
-                                        ))}</Accordion>
-                                    ) : (<p className="p-8 text-center text-muted-foreground">No academic records have been added yet.</p>)}
-                                </div>
+                                 <div className="flex justify-between items-center mb-4"><div><h3 className="text-lg font-semibold">Academic Records</h3><p className="text-sm text-muted-foreground">A record of your academic performance.</p></div><Button onClick={() => { setSelectedEntry(null); setIsMarkModalOpen(true); }}><PlusCircle className="mr-2 h-4 w-4" /> Add Record</Button></div>
+                                 <div className="border rounded-md">
+                                     {academicEntries.length > 0 ? (
+                                         <Accordion type="single" collapsible className="w-full">{academicEntries.map(entry => (
+                                             <AccordionItem key={entry.id} value={`item-${entry.id}`}>
+                                                 <AccordionTrigger className="px-4"><div className="flex items-center justify-between w-full pr-4"><span className="font-semibold">{entry.title}</span><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setSelectedEntry(entry); setIsMarkModalOpen(true); }}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleEntryDelete(entry.id!); }}><Trash2 className="h-4 w-4 text-destructive" /></Button></div></div></AccordionTrigger>
+                                                 <AccordionContent className="px-4 pb-4"><ul className="divide-y border rounded-md uppercase">{entry.subject_marks.map(subject => (<li key={subject.id} className="flex items-center justify-between p-2"><span>{subject.subject_name}</span><div className="flex items-center gap-3"><span className="text-sm text-muted-foreground">{subject.marks_obtained}</span><Badge variant={subject.status ? "default" : "destructive"} className={subject.status ? "bg-green-600" : ""}>{subject.status ? 'Passed' : 'Failed'}</Badge></div></li>))}</ul></AccordionContent>
+                                             </AccordionItem>
+                                         ))}</Accordion>
+                                     ) : (<p className="p-8 text-center text-muted-foreground">No academic records have been added yet.</p>)}
+                                 </div>
                             </TabsContent>
                         )}
                         {isStudent && (

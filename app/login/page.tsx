@@ -41,14 +41,16 @@ function ForgotPasswordModal() {
       e.preventDefault();
       setLoading(true);
 
+      // This MUST match the URL you configured in your Supabase Dashboard
+      const redirectTo = `${window.location.origin}/update-password`;
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        // This MUST match the URL you configured in your Supabase Dashboard
-        redirectTo: `${window.location.origin}/update-password`,
+        redirectTo,
       });
 
       setLoading(false);
       if (error) {
-        toast.error("Error", { description: "Failed to send reset link. Please check the email and try again." });
+        toast.error("Error", { description: "Failed to send reset link. Please check the email address and try again." });
       } else {
         toast.success("Check your email", {
           description: "If an account exists for that email, a password reset link has been sent.",
@@ -133,7 +135,6 @@ export default function LoginPage() {
     return (
         <div className="flex w-full max-w-4xl animate-fade-in rounded-2xl shadow-2xl">
             <div className="hidden md:flex md:w-1/2 relative bg-[url('/imglogin.jpeg')] bg-cover p-8 rounded-l-2xl">
-                 
                 <div className="relative z-10 flex flex-col justify-between h-full text-white">
                     <div>
                         <div className="flex items-center gap-3">

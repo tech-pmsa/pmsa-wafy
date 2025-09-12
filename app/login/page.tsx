@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// --- NEW: Imports for the Forgot Password Modal ---
 import {
     Dialog,
     DialogContent,
@@ -31,7 +30,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 
-// --- NEW: A dedicated modal for the password reset flow ---
+// A dedicated modal for the password reset flow
 function ForgotPasswordModal() {
     const [isOpen, setIsOpen] = useState(false);
     const [email, setEmail] = useState('');
@@ -43,17 +42,17 @@ function ForgotPasswordModal() {
       setLoading(true);
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        // IMPORTANT: You must create a page at this URL to handle the password update.
+        // This MUST match the URL you configured in your Supabase Dashboard
         redirectTo: `${window.location.origin}/update-password`,
       });
 
       setLoading(false);
       if (error) {
-        toast.error("Error", { description: "Failed to send reset link. Please try again." });
+        toast.error("Error", { description: "Failed to send reset link. Please check the email and try again." });
       } else {
         toast.success("Check your email", {
-          description: "If an account exists, a password reset link has been sent.",
-          duration: 6000,
+          description: "If an account exists for that email, a password reset link has been sent.",
+          duration: 8000,
         });
         setIsOpen(false); // Close the modal on success
       }
@@ -126,12 +125,15 @@ export default function LoginPage() {
             setLoading(false);
             return;
         }
+
+        // As requested, refresh the page to let middleware handle redirection.
         router.refresh();
     };
 
     return (
         <div className="flex w-full max-w-4xl animate-fade-in rounded-2xl shadow-2xl">
             <div className="hidden md:flex md:w-1/2 relative bg-[url('/imglogin.jpeg')] bg-cover p-8 rounded-l-2xl">
+                 
                 <div className="relative z-10 flex flex-col justify-between h-full text-white">
                     <div>
                         <div className="flex items-center gap-3">
@@ -176,7 +178,6 @@ export default function LoginPage() {
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label htmlFor="password">Password</Label>
-                                    {/* --- NEW: Forgot Password Link --- */}
                                     <ForgotPasswordModal />
                                 </div>
                                 <div className="relative">

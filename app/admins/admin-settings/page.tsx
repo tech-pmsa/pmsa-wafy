@@ -11,6 +11,7 @@ import ClassCouncil from '@/components/ClassCouncil'
 import AddBulkStudents from '@/components/AddBulkStudents'
 import ProfileSection from '@/components/ProfileSection'
 import ClearAttendance from '@/components/admin/ClearAttendance'
+import UnlockAttendance from '@/components/admin/UnlockAttendance'
 
 export default function AdminSettingsPage() {
     const { role, loading } = useUserData();
@@ -81,7 +82,10 @@ export default function AdminSettingsPage() {
                             </CardContent>
                         </Card>
                     </div>
-                    <ClearAttendance />
+                    <div className="space-y-6">
+                        <UnlockAttendance />
+                        <ClearAttendance />
+                    </div>
                 </div>
             )}
         </div>

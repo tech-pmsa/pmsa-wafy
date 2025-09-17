@@ -1,30 +1,57 @@
-// app/api/delete-user/route.ts
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// --- EDITED: Initialize the true Supabase admin client ---
+// This client uses your secret service_role key and has full administrative privileges.
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
-  const { uid } = await req.json();
+    // This client is used to check the session of the user MAKING the request.
+    const supabase = createRouteHandlerClient({ cookies });
 
-  if (!uid) {
-    return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
-  }
+    try {
+        // --- NEW: Security check to ensure the CALLER is an officer ---
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-  // We use the route handler client here which can be elevated to admin privileges
-  const supabase = createRouteHandlerClient({ cookies });
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('uid', session.user.id)
+            .single();
 
-  // Elevate to admin client to perform user deletion
-  const supabaseAdmin = supabase.auth.admin;
+        if (profile?.role !== 'officer') {
+            return NextResponse.json({ error: 'Forbidden: You do not have permission to delete users.' }, { status: 403 });
+        }
+        // --- End of Security Check ---
 
-  const { error } = await supabaseAdmin.deleteUser(uid);
+        const { uid } = await req.json();
+        if (!uid) {
+            return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+        }
 
-  if (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+        // --- EDITED: Use the true admin client to perform the deletion ---
+        const { error } = await supabaseAdmin.auth.admin.deleteUser(uid);
 
-  // The 'on delete CASCADE' in your database schema should automatically
-  // delete the corresponding row from the 'students' table.
+        if (error) {
+            console.error('Error deleting user:', error);
+            // The error message from Supabase will now be more specific.
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
 
-  return NextResponse.json({ message: 'User deleted successfully' });
+        // The 'ON DELETE CASCADE' rule in your database will now automatically
+        // delete the corresponding row from the 'students' table.
+
+        return NextResponse.json({ message: 'User deleted successfully' });
+
+    } catch (error: any) {
+        return NextResponse.json({ error: 'An unexpected server error occurred.' }, { status: 500 });
+    }
 }

@@ -283,7 +283,7 @@ export default function FeeManagementDashboard() {
       try {
         setIsFetching(true);
         setError(null);
-        const res = await fetch('/api/fees');
+        const res = await fetch('/api/fees', {cache: 'no-store'});
         if (!res.ok) throw new Error('Failed to fetch fee data.');
 
         const data: SheetData = await res.json();

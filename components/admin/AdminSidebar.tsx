@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUserData } from '@/hooks/useUserData';
-import { GraduationCap, LayoutDashboard, Users, School, UserCheck, Settings, BookUser, Loader2, Bell } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, Users, School, UserCheck, Settings, BookUser, Loader2, Bell, Book } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabaseClient';
@@ -17,6 +17,7 @@ const allNavItems = [
     { href: '/admins/manage-students', label: 'Manage Students', icon: Users, roles: ['officer', 'class'] },
     { href: '/admins/officer/manage-staff', label: 'Manage Staff', icon: UserCheck, roles: ['officer'] },
     { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
+    { href: '/admins/officer/staffregister', label: 'Staff Register', icon: Book, roles: ['officer'] },
 ];
 
 interface AdminSidebarProps {

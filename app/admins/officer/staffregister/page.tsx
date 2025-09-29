@@ -1,31 +1,27 @@
 'use client'
 
-import { useEffect, useState, useMemo, FormEvent } from 'react'
+import { useEffect, useState, useMemo, useCallback, FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { useUserData } from '@/hooks/useUserData'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, parse } from 'date-fns'
 import { toast } from 'sonner'
 import { utils, writeFile } from 'xlsx'
+import TimePickerInput from '@/components/TimePickerInput' // --- NEW: Import the custom time picker ---
 
 // Shadcn/UI & Icon Components
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-import { CalendarIcon, UserPlus, Download, Trash2, Loader2, AlertTriangle, Save, Clock } from 'lucide-react'
 import { Switch } from '@/components/ui/switch'
+import { CalendarIcon, UserPlus, Download, Trash2, Loader2, AlertTriangle, Save } from 'lucide-react'
 
 // Type Definitions
-interface StaffMember {
-    id: string;
-    name: string;
-    designation: string | null;
-}
+interface StaffMember { id: string; name: string; designation: string | null; }
 interface AttendanceRecord {
     staff_id: string;
     date: string;
@@ -42,20 +38,16 @@ export default function StaffRegisterPage() {
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
     const [loading, setLoading] = useState(true);
 
-    // State for modals
     const [isAddStaffOpen, setIsAddStaffOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [newStaffName, setNewStaffName] = useState('');
     const [newStaffDesignation, setNewStaffDesignation] = useState('');
 
-    // --- Data Fetching and Management ---
-    const fetchData = async (date: Date) => {
+    const fetchData = useCallback(async (date: Date) => {
         setLoading(true);
         const formattedDate = format(date, 'yyyy-MM-dd');
-
         const staffPromise = supabase.from('staff').select('*').eq('is_active', true).order('name');
         const attendancePromise = supabase.from('staff_attendance').select('*').eq('date', formattedDate);
-
         const [{ data: staffData, error: staffError }, { data: attendanceData, error: attendanceError }] = await Promise.all([staffPromise, attendancePromise]);
 
         if (staffError || attendanceError) {
@@ -69,35 +61,25 @@ export default function StaffRegisterPage() {
             setAttendanceRecords(recordsMap);
         }
         setLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         fetchData(selectedDate);
-    }, [selectedDate]);
+    }, [selectedDate, fetchData]);
 
-    // --- UI Handlers ---
-    const handleAttendanceChange = (staffId: string, field: 'time_in' | 'time_out' | 'is_staying', value: string | boolean) => {
+    // --- EDITED: Simplified handler. Just updates the record. ---
+    const handleAttendanceChange = (staffId: string, field: 'time_in' | 'time_out' | 'is_staying', value: string | boolean | null) => {
         const existingRecord = attendanceRecords[staffId] || { staff_id: staffId, date: format(selectedDate, 'yyyy-MM-dd'), time_in: null, time_out: null, is_staying: false };
         const updatedRecord = { ...existingRecord, [field]: value };
-
-        // If "Staying" is checked, clear times. If times are entered, uncheck "Staying".
-        if (field === 'is_staying' && value === true) {
-            updatedRecord.time_in = null;
-            updatedRecord.time_out = null;
-        } else if (field === 'time_in' || field === 'time_out') {
-            updatedRecord.is_staying = false;
-        }
-
         setAttendanceRecords(prev => ({ ...prev, [staffId]: updatedRecord }));
     };
 
     const handleSaveAll = async () => {
-        const recordsToUpsert = Object.values(attendanceRecords).filter(rec => rec.time_in || rec.time_out || rec.is_staying);
+        const recordsToUpsert = Object.values(attendanceRecords);
         if (recordsToUpsert.length === 0) {
             toast.info("No changes to save.");
             return;
         }
-
         const { error } = await supabase.from('staff_attendance').upsert(recordsToUpsert, { onConflict: 'staff_id,date' });
         if (error) {
             toast.error("Failed to save attendance", { description: error.message });
@@ -124,27 +106,18 @@ export default function StaffRegisterPage() {
     const handleExport = async () => {
         const monthStart = startOfMonth(selectedDate);
         const monthEnd = endOfMonth(selectedDate);
-
-        const { data, error } = await supabase
-            .from('staff_attendance')
-            .select('date, time_in, time_out, is_staying, staff(name, designation)')
-            .gte('date', format(monthStart, 'yyyy-MM-dd'))
-            .lte('date', format(monthEnd, 'yyyy-MM-dd'))
-            .order('date', { ascending: true });
-
+        const { data, error } = await supabase.from('staff_attendance').select('date, time_in, time_out, is_staying, staff(name, designation)').gte('date', format(monthStart, 'yyyy-MM-dd')).lte('date', format(monthEnd, 'yyyy-MM-dd')).order('date', { ascending: true });
         if (error || !data || data.length === 0) {
             toast.error("No data available to export for this month.");
             return;
         }
-
-        const exportData = data.map(rec => ({
-            Date: format(new Date(rec.date), 'dd-MM-yyyy'),
-            Name: (rec.staff as any).name,
-            Designation: (rec.staff as any).designation,
-            "Time In": rec.time_in || (rec.is_staying ? 'Staying' : ''),
-            "Time Out": rec.time_out || (rec.is_staying ? 'Staying' : ''),
-        }));
-
+        // --- EDITED: Use a helper to format 24-hour time to 12-hour for the export ---
+        const formatTimeForExport = (time: string | null, isStaying: boolean) => {
+            if (time) return format(parse(time, 'HH:mm:ss', new Date()), 'hh:mm a');
+            if (isStaying) return 'Staying';
+            return '';
+        };
+        const exportData = data.map(rec => ({ Date: format(new Date(rec.date), 'dd-MM-yyyy'), Name: (rec.staff as any).name, Designation: (rec.staff as any).designation, "Time In": formatTimeForExport(rec.time_in, rec.is_staying), "Time Out": formatTimeForExport(rec.time_out, rec.is_staying) }));
         const worksheet = utils.json_to_sheet(exportData);
         const workbook = utils.book_new();
         utils.book_append_sheet(workbook, worksheet, 'Attendance');
@@ -152,7 +125,6 @@ export default function StaffRegisterPage() {
     };
 
     const handleDeleteMonthData = async () => {
-        // Implement deletion logic here
         setIsDeleteModalOpen(false);
         toast.info("Delete functionality to be implemented.");
     };
@@ -161,7 +133,7 @@ export default function StaffRegisterPage() {
     if (role !== 'officer') return <p>Access Denied.</p>;
 
     return (
-        <div className="space-y-6 min-h-screen">
+        <div className="space-y-6">
             <Card>
                 <CardHeader>
                     <CardTitle>Staff Attendance Register</CardTitle>
@@ -203,8 +175,19 @@ export default function StaffRegisterPage() {
                                 return (
                                 <TableRow key={staff.id}>
                                     <TableCell className="font-medium">{staff.name}</TableCell>
-                                    <TableCell><Input type="time" step="1" value={record.time_in || ''} onChange={(e) => handleAttendanceChange(staff.id, 'time_in', e.target.value)} disabled={record.is_staying} /></TableCell>
-                                    <TableCell><Input type="time" step="1" value={record.time_out || ''} onChange={(e) => handleAttendanceChange(staff.id, 'time_out', e.target.value)} disabled={record.is_staying} /></TableCell>
+                                    {/* --- EDITED: Replaced Input with the new TimePickerInput --- */}
+                                    <TableCell>
+                                        <TimePickerInput
+                                            value={record.time_in || null}
+                                            onChange={(value) => handleAttendanceChange(staff.id, 'time_in', value)}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <TimePickerInput
+                                            value={record.time_out || null}
+                                            onChange={(value) => handleAttendanceChange(staff.id, 'time_out', value)}
+                                        />
+                                    </TableCell>
                                     <TableCell className="text-center"><Switch checked={record.is_staying || false} onCheckedChange={(checked) => handleAttendanceChange(staff.id, 'is_staying', checked)} /></TableCell>
                                 </TableRow>
                             )})}
@@ -213,7 +196,6 @@ export default function StaffRegisterPage() {
                 </div>
             )}
 
-            {/* Danger Zone */}
             <Card className="border-destructive">
                 <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle/> Danger Zone</CardTitle></CardHeader>
                 <CardContent>

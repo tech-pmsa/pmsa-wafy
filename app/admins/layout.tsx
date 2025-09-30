@@ -1,3 +1,4 @@
+// app/admins/layout.tsx
 import React from 'react';
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import Header from '@/components/Header';
@@ -6,8 +7,9 @@ import { Toaster } from '@/components/ui/sonner';
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-neutral-light">
-      <div className="hidden md:block w-64 border-r bg-background">
+    <div className="flex min-h-screen w-full bg-muted/40">
+      {/* Sidebar is hidden on mobile, visible on desktop */}
+      <div className="hidden md:block">
         <AdminSidebar />
       </div>
 
@@ -17,7 +19,7 @@ export default function AdminDashboardLayout({ children }: { children: React.Rea
           {children}
         </main>
         <Footer />
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position='top-right'/>
       </div>
     </div>
   );

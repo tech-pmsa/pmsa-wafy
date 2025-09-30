@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Trophy, Calendar, User as UserIcon, Search } from 'lucide-react'
+import { Trophy, Calendar, User as UserIcon, Search, Inbox } from 'lucide-react'
 
 // Shadcn/UI Components
 import { Input } from '@/components/ui/input'
@@ -13,31 +13,27 @@ import { Skeleton } from '@/components/ui/skeleton'
 // A reusable card for displaying each achievement
 function AchievementDisplayCard({ achievement }: { achievement: any }) {
   return (
-    <Card className="flex flex-col h-full w-full overflow-hidden text-left shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+    <Card className="flex flex-col h-full overflow-hidden text-left shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0 rounded-full bg-brand-yellow/20 p-3">
-            <Trophy className="h-6 w-6 text-brand-yellow-dark" />
+        <div className="flex items-start gap-4">
+          <div className="flex-shrink-0 rounded-lg bg-primary/10 p-3">
+            <Trophy className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-lg leading-tight">{achievement.title}</CardTitle>
+          <div className="flex-1">
+            <CardTitle className="text-base leading-tight">{achievement.title}</CardTitle>
+            <CardDescription className="text-xs pt-1">
+                {new Date(achievement.submitted_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </CardDescription>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="flex-grow text-sm text-muted-foreground">
         <p className="line-clamp-3">{achievement.description}</p>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 border-t bg-neutral-light/50 p-4 text-xs">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <UserIcon className="h-4 w-4" />
-          <span className="font-medium text-neutral-black">{achievement.name}</span> ({achievement.cic})
-        </div>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Calendar className="h-4 w-4" />
-          <span>
-            {new Date(achievement.submitted_at).toLocaleDateString('en-GB', {
-              year: 'numeric', month: 'short', day: 'numeric',
-            })}
-          </span>
-        </div>
+      <CardFooter className="flex items-center gap-2 border-t bg-muted/50 p-3 text-xs">
+        <UserIcon className="h-4 w-4 text-muted-foreground" />
+        <span className="font-medium text-foreground">{achievement.name}</span>
+        <span className="text-muted-foreground">({achievement.cic})</span>
       </CardFooter>
     </Card>
   );
@@ -97,20 +93,13 @@ export default function AchievementViewer() {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-grow">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-            <Input
-              placeholder="Search by student, CIC, or title..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10"
-            />
+            <Input placeholder="Search by student, CIC, or title..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10" />
           </div>
           {batches.length > 1 && (
             <div className="w-full md:w-auto overflow-x-auto pb-1">
               <Tabs value={selectedBatch} onValueChange={setSelectedBatch} className="w-max">
                 <TabsList>
-                  {batches.map((b) => (
-                    <TabsTrigger key={b} value={b}>{b}</TabsTrigger>
-                  ))}
+                  {batches.map((b) => (<TabsTrigger key={b} value={b}>{b}</TabsTrigger>))}
                 </TabsList>
               </Tabs>
             </div>
@@ -119,20 +108,16 @@ export default function AchievementViewer() {
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Skeleton className="h-56 w-full" />
-            <Skeleton className="h-56 w-full" />
-            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full" /><Skeleton className="h-56 w-full" /><Skeleton className="h-56 w-full" />
           </div>
         ) : filteredAchievements.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed h-48">
-            <Trophy className="h-8 w-8 text-muted-foreground" />
-            <p className="mt-2 text-sm font-medium text-muted-foreground">No achievements match your criteria.</p>
+            <Inbox className="h-10 w-10 text-muted-foreground/50" />
+            <p className="mt-4 text-sm font-medium text-muted-foreground">No achievements match your criteria.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAchievements.map((ach) => (
-              <AchievementDisplayCard key={ach.id} achievement={ach} />
-            ))}
+            {filteredAchievements.map((ach) => (<AchievementDisplayCard key={ach.id} achievement={ach} />))}
           </div>
         )}
       </CardContent>

@@ -1,3 +1,4 @@
+// components/Footer.tsx
 'use client'
 
 import Link from 'next/link';
@@ -10,19 +11,17 @@ export default function Footer() {
         <footer className="border-t bg-background">
             <div className="container flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
                 <p className="text-sm text-muted-foreground">
-                    © 2024 - {currentYear} PMSA Wafy College. All Rights Reserved.
+                    © {currentYear} PMSA Wafy College. All Rights Reserved.
                 </p>
                 <div className="flex items-center gap-4 text-sm font-medium">
-                    <Link href="https://pmsalibrary.vercel.app/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
-                        <Library className="h-4 w-4" />
-                        PMSA Library
+                    <Link href="https://pmsalibrary.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
+                        <Library className="h-4 w-4" /> PMSA Library
                     </Link>
-                    <Link href="https://masapmsa.vercel.app/" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
-                        <Shield className="h-4 w-4" />
-                        MASA Union
+                    <Link href="https://masapmsa.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">
+                        <Shield className="h-4 w-4" /> MASA Union
                     </Link>
                 </div>
-                <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     Made with
                     <Heart className="h-4 w-4 fill-red-500 text-red-500" />
                     by

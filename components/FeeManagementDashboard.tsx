@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
+import { Badge } from '@/components/ui/badge'
 // Recharts for Bar Chart
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
@@ -18,42 +18,11 @@ type SheetData = Record<string, { headers: string[]; rows: string[][] }>
 
 // A component for summary statistic cards
 function StatCard({ title, value, description }: { title: string; value: string; description: string }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-3xl">{value}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  )
+    return (<Card><CardHeader className="pb-2"><CardDescription>{title}</CardDescription><CardTitle className="text-3xl">{value}</CardTitle></CardHeader><CardContent><p className="text-xs text-muted-foreground">{description}</p></CardContent></Card>)
 }
 
 // A modern tooltip for the bar chart
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const totalPaid = payload[0].value;
-    return (
-      <div className="rounded-lg border bg-background p-2 shadow-sm">
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col space-y-1">
-            <span className="text-[0.70rem] uppercase text-muted-foreground">Student</span>
-            <span className="font-bold">{label}</span>
-          </div>
-          <div className="flex flex-col space-y-1">
-            <span className="text-[0.70rem] uppercase text-muted-foreground">Total Paid</span>
-            <span className="font-bold text-primary">
-              {totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 })}
-            </span>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return null;
-};
+const CustomTooltip = ({ active, payload, label }: any) => { if (active && payload && payload.length) { const totalPaid = payload[0].value; return (<div className="rounded-lg border bg-background p-2 shadow-sm"><div className="grid grid-cols-2 gap-2"><div className="flex flex-col space-y-1"><span className="text-[0.70rem] uppercase text-muted-foreground">Student</span><span className="font-bold">{label}</span></div><div className="flex flex-col space-y-1"><span className="text-[0.70rem] uppercase text-muted-foreground">Total Paid</span><span className="font-bold text-primary">{totalPaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 })}</span></div></div></div>); } return null; };
 
 // A colored status badge for the accordion trigger
 function PaymentStatus({ paid, total }: { paid: number; total: number }) {
@@ -109,7 +78,7 @@ function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders
   }
 
   return (
-    <Accordion type="single" collapsible className="w-full space-y-2">
+    <Accordion type="single" collapsible>
       {rows.map((row, idx) => {
         const studentCIC = row[1]
         const studentName = row[2]
@@ -234,7 +203,7 @@ function FeeSheetContent({
           <CardDescription>Total amount paid by each student. Hover for details.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="w-full overflow-x-auto">
+          <div className="w-full overflow-x-hidden">
             <div className="min-w-[600px] h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -333,55 +302,29 @@ export default function FeeManagementDashboard() {
     );
   }
 
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <XCircle className="h-4 w-4" />
-        <AlertTitle>Failed to Load Data</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
-
-  if (!sheetData || !activeTab) {
-    return (
-      <Alert>
-        <AlertTitle>No Data Available</AlertTitle>
-        <AlertDescription>There is no fee data available for you to view at this time.</AlertDescription>
-      </Alert>
-    );
-  }
+  if (error) { return (<Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertTitle>Failed to Load Data</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>); }
+  if (!sheetData || !activeTab) { return (<Alert><AlertTitle>No Data Available</AlertTitle><AlertDescription>There is no fee data available to view.</AlertDescription></Alert>); }
 
   const sheetNames = Object.keys(sheetData);
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <Card>
         <CardHeader>
-          <CardTitle>Fee Management</CardTitle>
-          <CardDescription>
-            {role === 'officer'
-              ? "Select a class to view their fee details, payment distribution, and individual records."
-              : "An overview of your class's fee payments and outstanding balances."
-            }
-          </CardDescription>
+            <CardTitle>Fee Management</CardTitle>
+            <CardDescription>Select a class to view their fee details, payment distribution, and individual records.</CardDescription>
         </CardHeader>
-      </Card>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        {role === 'officer' && (
-          <div className="w-full overflow-x-auto pb-1">
-            <TabsList className="inline-flex w-max gap-2">
-              {sheetNames.map(name => (
-                <TabsTrigger key={name} value={name}>{name}</TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
-        )}
-        {/* Render the content for the active tab */}
-        <TabsContent value={activeTab} className="mt-4">
-          <FeeSheetContent sheetData={sheetData[activeTab]} />
-        </TabsContent>
-      </Tabs>
-    </div>
+        <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <div className="w-full overflow-x-auto pb-1">
+                    <TabsList className="inline-flex w-max gap-2">
+                        {sheetNames.map(name => (<TabsTrigger key={name} value={name}>{name}</TabsTrigger>))}
+                    </TabsList>
+                </div>
+                <TabsContent value={activeTab} className="mt-4">
+                    <FeeSheetContent sheetData={sheetData[activeTab]} />
+                </TabsContent>
+            </Tabs>
+        </CardContent>
+    </Card>
   )
 }

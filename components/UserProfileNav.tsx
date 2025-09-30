@@ -1,9 +1,11 @@
+// components/UserProfileNav.tsx
 'use client'
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useUserData } from '@/hooks/useUserData';
 import { supabase } from '@/lib/supabaseClient';
+import Link from 'next/link';
 
 // Shadcn/UI & Icon Components
 import { Button } from '@/components/ui/button';
@@ -12,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -29,16 +32,23 @@ export default function UserProfileNav() {
   };
 
   const getDashboardLink = () => {
-    if (!role) return '/login';
-    return role === 'student'
-      ? '/students/student-dashboard'
-      : `/admins/${role}/${role}-dashboard`;
+    if (!role) return '/';
+    switch (role) {
+      case 'officer': return '/admins/officer/officer-dashboard';
+      case 'class': return '/admins/classroom/class-dashboard';
+      case 'class-leader': return '/admins/classleader/class-leader-dashboard';
+      case 'student': return '/students/student-dashboard';
+      case 'staff': return '/admins/staff/staff-dashboard'; // Added staff dashboard
+      default: return '/';
+    }
   };
+
+  const settingsLink = '/admins/admin-settings';
 
   if (loading) {
     return (
       <div className="flex items-center gap-2">
-        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md hidden sm:block" />
         <Skeleton className="h-10 w-10 rounded-full" />
       </div>
     );
@@ -55,28 +65,34 @@ export default function UserProfileNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-auto p-1.5 flex items-center gap-2">
+        <Button variant="ghost" className="flex items-center gap-2 h-auto p-1.5 rounded-full">
           <span className="font-medium text-sm hidden sm:inline-block">{details.name}</span>
-          <Avatar className="h-9 w-9">
+          <Avatar className="h-9 w-9 border">
             <AvatarImage src={details.img_url} alt={details.name} className='object-cover' />
-            <AvatarFallback><User className="h-5 w-5" /></AvatarFallback>
+            <AvatarFallback>{details.name?.charAt(0) || <User className="h-5 w-5" />}</AvatarFallback>
           </Avatar>
-          <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:inline-block" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>My Account</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push(getDashboardLink())} className="cursor-pointer">
-          <LayoutDashboard className="mr-2 h-4 w-4" />
-          <span>Dashboard</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/admins/admin-settings')} className="cursor-pointer">
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Settings</span>
-        </DropdownMenuItem>
+        <DropdownMenuGroup>
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <Link href={getDashboardLink()}>
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              <span>Dashboard</span>
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="cursor-pointer">
+            <Link href={settingsLink}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </Link>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+        <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
           <LogOut className="mr-2 h-4 w-4" />
           <span>Log out</span>
         </DropdownMenuItem>

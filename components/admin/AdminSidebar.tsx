@@ -18,6 +18,7 @@ const allNavItems = [
     { href: '/admins/officer/manage-staff', label: 'Manage Staff', icon: UserCheck, roles: ['officer'] },
     { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader'] },
     { href: '/admins/officer/staffregister', label: 'Staff Register', icon: Book, roles: ['officer'] },
+    { href: '/admins/classroom/register', label: 'Staff Register', icon: Book, roles: ['class'] },
 ];
 
 interface AdminSidebarProps {

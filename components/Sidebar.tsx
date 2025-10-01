@@ -13,7 +13,7 @@ import { GraduationCap, LayoutDashboard, Settings, Loader2 } from 'lucide-react'
 
 const navItems = [
     { href: '/students/student-dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/admins/admin-settings', label: 'Settings', icon: Settings }, // Links to the shared settings page
+    { href: '/admins/admin-settings', label: 'Settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -46,7 +46,7 @@ export default function Sidebar({ onLinkClick }: SidebarProps) {
                                         onClick={onLinkClick}
                                         className={cn(
                                             "flex items-center gap-3 rounded-md px-3 py-2.5 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                                            (pathname === item.href) && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                            (pathname === item.href) && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground font-semibold"
                                         )}
                                     >
                                         <item.icon className="h-5 w-5" />

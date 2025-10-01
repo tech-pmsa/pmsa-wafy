@@ -38,7 +38,7 @@ export default function UserProfileNav() {
       case 'class': return '/admins/classroom/class-dashboard';
       case 'class-leader': return '/admins/classleader/class-leader-dashboard';
       case 'student': return '/students/student-dashboard';
-      case 'staff': return '/admins/staff/staff-dashboard'; // Added staff dashboard
+      case 'staff': return '/admins/staff/staff-dashboard';
       default: return '/';
     }
   };
@@ -55,11 +55,7 @@ export default function UserProfileNav() {
   }
 
   if (!user || !details) {
-    return (
-      <Button onClick={() => router.push('/login')}>
-        Sign In
-      </Button>
-    )
+    return <Button onClick={() => router.push('/login')}>Sign In</Button>
   }
 
   return (

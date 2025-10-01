@@ -1,16 +1,19 @@
+// components/admin/AchievementViewer.tsx
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { Trophy, Calendar, User as UserIcon, Search, Inbox } from 'lucide-react'
+import { Trophy, Calendar, User as UserIcon, Search, Inbox, ExternalLink } from 'lucide-react'
+import Link from 'next/link'
 
 // Shadcn/UI Components
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
 
-// A reusable card for displaying each achievement
+// A reusable card for displaying each achievement, now with a "View Proof" button
 function AchievementDisplayCard({ achievement }: { achievement: any }) {
   return (
     <Card className="flex flex-col h-full overflow-hidden text-left shadow-md transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
@@ -30,10 +33,19 @@ function AchievementDisplayCard({ achievement }: { achievement: any }) {
       <CardContent className="flex-grow text-sm text-muted-foreground">
         <p className="line-clamp-3">{achievement.description}</p>
       </CardContent>
-      <CardFooter className="flex items-center gap-2 border-t bg-muted/50 p-3 text-xs">
-        <UserIcon className="h-4 w-4 text-muted-foreground" />
-        <span className="font-medium text-foreground">{achievement.name}</span>
-        <span className="text-muted-foreground">({achievement.cic})</span>
+      <CardFooter className="flex items-center justify-between border-t bg-muted/50 p-3">
+        <div className="flex items-center gap-2 text-xs">
+          <UserIcon className="h-4 w-4 text-muted-foreground" />
+          <span className="font-medium text-foreground">{achievement.name}</span>
+          <span className="text-muted-foreground">({achievement.cic})</span>
+        </div>
+        {achievement.proof_url && (
+            <Button size="sm" variant="ghost" asChild>
+                <Link href={achievement.proof_url} target="_blank" rel="noopener noreferrer">
+                    View Proof <ExternalLink className="ml-2 h-4 w-4" />
+                </Link>
+            </Button>
+        )}
       </CardFooter>
     </Card>
   );
@@ -46,10 +58,11 @@ export default function AchievementViewer() {
   const [selectedBatch, setSelectedBatch] = useState('All')
   const [isLoading, setIsLoading] = useState(true)
 
+  // Your data fetching logic is preserved
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true)
-      const { data, error } = await supabase.from('achievements').select('*').eq('approved', true)
+      const { data, error } = await supabase.from('achievements').select('*').eq('approved', true).order('submitted_at', { ascending: false });
 
       if (error) {
         console.error("Error fetching achievements:", error)
@@ -63,6 +76,7 @@ export default function AchievementViewer() {
     fetchInitialData()
   }, [])
 
+  // Your filtering logic is preserved
   const filteredAchievements = useMemo(() => {
     let filtered = allAchievements
 
@@ -79,7 +93,6 @@ export default function AchievementViewer() {
           a.title.toLowerCase().includes(lowercasedSearch)
       )
     }
-
     return filtered
   }, [search, selectedBatch, allAchievements])
 
@@ -108,11 +121,13 @@ export default function AchievementViewer() {
 
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Skeleton className="h-56 w-full" /><Skeleton className="h-56 w-full" /><Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full" />
+            <Skeleton className="h-56 w-full" />
           </div>
         ) : filteredAchievements.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed h-48">
-            <Inbox className="h-10 w-10 text-muted-foreground/50" />
+          <div className="flex flex-col items-center justify-center rounded-md border-2 border-dashed h-48 bg-muted/50">
+            <Inbox className="h-10 w-10 text-muted-foreground/70" />
             <p className="mt-4 text-sm font-medium text-muted-foreground">No achievements match your criteria.</p>
           </div>
         ) : (

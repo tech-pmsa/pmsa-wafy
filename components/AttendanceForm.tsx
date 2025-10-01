@@ -1,3 +1,4 @@
+// components/AttendanceForm.tsx
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
@@ -18,9 +19,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Search } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Search, AlertCircle } from 'lucide-react'
 
-//Type Definitions
+// Type Definitions
 interface Student { uid: string; name: string; }
 interface PeriodDetail {
     status: 'Present' | 'Absent';
@@ -32,7 +35,7 @@ const periods = Array.from({ length: 8 }, (_, i) => `period_${i + 1}`);
 const absenceReasons = ['Home', 'Medical', 'Cic Related', 'Wsf Related', 'Exam Related'];
 const excusedAbsences = ['Cic Related', 'Wsf Related', 'Exam Related'];
 
-//Reason Modal for Marking Absences
+// Polished Reason Modal (Unchanged)
 function ReasonModal({ isOpen, onClose, onSave, studentName, lastReason }: { isOpen: boolean, onClose: () => void, onSave: (reason: PeriodDetail) => void, studentName: string, lastReason: PeriodDetail | null }) {
     const [reason, setReason] = useState<PeriodDetail['reason']>('Home');
     const [description, setDescription] = useState('');
@@ -44,42 +47,25 @@ function ReasonModal({ isOpen, onClose, onSave, studentName, lastReason }: { isO
         }
     }, [isOpen, lastReason]);
 
-    const handleSave = () => {
-        onSave({ status: 'Absent', reason, description });
-        onClose();
-    };
+    const handleSave = () => { onSave({ status: 'Absent', reason, description }); onClose(); };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Mark Absent for {studentName}</DialogTitle>
-                    <DialogDescription>Select a reason and provide a brief description for the absence.</DialogDescription>
-                </DialogHeader>
+                <DialogHeader><DialogTitle>Mark Absent for {studentName}</DialogTitle><DialogDescription>Select a reason and provide a brief description for the absence.</DialogDescription></DialogHeader>
                 <div className="space-y-4 py-4">
-                    <div>
-                        <Label>Reason for Absence</Label>
-                        <Select value={reason} onValueChange={(value) => setReason(value as PeriodDetail['reason'])}>
-                            <SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger>
-                            <SelectContent>{absenceReasons.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
-                        </Select>
-                    </div>
-                    <div>
-                        <Label>Description (Optional)</Label>
-                        <Textarea placeholder="e.g., Attending family function" value={description} onChange={e => setDescription(e.target.value)} />
-                    </div>
+                    <div className="space-y-2"><Label>Reason for Absence</Label><Select value={reason} onValueChange={(value) => setReason(value as PeriodDetail['reason'])}><SelectTrigger><SelectValue placeholder="Select a reason" /></SelectTrigger><SelectContent>{absenceReasons.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Description (Optional)</Label><Textarea placeholder="e.g., Attending family function" value={description} onChange={e => setDescription(e.target.value)} /></div>
                 </div>
-                <DialogFooter>
-                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
-                    <Button onClick={handleSave}>Save Absence</Button>
-                </DialogFooter>
+                <DialogFooter><Button variant="ghost" onClick={onClose}>Cancel</Button><Button onClick={handleSave}>Save Absence</Button></DialogFooter>
             </DialogContent>
         </Dialog>
     );
 }
 
+// Main Component
 export default function AttendanceForm() {
-    const { details, loading: userLoading } = useUserData();
+    const { details, loading: userLoading, role } = useUserData();
     const [students, setStudents] = useState<Student[]>([]);
     const [attendance, setAttendance] = useState<{ [uid: string]: AttendanceRecord }>({});
     const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -92,7 +78,7 @@ export default function AttendanceForm() {
     const [modalState, setModalState] = useState<{ isOpen: boolean; studentUid: string | null; period: string | null; }>({ isOpen: false, studentUid: null, period: null });
     const [lastReasons, setLastReasons] = useState<{ [uid: string]: PeriodDetail }>({});
 
-    const classId = useMemo(() => details?.designation, [details]);
+    const classId = useMemo(() => details?.designation?.replace(' Class', ''), [details]);
 
     const fetchDataForDate = useCallback(async () => {
         if (!classId) return;
@@ -134,19 +120,12 @@ export default function AttendanceForm() {
         setLoading(false);
     }, [classId, selectedDate]);
 
-    useEffect(() => { if (!userLoading) fetchDataForDate(); }, [userLoading, fetchDataForDate]);
+    useEffect(() => { if (!userLoading && classId) fetchDataForDate(); }, [userLoading, fetchDataForDate, classId]);
 
-    const filteredStudents = useMemo(() => {
-        if (!searchTerm.trim()) return students;
-        const lowercasedFilter = searchTerm.toLowerCase();
-        return students.filter(student => student.name.toLowerCase().includes(lowercasedFilter));
-    }, [students, searchTerm]);
+    const filteredStudents = useMemo(() => students.filter(student => student.name.toLowerCase().includes(searchTerm.toLowerCase())), [students, searchTerm]);
 
     const attendanceSummary = useMemo(() => {
-        const presentCount = students.filter(student => {
-            const studentAttendance = attendance[student.uid];
-            return studentAttendance && Object.values(studentAttendance).some(p => p.status === 'Present' || excusedAbsences.includes(p.reason || ''));
-        }).length;
+        const presentCount = students.filter(student => { const studentAttendance = attendance[student.uid]; return studentAttendance && Object.values(studentAttendance).some(p => p.status === 'Present' || excusedAbsences.includes(p.reason || '')); }).length;
         return { present: presentCount, absent: students.length - presentCount };
     }, [attendance, students]);
 
@@ -222,67 +201,100 @@ export default function AttendanceForm() {
         if (shouldLock) { setIsLocking(false); } else { setIsUpdating(false); }
     }
 
-    if (userLoading) { return <Skeleton className="h-[60vh] w-full" />; }
+    if (userLoading || loading) {
+        return (
+            <div className="space-y-6">
+                <Skeleton className="h-40 w-full" />
+                <div className="space-y-3">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
             <Card>
-                <CardHeader><CardTitle>Attendance Controls</CardTitle><CardDescription>Select date, mark attendance, then update or lock.</CardDescription></CardHeader>
+                <CardHeader><CardTitle>Attendance Controls</CardTitle><CardDescription>Select date and day type, then mark student attendance.</CardDescription></CardHeader>
                 <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="space-y-2"><Label>Select Date</Label><Popover><PopoverTrigger asChild><Button variant="outline" className="w-full justify-start text-left font-normal"><CalendarIcon className="mr-2 h-4 w-4" />{selectedDate ? format(selectedDate, 'PPP') : <span>Pick a date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={selectedDate} onSelect={(date) => date && setSelectedDate(date)} disabled={(date) => date > new Date()} initialFocus /></PopoverContent></Popover></div>
                     <div className="space-y-2"><Label>Day Type</Label><Select value={isLeaveDay ? 'leave' : 'working'} onValueChange={(value) => setIsLeaveDay(value === 'leave')} disabled={isLocked}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="working">Working Day</SelectItem><SelectItem value="leave">Leave Day</SelectItem></SelectContent></Select></div>
                     <div className="grid grid-cols-2 gap-4 sm:col-span-2 md:col-span-1">
-                        <div className="flex items-center justify-center p-4 bg-green-50 rounded-lg"><div className="text-center"><UserCheck className="h-6 w-6 mx-auto text-green-600" /><p className="text-2xl font-bold text-green-700">{attendanceSummary.present}</p><p className="text-xs font-medium text-green-600">Present</p></div></div>
-                        <div className="flex items-center justify-center p-4 bg-red-50 rounded-lg"><div className="text-center"><UserX className="h-6 w-6 mx-auto text-red-600" /><p className="text-2xl font-bold text-red-700">{attendanceSummary.absent}</p><p className="text-xs font-medium text-red-600">Absent</p></div></div>
+                        <div className="flex items-center justify-center p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-900"><div className="text-center"><UserCheck className="h-6 w-6 mx-auto text-green-600"/><p className="text-2xl font-bold text-green-700 dark:text-green-400">{attendanceSummary.present}</p><p className="text-xs font-medium text-green-600 dark:text-green-500">Present</p></div></div>
+                        <div className="flex items-center justify-center p-4 bg-red-50 dark:bg-red-950 rounded-lg border border-red-200 dark:border-red-900"><div className="text-center"><UserX className="h-6 w-6 mx-auto text-red-600"/><p className="text-2xl font-bold text-red-700 dark:text-red-400">{attendanceSummary.absent}</p><p className="text-xs font-medium text-red-600 dark:text-red-500">Absent</p></div></div>
                     </div>
                 </CardContent>
             </Card>
 
-            {isLocked && <Alert className="border-blue-500/50 bg-blue-50 text-blue-800"><Lock className="h-4 w-4 !text-blue-600" /><AlertTitle>Attendance Locked</AlertTitle><AlertDescription>Attendance for this date has been finalized and cannot be changed.</AlertDescription></Alert>}
+            {isLocked && <Alert className="border-primary/50 bg-primary/5 text-primary"><Lock className="h-4 w-4" /><AlertTitle>Attendance Locked</AlertTitle><AlertDescription>Attendance for this date has been finalized and cannot be changed.</AlertDescription></Alert>}
 
             <div className="space-y-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input
-                        placeholder="Search for a student..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full max-w-lg pl-10"
-                    />
+                    <Input placeholder="Search for a student..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full max-w-lg pl-10" />
                 </div>
 
-                {loading ? (<div className="grid grid-cols-1 lg:grid-cols-2 gap-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-40 w-full" />)}</div>) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {filteredStudents.map(student => {
-                            const studentAttendance = attendance[student.uid];
-                            return (
-                                <Card key={student.uid} className={`transition-opacity ${isLocked || isLeaveDay ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                                    <CardHeader className="flex flex-row items-center justify-between p-4"><h3 className="font-semibold">{student.name}</h3><div className="flex items-center gap-2"><Button variant="outline" size="sm" onClick={() => markAll(student.uid, true)} disabled={isLocked || isLeaveDay}><Check className="h-4 w-4 mr-1" /> All Present</Button><Button variant="outline" size="sm" onClick={() => markAll(student.uid, false)} disabled={isLocked || isLeaveDay}><X className="h-4 w-4 mr-1" /> All Absent</Button></div></CardHeader>
-                                    <CardContent className="p-4 pt-0">
-                                        <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                <Accordion type="multiple" className="w-full space-y-2">
+                    {filteredStudents.map(student => {
+                        const studentAttendance = attendance[student.uid];
+                        return (
+                            <AccordionItem key={student.uid} value={student.uid} className={`border rounded-lg bg-background shadow-sm transition-opacity ${isLocked || isLeaveDay ? 'opacity-60 pointer-events-none' : ''}`}>
+                                <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
+                                        <h3 className="font-semibold text-base sm:text-lg">{student.name}</h3>
+                                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); markAll(student.uid, true); }} className="flex-1"><Check className="h-4 w-4 mr-1"/> All Present</Button>
+                                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); markAll(student.uid, false); }} className="flex-1"><X className="h-4 w-4 mr-1"/> All Absent</Button>
+                                        </div>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-4 pt-0 pb-4">
+                                    <TooltipProvider delayDuration={100}>
+                                        <div className="border-t pt-4 grid grid-cols-4 sm:grid-cols-8 gap-2">
                                             {periods.map((period, i) => {
                                                 const periodData = studentAttendance?.[period];
                                                 const isPresent = periodData?.status === 'Present';
+                                                const isExcused = !isPresent && excusedAbsences.includes(periodData?.reason || '');
+                                                let variant: "default" | "destructive" | "outline" = "default";
+                                                if (isPresent) variant = "default";
+                                                else if (isExcused) variant = "outline";
+                                                else variant = "destructive";
+
                                                 return (
-                                                    <Button key={period} variant={isPresent ? 'default' : 'secondary'} className={`h-10 w-full text-xs ${isPresent ? 'bg-green-600 hover:bg-green-700' : 'bg-destructive hover:bg-destructive/90'}`} onClick={() => handlePeriodClick(student.uid, period)} disabled={isLocked || isLeaveDay}>
-                                                        P{i + 1}
-                                                    </Button>
+                                                    <Tooltip key={period}>
+                                                        <TooltipTrigger asChild>
+                                                            <Button
+                                                                variant={variant}
+                                                                className={`h-10 w-full text-xs ${isPresent ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800' : ''} ${isExcused ? 'border-blue-500 text-blue-600' : ''}`}
+                                                                onClick={() => handlePeriodClick(student.uid, period)}
+                                                            >P{i + 1}</Button>
+                                                        </TooltipTrigger>
+                                                        {!isPresent && (
+                                                            <TooltipContent>
+                                                                <p className="font-semibold">{periodData?.reason || "Absent"}</p>
+                                                                {periodData?.description && <p className="text-sm text-muted-foreground">{periodData.description}</p>}
+                                                            </TooltipContent>
+                                                        )}
+                                                    </Tooltip>
                                                 )
                                             })}
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            )
-                        })}
-                    </div>
-                )}
+                                    </TooltipProvider>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )
+                    })}
+                </Accordion>
             </div>
 
             <div className="flex justify-end gap-4 mt-6">
-                <Button size="lg" variant="outline" onClick={() => handleSubmission(false)} disabled={isLocked || isUpdating || isLocking || loading}>
+                <Button size="lg" variant="outline" onClick={() => handleSubmission(false)} disabled={isLocked || isUpdating || isLocking}>
                     {isUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</> : <><Save className="mr-2 h-4 w-4" /> Update</>}
                 </Button>
-                <Button size="lg" onClick={() => handleSubmission(true)} disabled={isLocked || isUpdating || isLocking || loading}>
+                <Button size="lg" onClick={() => handleSubmission(true)} disabled={isLocked || isUpdating || isLocking}>
                     {isLocking ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Locking...</> : <><Lock className="mr-2 h-4 w-4" /> Lock & Submit</>}
                 </Button>
             </div>

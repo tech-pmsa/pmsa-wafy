@@ -35,7 +35,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
     const { role, details, loading } = useUserData();
     const [notificationCount, setNotificationCount] = useState(0);
 
-    // Your notification fetching logic remains unchanged.
+    // Notification fetching logic is preserved
     useEffect(() => {
         if (role === 'class' && details?.batch) {
             const fetchCount = async () => {
@@ -61,9 +61,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
             <div className="flex-1 overflow-y-auto">
                 <nav className="p-4">
                     {loading ? (
-                        <div className="flex justify-center items-center h-full pt-20">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                        </div>
+                        <div className="flex justify-center items-center h-full pt-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
                     ) : (
                         <ul className="space-y-1">
                             {accessibleNavItems.map((item) => (
@@ -73,7 +71,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
                                         onClick={onLinkClick}
                                         className={cn(
                                             "flex items-center gap-3 rounded-md px-3 py-2.5 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                                            (pathname === item.href) && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                            (pathname === item.href) && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground font-semibold"
                                         )}
                                     >
                                         <item.icon className="h-5 w-5" />
@@ -97,7 +95,7 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
                                 <Link href={settingsNavItem.href} onClick={onLinkClick}
                                     className={cn(
                                         "flex items-center gap-3 rounded-md px-3 py-2.5 text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground",
-                                        pathname === settingsNavItem.href && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+                                        pathname === settingsNavItem.href && "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground font-semibold"
                                     )}
                                 >
                                     <Settings className="h-5 w-5" />
@@ -105,8 +103,8 @@ export default function AdminSidebar({ onLinkClick }: AdminSidebarProps) {
                                 </Link>
                             </li>
                         )}
-                         <li>
-                            <div className="flex items-center gap-3 rounded-lg px-3 py-2 mt-4 text-muted-foreground">
+                         <li className="pt-2">
+                            <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground">
                                 <Avatar className="h-10 w-10 border">
                                     <AvatarImage src={details?.img_url} alt={details?.name} />
                                     <AvatarFallback>{details?.name?.charAt(0)}</AvatarFallback>

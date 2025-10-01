@@ -3,16 +3,18 @@
 
 import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import UserProfileNav from '@/components/UserProfileNav';
-import { Menu, Loader2 } from 'lucide-react';
+import { useUserData } from '@/hooks/useUserData';
+
+// UI Components
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from './ui/button';
-import Sidebar from './Sidebar';
+import { Menu, Loader2 } from 'lucide-react';
+import UserProfileNav from '@/components/UserProfileNav';
 import AdminSidebar from './admin/AdminSidebar';
-import { useUserData } from '@/hooks/useUserData';
-import { ThemeToggle } from './theme-toggle'; // Import the ThemeToggle
+import Sidebar from './Sidebar'; // This is the student sidebar
+import { ThemeToggle } from './theme-toggle';
 
-// A simple function to generate a readable title from the URL path
+// Generates a clean title from the URL's last segment.
 const generateTitle = (path: string) => {
     const lastSegment = path.split('/').pop() || 'dashboard';
     return lastSegment.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());

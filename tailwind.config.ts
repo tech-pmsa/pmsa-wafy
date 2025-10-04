@@ -17,15 +17,15 @@ const config: Config = {
     },
     extend: {
       colors: {
-        'brand-green-dark': '#004d40',   // A deep, rich green for primary text and elements
-        'brand-green': '#00796b',       // A vibrant mid-tone green for primary actions
-        'brand-green-light': '#b2dfdb', // A light green for backgrounds and highlights
-        'brand-yellow': '#ffc107',      // A bright, energetic yellow for accents and buttons
-        'brand-yellow-dark': '#ffa000', // A darker yellow for hover states
-        'neutral-light': '#f5f5f5',     // Light grey for page backgrounds
-        'neutral-medium': '#e0e0e0',    // Medium grey for borders and dividers
-        'neutral-dark': '#424242',      // Dark grey for secondary text
-        'neutral-black': '#212121',     // Near-black for primary headings
+        'brand-green-dark': '#004d40',
+        'brand-green': '#00796b',
+        'brand-green-light': '#b2dfdb',
+        'brand-yellow': '#ffc107',
+        'brand-yellow-dark': '#ffa000',
+        'neutral-light': '#f5f5f5',
+        'neutral-medium': '#e0e0e0',
+        'neutral-dark': '#424242',
+        'neutral-black': '#212121',     
 
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

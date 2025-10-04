@@ -149,7 +149,7 @@ export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boole
                                         <CardContent className="space-y-4">
                                             <div><h4 className="font-medium">Brothers</h4>
                                                 {familyData.brothers && familyData.brothers.length > 0 ? (
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.brothers.map((bro, i) => <Card key={i}><CardHeader><CardTitle className="text-base">{bro.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(bro.education || []).join(', ')}</p><p><strong>Occupation:</strong> {bro.occupation}</p></CardContent></Card>)}</div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">{familyData.brothers.map((bro, i) => <Card key={i}><CardHeader><CardTitle className="text-base">{bro.name}</CardTitle></CardHeader><CardContent className="space-y-1 text-sm"><p><strong>Education:</strong> {(bro.education || []).join(', ')}</p><p><strong>Occupation:</strong> {bro.occupation}</p><p><strong>Responsibilities:</strong> {bro.responsibilities}</p></CardContent></Card>)}</div>
                                                 ) : <p className="text-sm text-muted-foreground mt-2">No brother information added.</p>}
                                             </div>
                                             <div className="border-t pt-4"><h4 className="font-medium">Sisters</h4>

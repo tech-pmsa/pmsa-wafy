@@ -11,7 +11,7 @@ export default function Footer() {
         <footer className="border-t bg-background">
             <div className="container flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
                 <p className="text-sm text-muted-foreground">
-                    © {currentYear} PMSA Wafy College. All Rights Reserved.
+                    © 2024 - {currentYear} PMSA Wafy College. All Rights Reserved.
                 </p>
                 <div className="flex items-center gap-4 text-sm font-medium">
                     <Link href="https://pmsalibrary.vercel.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground transition-colors hover:text-primary">

@@ -135,10 +135,13 @@ export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boole
                                         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <ProfileInfoLine icon={User} label="Father's Name" value={familyData.father_name} />
                                             <ProfileInfoLine icon={Briefcase} label="Father's Occupation" value={familyData.father_occupation} />
+                                            <ProfileInfoLine icon={Briefcase} label="Father's Place" value={familyData.father_staying_place} />
+                                            <ProfileInfoLine icon={Briefcase} label="Father's Responsibilities" value={familyData.father_responsibilities} />
                                             <ProfileInfoLine icon={User} label="Mother's Name" value={familyData.mother_name} />
                                             <ProfileInfoLine icon={Briefcase} label="Mother's Occupation" value={familyData.mother_occupation} />
                                             <ProfileInfoLine icon={FamilyIcon} label="Total Family Members" value={familyData.total_family_members} />
                                             <ProfileInfoLine icon={Home} label="House Type" value={familyData.house_type} />
+                                            <ProfileInfoLine icon={Home} label="Chronically ill Members" value={familyData.chronically_ill_members} />
                                         </CardContent>
                                     </Card>
                                     <Card>

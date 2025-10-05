@@ -1,15 +1,12 @@
 // components/profile/EditProfileDialog.tsx
 'use client'
 
-import { useEffect, useState, useRef, ChangeEvent, FormEvent } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useUserData } from '@/hooks/useUserData';
-import { toast } from 'sonner';
 
 // Import types from the main page
-import { StudentProfile, FamilyData, Sibling, AcademicEntry } from '@/app/admins/manage-students/page';
-import { AdminMarkEditorModal } from '@/components/admin/manage-students/AdminMarkEditorModal';
+import { FamilyData, Sibling } from '@/app/admins/manage-students/page';
 import { EmailChangeModal } from '@/components/profile/EmailChangeModal';
-import { AcademicsTab } from '@/components/profile/AcademicsTab';
 
 // UI Components
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -22,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, User, Mail, Loader2, Lock, UserCheck, Building, Shield, PlusCircle, Trash2, Camera } from 'lucide-react';
+import { Pencil, User, Loader2, Lock, UserCheck, Building, Shield, PlusCircle, Trash2, Camera } from 'lucide-react';
 
 // Reusable Helper Components
 function ReadOnlyField({ label, value }: { label: string, value: string | null }) {

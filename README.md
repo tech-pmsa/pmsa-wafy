@@ -1,4 +1,4 @@
-o learn more about Next.js, take a look at the following resources:30
+o learn more about Next.js, take a look at the following resources:31
 - [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and AP
 - [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 

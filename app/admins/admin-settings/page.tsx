@@ -18,7 +18,7 @@ import UnlockAttendance from '@/components/admin/UnlockAttendance'
 
 // Configuration for our dynamic tabs. This is the new "source of truth" for the page layout.
 const settingsTabs = [
-    { value: 'profile', label: 'My Profile', icon: User, roles: ['student', 'officer', 'class', 'class-leader', 'staff'] },
+    { value: 'profile', label: 'My Profile', icon: User, roles: ['student', 'officer', 'class', 'class-leader', 'staff', 'chef'] },
     { value: 'council', label: 'Class Council', icon: BookUser, roles: ['class'] },
     { value: 'student-management', label: 'Student Management', icon: UserPlus, roles: ['officer'] },
     { value: 'danger-zone', label: 'Danger Zone', icon: Trash2, roles: ['officer'] },

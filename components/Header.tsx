@@ -25,7 +25,7 @@ export default function Header() {
     const { role, loading } = useUserData();
     const [isSheetOpen, setIsSheetOpen] = useState(false);
 
-    const isAdmin = role === 'officer' || role === 'class' || role === 'class-leader' || role === 'staff';
+    const isAdmin = role === 'officer' || role === 'class' || role === 'class-leader' || role === 'staff' || role === 'chef';
     const handleLinkClick = () => setIsSheetOpen(false);
 
     return (

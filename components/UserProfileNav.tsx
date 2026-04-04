@@ -39,6 +39,7 @@ export default function UserProfileNav() {
       case 'class-leader': return '/admins/classleader/class-leader-dashboard';
       case 'student': return '/students/student-dashboard';
       case 'staff': return '/admins/staff/staff-dashboard';
+      case 'chef': return '/admins/chef/chef-dashboard';
       default: return '/';
     }
   };

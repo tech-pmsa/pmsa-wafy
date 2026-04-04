@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 // UI Components
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { GraduationCap, LayoutDashboard, Users, School, UserCheck, Settings, BookUser, Loader2, Bell, Book } from 'lucide-react';
+import { GraduationCap, LayoutDashboard, Users, School, UserCheck, Settings, CookingPot, BookUser, Loader2, Bell, Book } from 'lucide-react';
 
 // Centralized navigation configuration
 const allNavItems = [
@@ -19,10 +19,13 @@ const allNavItems = [
     { href: '/admins/classroom/class-dashboard', label: 'Dashboard', icon: School, roles: ['class'] },
     { href: '/admins/classleader/class-leader-dashboard', label: 'Dashboard', icon: BookUser, roles: ['class-leader'] },
     { href: '/admins/manage-students', label: 'Students', icon: Users, roles: ['officer', 'class'] },
+    { href: '/admins/kitchen', label: 'Kitchen', icon: CookingPot, roles: ['officer', 'class'] },
     { href: '/admins/officer/manage-staff', label: 'Staff', icon: UserCheck, roles: ['officer'] },
     { href: '/admins/officer/staffregister', label: 'Staff Register', icon: Book, roles: ['officer'] },
     { href: '/admins/classroom/notifications', label: 'Notifications', icon: Bell, roles: ['class'], notification: 'achievements' },
     { href: '/admins/classroom/register', label: 'Staff Register', icon: Book, roles: ['class'] },
+    { href: '/admins/chef/chef-dashboard', label: 'Dashboard', icon: Book, roles: ['chef'] },
+    { href: '/admins/chef/chef-settings', label: 'Table Settings', icon: Book, roles: ['chef'] },
 ];
 
 const settingsNavItem = { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader', 'staff'] };

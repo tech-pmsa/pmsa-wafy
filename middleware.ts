@@ -54,7 +54,7 @@ export async function middleware(req: NextRequest) {
         // If no role is found, they can't access dashboards.
         // Allow them to access settings to complete their profile.
         if (!role) {
-            if (pathname.startsWith('/admins/admin-settings') || pathname === '/unauthorized') {
+            if (pathname.startsWith('/admins/admin-settings') || pathname === '/unauthorized' || pathname.startsWith('/admins/kitchen') || pathname.startsWith('/admins/manage-students')) {
                 return res;
             }
             return NextResponse.redirect(new URL('/unauthorized', req.url));
@@ -66,12 +66,13 @@ export async function middleware(req: NextRequest) {
             'class-leader': '/admins/classleader',
             student: '/students',
             staff: '/admins/staff',
+            chef: '/admins/chef'
         };
 
         const requiredPath = roleRedirects[role];
 
         // --- EDITED: Simplified logic for shared pages ---
-        const sharedAdminPaths = ['/admins/admin-settings', '/admins/manage-students'];
+        const sharedAdminPaths = ['/admins/admin-settings', '/admins/manage-students', '/admins/kitchen'];
         if (sharedAdminPaths.some(p => pathname.startsWith(p))) {
             return res; // Allow access without redirecting
         }

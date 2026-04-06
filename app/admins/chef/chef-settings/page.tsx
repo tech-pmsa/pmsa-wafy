@@ -35,6 +35,7 @@ import {
   Eye,
   Rows3,
 } from 'lucide-react';
+import { ChefTablesPdfExport } from '@/components/admin/chef/ChefTablesPdfExport';
 
 type RowPosition = 'left' | 'middle' | 'right';
 type Orientation = 'horizontal' | 'vertical';
@@ -460,9 +461,9 @@ export default function ChefSettingsPage() {
       prev.map((table) =>
         table.id === tableId
           ? {
-              ...table,
-              [field]: value,
-            }
+            ...table,
+            [field]: value,
+          }
           : table
       )
     );
@@ -844,15 +845,23 @@ export default function ChefSettingsPage() {
           </p>
         </div>
 
-        <Button
-          type="button"
-          variant="outline"
-          onClick={fetchData}
-          disabled={loading || profileLoading}
-        >
-          <RefreshCcw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <ChefTablesPdfExport
+            tables={tables}
+            students={students}
+            assignments={assignments}
+          />
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={fetchData}
+            disabled={loading || profileLoading}
+          >
+            <RefreshCcw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {error && (

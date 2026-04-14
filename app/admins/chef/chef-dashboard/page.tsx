@@ -620,7 +620,7 @@ export default function ChefDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold font-heading flex items-center gap-2">
             <ChefHat className="h-8 w-8 text-primary" />
-            Chef Dashboard
+            Kitchen Dashboard
           </h1>
           <p className="mt-1 text-muted-foreground">
             Live table-wise kitchen attendance and plate count for {mealTitle}.
@@ -704,9 +704,9 @@ export default function ChefDashboardPage() {
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <ChefHat className="mb-4 h-10 w-10 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">No chef table layout found</h3>
+                <h3 className="text-lg font-semibold">No kitchen table layout found</h3>
                 <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  Set up your tables and seat assignments in chef settings.
+                  Set up your tables and seat assignments in kitchen settings.
                 </p>
               </CardContent>
             </Card>

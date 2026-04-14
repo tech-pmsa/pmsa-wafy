@@ -66,7 +66,8 @@ export async function middleware(req: NextRequest) {
             'class-leader': '/admins/classleader',
             student: '/students',
             staff: '/admins/staff',
-            chef: '/admins/chef'
+            chef: '/admins/chef',
+            main: '/admins/mainoffice'
         };
 
         const requiredPath = roleRedirects[role];

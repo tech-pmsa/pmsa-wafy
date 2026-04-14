@@ -40,6 +40,7 @@ export default function UserProfileNav() {
       case 'student': return '/students/student-dashboard';
       case 'staff': return '/admins/staff/staff-dashboard';
       case 'chef': return '/admins/chef/chef-dashboard';
+      case 'main': return '/admins/mainoffice/main-dashboard';
       default: return '/';
     }
   };

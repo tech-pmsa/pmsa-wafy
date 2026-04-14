@@ -26,6 +26,7 @@ const allNavItems = [
     { href: '/admins/classroom/register', label: 'Staff Register', icon: Book, roles: ['class'] },
     { href: '/admins/chef/chef-dashboard', label: 'Dashboard', icon: Book, roles: ['chef'] },
     { href: '/admins/chef/chef-settings', label: 'Table Settings', icon: Book, roles: ['chef'] },
+    { href: '/admins/mainoffice/main-dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['main'] },
 ];
 
 const settingsNavItem = { href: '/admins/admin-settings', label: 'Settings', icon: Settings, roles: ['officer', 'class', 'class-leader', 'staff'] };

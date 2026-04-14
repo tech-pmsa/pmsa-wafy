@@ -36,6 +36,11 @@ import {
   Rows3,
 } from 'lucide-react';
 import { ChefTablesPdfExport } from '@/components/admin/chef/ChefTablesPdfExport';
+import ChefSettingsPasswordGate from '@/components/admin/chef/ChefSettingsPasswordGate';
+import FoodSelection, {
+  FoodItem,
+  StudentFoodPreference,
+} from '@/components/admin/chef/FoodSelection';
 
 type RowPosition = 'left' | 'middle' | 'right';
 type Orientation = 'horizontal' | 'vertical';
@@ -270,6 +275,8 @@ export default function ChefSettingsPage() {
 
   const [newTableCount, setNewTableCount] = useState('1');
   const [assignmentForm, setAssignmentForm] = useState<Record<string, AssignmentFormState>>({});
+  const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [foodPreferences, setFoodPreferences] = useState<StudentFoodPreference[]>([]);
 
   const setTableSaving = (tableId: string, value: boolean) => {
     setSavingTableIds((prev) => ({ ...prev, [tableId]: value }));
@@ -320,21 +327,19 @@ export default function ChefSettingsPage() {
         { data: tablesData, error: tablesError },
         { data: studentsData, error: studentsError },
         { data: assignmentsData, error: assignmentsError },
+        { data: foodsData, error: foodsError },
+        { data: prefsData, error: prefsError },
       ] = await Promise.all([
         supabase
           .from('kitchen_tables')
-          .select(
-            'id, table_number, table_name, is_active, row_number, row_position, orientation, active_seat_count, display_order'
-          )
+          .select('id, table_number, table_name, is_active, row_number, row_position, orientation, active_seat_count, display_order')
           .order('row_number', { ascending: true })
           .order('display_order', { ascending: true })
           .order('table_number', { ascending: true }),
 
         supabase
           .from('kitchen_students')
-          .select(
-            'student_uid, name, cic, class_id, batch, council, day_present, noon_present, night_present'
-          )
+          .select('student_uid, name, cic, class_id, batch, council, day_present, noon_present, night_present')
           .order('class_id', { ascending: true })
           .order('name', { ascending: true }),
 
@@ -342,11 +347,26 @@ export default function ChefSettingsPage() {
           .from('kitchen_seat_assignments')
           .select('id, student_uid, kitchen_table_id, seat_number')
           .order('seat_number', { ascending: true }),
+
+        supabase
+          .from('food_items')
+          .select('id, name, is_active, display_order')
+          .order('display_order', { ascending: true })
+          .order('name', { ascending: true }),
+
+        supabase
+          .from('student_food_preferences')
+          .select('id, student_uid, food_item_id, is_needed'),
       ]);
 
       if (tablesError) throw tablesError;
       if (studentsError) throw studentsError;
       if (assignmentsError) throw assignmentsError;
+      if (foodsError) throw foodsError;
+      if (prefsError) throw prefsError;
+
+      setFoods((foodsData || []) as FoodItem[]);
+      setFoodPreferences((prefsData || []) as StudentFoodPreference[]);
 
       const safeTables = (tablesData || []) as KitchenTable[];
       const safeStudents = ((studentsData || []) as KitchenStudent[]).sort((a, b) => {
@@ -833,528 +853,420 @@ export default function ChefSettingsPage() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold font-heading">
-            <ChefHat className="h-8 w-8 text-primary" />
-            Chef Settings
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Manage table layout, row placement, table names, and student seat assignments.
-          </p>
+    <ChefSettingsPasswordGate>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="flex items-center gap-2 text-3xl font-bold font-heading">
+              <ChefHat className="h-8 w-8 text-primary" />
+              Chef Settings
+            </h1>
+            <p className="mt-1 text-muted-foreground">
+              Manage table layout, row placement, table names, and student seat assignments.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <ChefTablesPdfExport
+              tables={tables}
+              students={students}
+              assignments={assignments}
+            />
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={fetchData}
+              disabled={loading || profileLoading}
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                sessionStorage.removeItem('chef-settings-access');
+                window.location.reload();
+              }}
+            >
+              Lock Settings
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <ChefTablesPdfExport
-            tables={tables}
-            students={students}
-            assignments={assignments}
-          />
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-          <Button
-            type="button"
-            variant="outline"
-            onClick={fetchData}
-            disabled={loading || profileLoading}
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {profileLoading || loading ? (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-2xl" />
-            ))}
-          </div>
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full rounded-2xl" />
-            <Skeleton className="h-[520px] w-full rounded-2xl" />
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              title="Total Tables"
-              value={tables.length}
-              description="All created kitchen tables"
-              icon={<LayoutGrid className="h-5 w-5" />}
-            />
-            <StatCard
-              title="Active Tables"
-              value={tables.filter((t) => t.is_active).length}
-              description="Tables visible in dashboard"
-              icon={<Armchair className="h-5 w-5" />}
-            />
-            <StatCard
-              title="Students"
-              value={students.length}
-              description="Students from kitchen students table"
-              icon={<Users className="h-5 w-5" />}
-            />
-            <StatCard
-              title="Assigned Seats"
-              value={assignments.length}
-              description="Students assigned to seats"
-              icon={<Settings2 className="h-5 w-5" />}
-            />
-          </div>
-
-          <Tabs defaultValue="layout" className="w-full">
-            <div className="overflow-x-auto pb-2">
-              <TabsList className="inline-flex h-auto min-w-max gap-2 rounded-2xl p-1">
-                <TabsTrigger value="layout" className="rounded-xl px-4 py-2">
-                  Table Layout Settings
-                </TabsTrigger>
-                <TabsTrigger value="assignments" className="rounded-xl px-4 py-2">
-                  Student Seat Assignment
-                </TabsTrigger>
-              </TabsList>
+        {profileLoading || loading ? (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="h-12 w-full rounded-2xl" />
+              <Skeleton className="h-[520px] w-full rounded-2xl" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard
+                title="Total Tables"
+                value={tables.length}
+                description="All created kitchen tables"
+                icon={<LayoutGrid className="h-5 w-5" />}
+              />
+              <StatCard
+                title="Active Tables"
+                value={tables.filter((t) => t.is_active).length}
+                description="Tables visible in dashboard"
+                icon={<Armchair className="h-5 w-5" />}
+              />
+              <StatCard
+                title="Students"
+                value={students.length}
+                description="Students from kitchen students table"
+                icon={<Users className="h-5 w-5" />}
+              />
+              <StatCard
+                title="Assigned Seats"
+                value={assignments.length}
+                description="Students assigned to seats"
+                icon={<Settings2 className="h-5 w-5" />}
+              />
             </div>
 
-            <TabsContent value="layout" className="mt-6 space-y-6">
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plus className="h-5 w-5" />
-                    Create New Tables
-                  </CardTitle>
-                  <CardDescription>
-                    Add one or more tables. Default tables start with 8 seats and horizontal orientation.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="w-full sm:max-w-[220px]">
-                      <label className="mb-2 block text-sm font-medium">Number of tables</label>
-                      <Input
-                        type="number"
-                        min={1}
-                        value={newTableCount}
-                        onChange={(e) => setNewTableCount(e.target.value)}
-                        placeholder="Enter count"
-                      />
+            <Tabs defaultValue="layout" className="w-full">
+              <div className="overflow-x-auto pb-2">
+                <TabsList className="inline-flex h-auto min-w-max gap-2 rounded-2xl p-1">
+                  <TabsTrigger value="layout" className="rounded-xl px-4 py-2">
+                    Table Layout Settings
+                  </TabsTrigger>
+                  <TabsTrigger value="assignments" className="rounded-xl px-4 py-2">
+                    Student Seat Assignment
+                  </TabsTrigger>
+                  <TabsTrigger value="foods" className="rounded-xl px-4 py-2">
+                    Students Food
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              <TabsContent value="layout" className="mt-6 space-y-6">
+                <Card className="border-border/60 shadow-sm">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5" />
+                      Create New Tables
+                    </CardTitle>
+                    <CardDescription>
+                      Add one or more tables. Default tables start with 8 seats and horizontal orientation.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                      <div className="w-full sm:max-w-[220px]">
+                        <label className="mb-2 block text-sm font-medium">Number of tables</label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={newTableCount}
+                          onChange={(e) => setNewTableCount(e.target.value)}
+                          placeholder="Enter count"
+                        />
+                      </div>
+
+                      <Button onClick={handleCreateTables} disabled={creatingTables}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Tables
+                      </Button>
                     </div>
-
-                    <Button onClick={handleCreateTables} disabled={creatingTables}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Tables
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <RowLayoutPreview tables={tables} />
-
-              {tables.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <Rows3 className="mb-4 h-10 w-10 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">No tables created yet</h3>
-                    <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                      Add tables first, then configure row number, position, orientation, and active seats.
-                    </p>
                   </CardContent>
                 </Card>
-              ) : (
-                <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-                  {tables.map((table) => {
-                    const isSaving = !!savingTableIds[table.id];
-                    const isDeleting = !!deletingTableIds[table.id];
 
-                    return (
-                      <Card key={table.id} className="border-border/60 shadow-sm">
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <CardTitle className="text-lg">
-                                {table.table_name || `Table ${table.table_number}`}
-                              </CardTitle>
-                              <CardDescription>Table No. {table.table_number}</CardDescription>
+                <RowLayoutPreview tables={tables} />
+
+                {tables.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                      <Rows3 className="mb-4 h-10 w-10 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold">No tables created yet</h3>
+                      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                        Add tables first, then configure row number, position, orientation, and active seats.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                    {tables.map((table) => {
+                      const isSaving = !!savingTableIds[table.id];
+                      const isDeleting = !!deletingTableIds[table.id];
+
+                      return (
+                        <Card key={table.id} className="border-border/60 shadow-sm">
+                          <CardHeader>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <CardTitle className="text-lg">
+                                  {table.table_name || `Table ${table.table_number}`}
+                                </CardTitle>
+                                <CardDescription>Table No. {table.table_number}</CardDescription>
+                              </div>
+                              <Badge variant={table.is_active ? 'default' : 'secondary'}>
+                                {table.is_active ? 'Active' : 'Inactive'}
+                              </Badge>
                             </div>
-                            <Badge variant={table.is_active ? 'default' : 'secondary'}>
-                              {table.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
+                          </CardHeader>
+
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Table Name</label>
+                                <Input
+                                  value={table.table_name || ''}
+                                  onChange={(e) =>
+                                    handleTableFieldChange(table.id, 'table_name', e.target.value)
+                                  }
+                                  placeholder={`Table ${table.table_number}`}
+                                />
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Display Order</label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={table.display_order}
+                                  onChange={(e) =>
+                                    handleTableFieldChange(
+                                      table.id,
+                                      'display_order',
+                                      Number(e.target.value || 1)
+                                    )
+                                  }
+                                />
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Row Number</label>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  value={table.row_number}
+                                  onChange={(e) =>
+                                    handleTableFieldChange(
+                                      table.id,
+                                      'row_number',
+                                      Number(e.target.value || 1)
+                                    )
+                                  }
+                                />
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Row Position</label>
+                                <Select
+                                  value={table.row_position}
+                                  onValueChange={(value) =>
+                                    handleTableFieldChange(table.id, 'row_position', value as RowPosition)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select row position" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ROW_POSITIONS.map((pos) => (
+                                      <SelectItem key={pos} value={pos}>
+                                        {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Orientation</label>
+                                <Select
+                                  value={table.orientation}
+                                  onValueChange={(value) =>
+                                    handleTableFieldChange(table.id, 'orientation', value as Orientation)
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select orientation" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {ORIENTATIONS.map((orientation) => (
+                                      <SelectItem key={orientation} value={orientation}>
+                                        {orientation.charAt(0).toUpperCase() + orientation.slice(1)}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div>
+                                <label className="mb-2 block text-sm font-medium">Active Seat Count</label>
+                                <Select
+                                  value={String(table.active_seat_count)}
+                                  onValueChange={(value) =>
+                                    handleTableFieldChange(table.id, 'active_seat_count', Number(value))
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select seat count" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {SEAT_OPTIONS.map((seat) => (
+                                      <SelectItem key={seat} value={String(seat)}>
+                                        {seat} Seats
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="sm:col-span-2">
+                                <label className="mb-2 block text-sm font-medium">Table Status</label>
+                                <Select
+                                  value={table.is_active ? 'active' : 'inactive'}
+                                  onValueChange={(value) =>
+                                    handleTableFieldChange(table.id, 'is_active', value === 'active')
+                                  }
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select table status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="inactive">Inactive</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 pt-2">
+                              <Button onClick={() => handleSaveTable(table)} disabled={isSaving || isDeleting}>
+                                <Save className="mr-2 h-4 w-4" />
+                                Save Table
+                              </Button>
+
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleDeleteTable(table)}
+                                disabled={isSaving || isDeleting}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Table
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="assignments" className="mt-6 space-y-6">
+                <Card className="border-border/60 shadow-sm">
+                  <CardHeader>
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <CardTitle>Save All Student Assignments</CardTitle>
+                        <CardDescription>
+                          After selecting table and seat for many students, save all by one click.
+                        </CardDescription>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">
+                          Changed: {changedStudentIds.length}
+                        </Badge>
+                        <Button
+                          onClick={handleSaveAllAssignments}
+                          disabled={savingAllAssignments || changedStudentIds.length === 0}
+                        >
+                          <Save className="mr-2 h-4 w-4" />
+                          Save All Assignments
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                </Card>
+
+                {tables.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                      <AlertCircle className="mb-4 h-10 w-10 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold">Create tables first</h3>
+                      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                        You need at least one table before assigning students to seats.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : students.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                      <Users className="mb-4 h-10 w-10 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold">No students found</h3>
+                      <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                        Make sure student sync to <code>kitchen_students</code> is working.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-8">
+                    {classKeys.map((classId) => (
+                      <Card key={classId} className="border-border/60 shadow-sm">
+                        <CardHeader>
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <CardTitle>{classId}</CardTitle>
+                              <CardDescription>
+                                {groupedStudents[classId].length} students • ordered by CIC ascending
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline">Class {classId}</Badge>
                           </div>
                         </CardHeader>
 
                         <CardContent className="space-y-4">
-                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Table Name</label>
-                              <Input
-                                value={table.table_name || ''}
-                                onChange={(e) =>
-                                  handleTableFieldChange(table.id, 'table_name', e.target.value)
-                                }
-                                placeholder={`Table ${table.table_number}`}
-                              />
-                            </div>
+                          <div className="grid grid-cols-1 gap-4 xl:hidden">
+                            {groupedStudents[classId].map((student) => {
+                              const currentAssignment = assignmentsByStudent.get(student.student_uid);
+                              const currentForm = assignmentForm[student.student_uid] || {
+                                tableId: '',
+                                seatNumber: '',
+                              };
+                              const isLoadingAssignment = !!assignmentLoadingIds[student.student_uid];
 
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Display Order</label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={table.display_order}
-                                onChange={(e) =>
-                                  handleTableFieldChange(
-                                    table.id,
-                                    'display_order',
-                                    Number(e.target.value || 1)
-                                  )
-                                }
-                              />
-                            </div>
+                              const selectedTableId = currentForm.tableId || '';
+                              const availableSeats = selectedTableId
+                                ? getAvailableSeatsForTable(selectedTableId, student.student_uid)
+                                : [];
 
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Row Number</label>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={table.row_number}
-                                onChange={(e) =>
-                                  handleTableFieldChange(
-                                    table.id,
-                                    'row_number',
-                                    Number(e.target.value || 1)
-                                  )
-                                }
-                              />
-                            </div>
+                              const isChanged = changedStudentIds.includes(student.student_uid);
 
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Row Position</label>
-                              <Select
-                                value={table.row_position}
-                                onValueChange={(value) =>
-                                  handleTableFieldChange(table.id, 'row_position', value as RowPosition)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select row position" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ROW_POSITIONS.map((pos) => (
-                                    <SelectItem key={pos} value={pos}>
-                                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
+                              return (
+                                <Card key={student.student_uid} className="border-border/60">
+                                  <CardContent className="space-y-4 p-4">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div>
+                                        <h4 className="font-semibold">{student.name}</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                          CIC: {student.cic || '—'}
+                                        </p>
+                                      </div>
 
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Orientation</label>
-                              <Select
-                                value={table.orientation}
-                                onValueChange={(value) =>
-                                  handleTableFieldChange(table.id, 'orientation', value as Orientation)
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select orientation" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ORIENTATIONS.map((orientation) => (
-                                    <SelectItem key={orientation} value={orientation}>
-                                      {orientation.charAt(0).toUpperCase() + orientation.slice(1)}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div>
-                              <label className="mb-2 block text-sm font-medium">Active Seat Count</label>
-                              <Select
-                                value={String(table.active_seat_count)}
-                                onValueChange={(value) =>
-                                  handleTableFieldChange(table.id, 'active_seat_count', Number(value))
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select seat count" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SEAT_OPTIONS.map((seat) => (
-                                    <SelectItem key={seat} value={String(seat)}>
-                                      {seat} Seats
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="sm:col-span-2">
-                              <label className="mb-2 block text-sm font-medium">Table Status</label>
-                              <Select
-                                value={table.is_active ? 'active' : 'inactive'}
-                                onValueChange={(value) =>
-                                  handleTableFieldChange(table.id, 'is_active', value === 'active')
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select table status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="active">Active</SelectItem>
-                                  <SelectItem value="inactive">Inactive</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 pt-2">
-                            <Button onClick={() => handleSaveTable(table)} disabled={isSaving || isDeleting}>
-                              <Save className="mr-2 h-4 w-4" />
-                              Save Table
-                            </Button>
-
-                            <Button
-                              variant="destructive"
-                              onClick={() => handleDeleteTable(table)}
-                              disabled={isSaving || isDeleting}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Table
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="assignments" className="mt-6 space-y-6">
-              <Card className="border-border/60 shadow-sm">
-                <CardHeader>
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <CardTitle>Save All Student Assignments</CardTitle>
-                      <CardDescription>
-                        After selecting table and seat for many students, save all by one click.
-                      </CardDescription>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">
-                        Changed: {changedStudentIds.length}
-                      </Badge>
-                      <Button
-                        onClick={handleSaveAllAssignments}
-                        disabled={savingAllAssignments || changedStudentIds.length === 0}
-                      >
-                        <Save className="mr-2 h-4 w-4" />
-                        Save All Assignments
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-
-              {tables.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <AlertCircle className="mb-4 h-10 w-10 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">Create tables first</h3>
-                    <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                      You need at least one table before assigning students to seats.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : students.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                    <Users className="mb-4 h-10 w-10 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold">No students found</h3>
-                    <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                      Make sure student sync to <code>kitchen_students</code> is working.
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-8">
-                  {classKeys.map((classId) => (
-                    <Card key={classId} className="border-border/60 shadow-sm">
-                      <CardHeader>
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <CardTitle>{classId}</CardTitle>
-                            <CardDescription>
-                              {groupedStudents[classId].length} students • ordered by CIC ascending
-                            </CardDescription>
-                          </div>
-                          <Badge variant="outline">Class {classId}</Badge>
-                        </div>
-                      </CardHeader>
-
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 gap-4 xl:hidden">
-                          {groupedStudents[classId].map((student) => {
-                            const currentAssignment = assignmentsByStudent.get(student.student_uid);
-                            const currentForm = assignmentForm[student.student_uid] || {
-                              tableId: '',
-                              seatNumber: '',
-                            };
-                            const isLoadingAssignment = !!assignmentLoadingIds[student.student_uid];
-
-                            const selectedTableId = currentForm.tableId || '';
-                            const availableSeats = selectedTableId
-                              ? getAvailableSeatsForTable(selectedTableId, student.student_uid)
-                              : [];
-
-                            const isChanged = changedStudentIds.includes(student.student_uid);
-
-                            return (
-                              <Card key={student.student_uid} className="border-border/60">
-                                <CardContent className="space-y-4 p-4">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <h4 className="font-semibold">{student.name}</h4>
-                                      <p className="text-sm text-muted-foreground">
-                                        CIC: {student.cic || '—'}
-                                      </p>
-                                    </div>
-
-                                    <div className="flex flex-col items-end gap-2">
-                                      {currentAssignment ? (
-                                        <Badge>
-                                          {tableNameMap.get(currentAssignment.kitchen_table_id) || 'Table'} • Seat{' '}
-                                          {currentAssignment.seat_number}
-                                        </Badge>
-                                      ) : (
-                                        <Badge variant="secondary">Unassigned</Badge>
-                                      )}
-                                      {isChanged && <Badge variant="outline">Changed</Badge>}
-                                    </div>
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                    <div>
-                                      <label className="mb-2 block text-sm font-medium">Table</label>
-                                      <Select
-                                        value={currentForm.tableId || ''}
-                                        onValueChange={(value) =>
-                                          setAssignmentForm((prev) => ({
-                                            ...prev,
-                                            [student.student_uid]: {
-                                              tableId: value,
-                                              seatNumber: '',
-                                            },
-                                          }))
-                                        }
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select table" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {tables
-                                            .filter((t) => t.is_active)
-                                            .map((table) => (
-                                              <SelectItem key={table.id} value={table.id}>
-                                                {table.table_name || `Table ${table.table_number}`}
-                                              </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-
-                                    <div>
-                                      <label className="mb-2 block text-sm font-medium">Seat</label>
-                                      <Select
-                                        value={currentForm.seatNumber || ''}
-                                        onValueChange={(value) =>
-                                          handleAssignmentFormChange(student.student_uid, 'seatNumber', value)
-                                        }
-                                        disabled={!selectedTableId}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select seat" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {availableSeats.map((seat) => (
-                                            <SelectItem key={seat} value={String(seat)}>
-                                              Seat {seat}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  </div>
-
-                                  <div className="flex flex-wrap gap-2">
-                                    <Button
-                                      onClick={() => handleSaveAssignment(student)}
-                                      disabled={isLoadingAssignment || savingAllAssignments}
-                                    >
-                                      <Save className="mr-2 h-4 w-4" />
-                                      Save Assignment
-                                    </Button>
-
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => handleRemoveAssignment(student)}
-                                      disabled={isLoadingAssignment || savingAllAssignments || !currentAssignment}
-                                    >
-                                      <Link2Off className="mr-2 h-4 w-4" />
-                                      Remove
-                                    </Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            );
-                          })}
-                        </div>
-
-                        <div className="hidden overflow-hidden rounded-2xl border xl:block">
-                          <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                              <thead className="bg-muted/60">
-                                <tr className="border-b">
-                                  <th className="px-4 py-3 text-left font-semibold">Name</th>
-                                  <th className="px-4 py-3 text-left font-semibold">CIC</th>
-                                  <th className="px-4 py-3 text-left font-semibold">Current Assignment</th>
-                                  <th className="px-4 py-3 text-left font-semibold">Select Table</th>
-                                  <th className="px-4 py-3 text-left font-semibold">Select Seat</th>
-                                  <th className="px-4 py-3 text-left font-semibold">Changed</th>
-                                  <th className="px-4 py-3 text-left font-semibold">Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {groupedStudents[classId].map((student) => {
-                                  const currentAssignment = assignmentsByStudent.get(student.student_uid);
-                                  const currentForm = assignmentForm[student.student_uid] || {
-                                    tableId: '',
-                                    seatNumber: '',
-                                  };
-                                  const isLoadingAssignment = !!assignmentLoadingIds[student.student_uid];
-                                  const selectedTableId = currentForm.tableId || '';
-                                  const availableSeats = selectedTableId
-                                    ? getAvailableSeatsForTable(selectedTableId, student.student_uid)
-                                    : [];
-                                  const isChanged = changedStudentIds.includes(student.student_uid);
-
-                                  return (
-                                    <tr key={student.student_uid} className="border-b last:border-b-0">
-                                      <td className="px-4 py-3 font-medium">{student.name}</td>
-                                      <td className="px-4 py-3 text-muted-foreground">{student.cic || '—'}</td>
-                                      <td className="px-4 py-3">
+                                      <div className="flex flex-col items-end gap-2">
                                         {currentAssignment ? (
                                           <Badge>
                                             {tableNameMap.get(currentAssignment.kitchen_table_id) || 'Table'} • Seat{' '}
@@ -1363,8 +1275,13 @@ export default function ChefSettingsPage() {
                                         ) : (
                                           <Badge variant="secondary">Unassigned</Badge>
                                         )}
-                                      </td>
-                                      <td className="px-4 py-3">
+                                        {isChanged && <Badge variant="outline">Changed</Badge>}
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                      <div>
+                                        <label className="mb-2 block text-sm font-medium">Table</label>
                                         <Select
                                           value={currentForm.tableId || ''}
                                           onValueChange={(value) =>
@@ -1377,7 +1294,7 @@ export default function ChefSettingsPage() {
                                             }))
                                           }
                                         >
-                                          <SelectTrigger className="min-w-[180px]">
+                                          <SelectTrigger>
                                             <SelectValue placeholder="Select table" />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1390,8 +1307,10 @@ export default function ChefSettingsPage() {
                                               ))}
                                           </SelectContent>
                                         </Select>
-                                      </td>
-                                      <td className="px-4 py-3">
+                                      </div>
+
+                                      <div>
+                                        <label className="mb-2 block text-sm font-medium">Seat</label>
                                         <Select
                                           value={currentForm.seatNumber || ''}
                                           onValueChange={(value) =>
@@ -1399,7 +1318,7 @@ export default function ChefSettingsPage() {
                                           }
                                           disabled={!selectedTableId}
                                         >
-                                          <SelectTrigger className="min-w-[140px]">
+                                          <SelectTrigger>
                                             <SelectValue placeholder="Select seat" />
                                           </SelectTrigger>
                                           <SelectContent>
@@ -1410,47 +1329,172 @@ export default function ChefSettingsPage() {
                                             ))}
                                           </SelectContent>
                                         </Select>
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {isChanged ? <Badge variant="outline">Changed</Badge> : <span className="text-muted-foreground">—</span>}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        <div className="flex flex-wrap gap-2">
-                                          <Button
-                                            size="sm"
-                                            onClick={() => handleSaveAssignment(student)}
-                                            disabled={isLoadingAssignment || savingAllAssignments}
-                                          >
-                                            <Save className="mr-2 h-4 w-4" />
-                                            Save
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleRemoveAssignment(student)}
-                                            disabled={isLoadingAssignment || savingAllAssignments || !currentAssignment}
-                                          >
-                                            <Link2Off className="mr-2 h-4 w-4" />
-                                            Remove
-                                          </Button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                      <Button
+                                        onClick={() => handleSaveAssignment(student)}
+                                        disabled={isLoadingAssignment || savingAllAssignments}
+                                      >
+                                        <Save className="mr-2 h-4 w-4" />
+                                        Save Assignment
+                                      </Button>
+
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => handleRemoveAssignment(student)}
+                                        disabled={isLoadingAssignment || savingAllAssignments || !currentAssignment}
+                                      >
+                                        <Link2Off className="mr-2 h-4 w-4" />
+                                        Remove
+                                      </Button>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              );
+                            })}
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </>
-      )}
-    </div>
+
+                          <div className="hidden overflow-hidden rounded-2xl border xl:block">
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-sm">
+                                <thead className="bg-muted/60">
+                                  <tr className="border-b">
+                                    <th className="px-4 py-3 text-left font-semibold">Name</th>
+                                    <th className="px-4 py-3 text-left font-semibold">CIC</th>
+                                    <th className="px-4 py-3 text-left font-semibold">Current Assignment</th>
+                                    <th className="px-4 py-3 text-left font-semibold">Select Table</th>
+                                    <th className="px-4 py-3 text-left font-semibold">Select Seat</th>
+                                    <th className="px-4 py-3 text-left font-semibold">Changed</th>
+                                    <th className="px-4 py-3 text-left font-semibold">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {groupedStudents[classId].map((student) => {
+                                    const currentAssignment = assignmentsByStudent.get(student.student_uid);
+                                    const currentForm = assignmentForm[student.student_uid] || {
+                                      tableId: '',
+                                      seatNumber: '',
+                                    };
+                                    const isLoadingAssignment = !!assignmentLoadingIds[student.student_uid];
+                                    const selectedTableId = currentForm.tableId || '';
+                                    const availableSeats = selectedTableId
+                                      ? getAvailableSeatsForTable(selectedTableId, student.student_uid)
+                                      : [];
+                                    const isChanged = changedStudentIds.includes(student.student_uid);
+
+                                    return (
+                                      <tr key={student.student_uid} className="border-b last:border-b-0">
+                                        <td className="px-4 py-3 font-medium">{student.name}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{student.cic || '—'}</td>
+                                        <td className="px-4 py-3">
+                                          {currentAssignment ? (
+                                            <Badge>
+                                              {tableNameMap.get(currentAssignment.kitchen_table_id) || 'Table'} • Seat{' '}
+                                              {currentAssignment.seat_number}
+                                            </Badge>
+                                          ) : (
+                                            <Badge variant="secondary">Unassigned</Badge>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <Select
+                                            value={currentForm.tableId || ''}
+                                            onValueChange={(value) =>
+                                              setAssignmentForm((prev) => ({
+                                                ...prev,
+                                                [student.student_uid]: {
+                                                  tableId: value,
+                                                  seatNumber: '',
+                                                },
+                                              }))
+                                            }
+                                          >
+                                            <SelectTrigger className="min-w-[180px]">
+                                              <SelectValue placeholder="Select table" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {tables
+                                                .filter((t) => t.is_active)
+                                                .map((table) => (
+                                                  <SelectItem key={table.id} value={table.id}>
+                                                    {table.table_name || `Table ${table.table_number}`}
+                                                  </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <Select
+                                            value={currentForm.seatNumber || ''}
+                                            onValueChange={(value) =>
+                                              handleAssignmentFormChange(student.student_uid, 'seatNumber', value)
+                                            }
+                                            disabled={!selectedTableId}
+                                          >
+                                            <SelectTrigger className="min-w-[140px]">
+                                              <SelectValue placeholder="Select seat" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {availableSeats.map((seat) => (
+                                                <SelectItem key={seat} value={String(seat)}>
+                                                  Seat {seat}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {isChanged ? <Badge variant="outline">Changed</Badge> : <span className="text-muted-foreground">—</span>}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          <div className="flex flex-wrap gap-2">
+                                            <Button
+                                              size="sm"
+                                              onClick={() => handleSaveAssignment(student)}
+                                              disabled={isLoadingAssignment || savingAllAssignments}
+                                            >
+                                              <Save className="mr-2 h-4 w-4" />
+                                              Save
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => handleRemoveAssignment(student)}
+                                              disabled={isLoadingAssignment || savingAllAssignments || !currentAssignment}
+                                            >
+                                              <Link2Off className="mr-2 h-4 w-4" />
+                                              Remove
+                                            </Button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="foods" className="mt-6 space-y-6">
+                <FoodSelection
+                  foods={foods}
+                  students={students}
+                  preferences={foodPreferences}
+                  onRefresh={fetchData}
+                />
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
+      </div>
+    </ChefSettingsPasswordGate>
   );
 }

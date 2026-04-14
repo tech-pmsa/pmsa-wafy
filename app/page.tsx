@@ -48,6 +48,9 @@ export default function Home() {
         case 'chef':
           router.replace('/admins/chef/chef-dashboard');
           break;
+        case 'main':
+          router.replace('/admins/mainoffice/main-dashboard');
+          break;
         default:
           router.replace('/unauthorized');
           break;

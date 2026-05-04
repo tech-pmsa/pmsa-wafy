@@ -80,11 +80,11 @@ export default function LoginPage() {
                             <GraduationCap className="h-8 w-8" />
                             <h1 className="text-2xl font-bold font-heading">PMSA Wafy College</h1>
                         </div>
-                        <p className="mt-4 text-lg text-primary-foreground/80">
+                        <p className="mt-4 text-lg">
                             Your portal to academic excellence and campus life.
                         </p>
                     </div>
-                    <p className="text-sm text-primary-foreground/70">
+                    <p className="text-sm">
                         © {currentYear} PMSA Wafy College. All Rights Reserved.
                     </p>
                 </div>

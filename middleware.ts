@@ -78,8 +78,8 @@ export async function middleware(req: NextRequest) {
             return res; // Allow access without redirecting
         }
 
-        // If a logged-in user tries to access a public page (like login), redirect them to their dashboard
-        if (publicPaths.includes(pathname)) {
+        // If a logged-in user tries to access the login page, redirect them to their dashboard
+        if (pathname === '/login') {
             const dashboardPath = `${requiredPath}/${role}-dashboard`;
             return NextResponse.redirect(new URL(dashboardPath, req.url));
         }

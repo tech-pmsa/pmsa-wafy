@@ -50,7 +50,7 @@ export default function LoginPage() {
             return;
         }
 
-        router.refresh();
+        window.location.href = '/';
     };
 
     const handleResetPassword = async (e: React.FormEvent) => {

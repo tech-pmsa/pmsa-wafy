@@ -33,6 +33,16 @@ import {
   Filter,
 } from 'lucide-react';
 
+import {
+  fetchKitchenAttendanceForDate,
+  formatKitchenDateLabel,
+  getIstTodayDateValue,
+  getKitchenDateOptions,
+  KitchenAttendanceStudent,
+  KitchenMeal,
+  setKitchenAttendanceRange,
+} from '@/lib/kitchenAttendance';
+
 type ProfileRole = 'officer' | 'class' | 'class-leader' | 'staff' | string;
 
 interface AdminProfile {
@@ -43,26 +53,7 @@ interface AdminProfile {
   designation: string | null;
 }
 
-interface KitchenStudent {
-  id: string;
-  student_uid: string;
-  name: string;
-  cic: string | null;
-  class_id: string;
-  batch: string | null;
-  council: string | null;
-  phone: string | null;
-  guardian: string | null;
-  g_phone: string | null;
-  address: string | null;
-  img_url: string | null;
-  day_present: boolean;
-  noon_present: boolean;
-  night_present: boolean;
-  whole_day_present?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+type KitchenStudent = KitchenAttendanceStudent;
 
 type AttendanceFilter =
   | 'all'
@@ -74,9 +65,9 @@ type AttendanceFilter =
 
 const FILTER_OPTIONS: { value: AttendanceFilter; label: string }[] = [
   { value: 'all', label: 'All Students' },
-  { value: 'day_absent', label: 'Day Absent' },
-  { value: 'noon_absent', label: 'Noon Absent' },
-  { value: 'night_absent', label: 'Night Absent' },
+  { value: 'day_absent', label: 'Breakfast Absent' },
+  { value: 'noon_absent', label: 'Lunch Absent' },
+  { value: 'night_absent', label: 'Dinner Absent' },
   { value: 'whole_day_absent', label: 'Whole Day Absent' },
   { value: 'full_present', label: 'Full Present' },
 ];
@@ -92,9 +83,9 @@ function getTeacherClassValue(profile: AdminProfile | null): { key: 'batch'; val
 }
 
 function getStudentStatus(student: KitchenStudent) {
-  const absentCount = [student.day_present, student.noon_present, student.night_present].filter(Boolean).length;
+  const presentCount = [student.day_present, student.noon_present, student.night_present].filter(Boolean).length;
 
-  if (absentCount === 3) {
+  if (presentCount === 3) {
     return {
       label: 'Full Present',
       variant: 'default' as const,
@@ -207,21 +198,21 @@ function KitchenStudentCard({
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <MealToggleButton
             active={student.day_present}
-            label="Day"
+            label="Breakfast"
             icon={<Sun className="h-4 w-4" />}
             loading={loading}
             onClick={() => onToggleMeal(student, 'day_present')}
           />
           <MealToggleButton
             active={student.noon_present}
-            label="Noon"
+            label="Lunch"
             icon={<UtensilsCrossed className="h-4 w-4" />}
             loading={loading}
             onClick={() => onToggleMeal(student, 'noon_present')}
           />
           <MealToggleButton
             active={student.night_present}
-            label="Night"
+            label="Dinner"
             icon={<MoonStar className="h-4 w-4" />}
             loading={loading}
             onClick={() => onToggleMeal(student, 'night_present')}
@@ -266,6 +257,11 @@ export default function KitchenAttendancePage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<AttendanceFilter>('all');
+  const [activeTab, setActiveTab] = useState<string>('');
+
+  const [selectedDate, setSelectedDate] = useState(getIstTodayDateValue());
+  const [rangeFromDate, setRangeFromDate] = useState(getIstTodayDateValue());
+  const [rangeToDate, setRangeToDate] = useState(getIstTodayDateValue());
 
   const [rowLoadingMap, setRowLoadingMap] = useState<Record<string, boolean>>({});
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -298,7 +294,7 @@ export default function KitchenAttendancePage() {
     }
   }, [authUser?.id]);
 
-  const fetchKitchenStudents = useCallback(async (currentProfile?: AdminProfile | null) => {
+  const fetchKitchenStudents = useCallback(async (currentProfile?: AdminProfile | null, dateValue = selectedDate) => {
     const activeProfile = currentProfile ?? profile;
     if (!activeProfile) return;
 
@@ -306,24 +302,17 @@ export default function KitchenAttendancePage() {
     setError(null);
 
     try {
-      let query = supabase
-        .from('kitchen_students')
-        .select('*')
-        .order('name', { ascending: true });
+      let data = await fetchKitchenAttendanceForDate(dateValue);
 
       if (activeProfile.role === 'class') {
         const teacherClass = getTeacherClassValue(activeProfile);
 
         if (teacherClass.value) {
-          query = query.eq(teacherClass.key, teacherClass.value);
+          data = data.filter((student) => student.batch === teacherClass.value);
         }
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setStudents((data || []) as KitchenStudent[]);
+      setStudents(data);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Failed to load kitchen students');
@@ -331,7 +320,7 @@ export default function KitchenAttendancePage() {
     } finally {
       setLoading(false);
     }
-  }, [profile]);
+  }, [profile, selectedDate]);
 
   useEffect(() => {
     if (authUser?.id) {
@@ -341,9 +330,22 @@ export default function KitchenAttendancePage() {
 
   useEffect(() => {
     if (profile) {
-      fetchKitchenStudents(profile);
+      fetchKitchenStudents(profile, selectedDate);
     }
-  }, [profile, fetchKitchenStudents]);
+  }, [profile, selectedDate, fetchKitchenStudents]);
+
+  useEffect(() => {
+    setRangeFromDate(selectedDate);
+    setRangeToDate(selectedDate);
+  }, [selectedDate]);
+
+  const dateOptions = useMemo(() => getKitchenDateOptions(), []);
+  const selectedDateLabel = useMemo(() => formatKitchenDateLabel(selectedDate), [selectedDate]);
+  
+  const rangeLabel = useMemo(() => {
+    if (rangeFromDate === rangeToDate) return formatKitchenDateLabel(rangeFromDate);
+    return `${formatKitchenDateLabel(rangeFromDate)} to ${formatKitchenDateLabel(rangeToDate)}`;
+  }, [rangeFromDate, rangeToDate]);
 
   const filteredStudents = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -383,6 +385,14 @@ export default function KitchenAttendancePage() {
     }, {});
   }, [filteredStudents]);
 
+  const classKeys = useMemo(() => Object.keys(groupedStudents).sort(), [groupedStudents]);
+
+  useEffect(() => {
+    if (profile?.role === 'officer' && classKeys.length > 0 && (!activeTab || !classKeys.includes(activeTab))) {
+      setActiveTab(classKeys[0]);
+    }
+  }, [classKeys, profile?.role, activeTab]);
+
   const summary = useMemo(() => {
     const base = filteredStudents.length ? filteredStudents : students;
 
@@ -396,28 +406,42 @@ export default function KitchenAttendancePage() {
     };
   }, [filteredStudents, students]);
 
+  const validateAttendanceDateRange = () => {
+    if (rangeFromDate > rangeToDate) {
+      toast.error('Invalid Range', { description: 'The from date must be before or equal to the to date.' });
+      return false;
+    }
+    return true;
+  };
+
   const handleToggleMeal = async (
     student: KitchenStudent,
     meal: 'day_present' | 'noon_present' | 'night_present'
   ) => {
+    if (!validateAttendanceDateRange()) return;
+
     setRowLoading(student.student_uid, true);
 
     const nextValue = !student[meal];
+    const mealName: KitchenMeal = meal === 'day_present' ? 'day' : meal === 'noon_present' ? 'noon' : 'night';
 
     try {
-      const { error } = await supabase
-        .from('kitchen_students')
-        .update({ [meal]: nextValue })
-        .eq('student_uid', student.student_uid);
+      await setKitchenAttendanceRange({
+        studentUids: [student.student_uid],
+        fromDate: rangeFromDate,
+        toDate: rangeToDate,
+        meals: [mealName],
+        present: nextValue,
+      });
 
-      if (error) throw error;
-
-      setStudents((prev) =>
-        prev.map((s) => (s.student_uid === student.student_uid ? { ...s, [meal]: nextValue } : s))
-      );
+      if (selectedDate >= rangeFromDate && selectedDate <= rangeToDate) {
+        setStudents((prev) =>
+          prev.map((s) => (s.student_uid === student.student_uid ? { ...s, [meal]: nextValue } : s))
+        );
+      }
 
       toast.success(
-        `${student.name} marked ${nextValue ? 'present' : 'absent'} for ${meal.replace('_present', '')}`
+        `${student.name} marked ${nextValue ? 'present' : 'absent'} for ${mealName}`
       );
     } catch (err: any) {
       console.error(err);
@@ -428,28 +452,33 @@ export default function KitchenAttendancePage() {
   };
 
   const handleSetWholeDay = async (student: KitchenStudent, present: boolean) => {
+    if (!validateAttendanceDateRange()) return;
+
     setRowLoading(student.student_uid, true);
 
     try {
-      const { error } = await supabase.rpc('set_student_whole_day_attendance', {
-        p_student_uid: student.student_uid,
-        p_present: present,
+      await setKitchenAttendanceRange({
+        studentUids: [student.student_uid],
+        fromDate: rangeFromDate,
+        toDate: rangeToDate,
+        meals: ['day', 'noon', 'night'],
+        present,
       });
 
-      if (error) throw error;
-
-      setStudents((prev) =>
-        prev.map((s) =>
-          s.student_uid === student.student_uid
-            ? {
-                ...s,
-                day_present: present,
-                noon_present: present,
-                night_present: present,
-              }
-            : s
-        )
-      );
+      if (selectedDate >= rangeFromDate && selectedDate <= rangeToDate) {
+        setStudents((prev) =>
+          prev.map((s) =>
+            s.student_uid === student.student_uid
+              ? {
+                  ...s,
+                  day_present: present,
+                  noon_present: present,
+                  night_present: present,
+                }
+              : s
+          )
+        );
+      }
 
       toast.success(`${student.name} marked as ${present ? 'full present' : 'full absent'}`);
     } catch (err: any) {
@@ -460,37 +489,86 @@ export default function KitchenAttendancePage() {
     }
   };
 
-  const handleClassMealBulk = async (
-    classId: string,
-    meal: 'day' | 'noon' | 'night',
-    present: boolean
+  const getBulkTargetStudents = (classId?: string) => {
+    if (profile?.role === 'officer') {
+      return classId ? students.filter((s) => s.class_id === classId) : [];
+    }
+
+    if (profile?.role === 'class') {
+      const teacherBatch = getTeacherClassValue(profile).value;
+      return students.filter((s) => s.batch === teacherBatch);
+    }
+
+    return [];
+  };
+
+  const getBulkTargetIds = (classId?: string) => {
+    return getBulkTargetStudents(classId)
+      .map((s) => s.student_uid)
+      .filter(Boolean);
+  };
+
+  const getBulkScopeLabel = (classId?: string) => {
+    if (profile?.role === 'officer') {
+      return classId ? `students in ${classId}` : 'students in this class';
+    }
+
+    if (profile?.role === 'class') {
+      const teacherBatch = getTeacherClassValue(profile).value;
+      return teacherBatch ? `all students in ${teacherBatch}` : 'your batch students';
+    }
+
+    return 'selected students';
+  };
+
+  const handleBulkMealUpdate = async (
+    meal: KitchenMeal,
+    present: boolean,
+    classId?: string
   ) => {
+    if (!validateAttendanceDateRange()) return;
+
+    const targetIds = getBulkTargetIds(classId);
+    if (targetIds.length === 0) {
+      toast.error('No students found for bulk update.');
+      return;
+    }
+
+    const scopeLabel = getBulkScopeLabel(classId);
+    
+    const confirmed = window.confirm(
+      `Mark ${meal} as ${present ? 'Present' : 'Absent'} for ${scopeLabel} from ${rangeLabel}?`
+    );
+    if (!confirmed) return;
+
     setBulkLoading(true);
 
     try {
-      const { error } = await supabase.rpc('set_class_meal_attendance', {
-        p_class_id: classId,
-        p_meal: meal,
-        p_present: present,
+      await setKitchenAttendanceRange({
+        studentUids: targetIds,
+        fromDate: rangeFromDate,
+        toDate: rangeToDate,
+        meals: [meal],
+        present,
       });
 
-      if (error) throw error;
-
-      setStudents((prev) =>
-        prev.map((student) =>
-          student.class_id === classId
-            ? {
-                ...student,
-                ...(meal === 'day' ? { day_present: present } : {}),
-                ...(meal === 'noon' ? { noon_present: present } : {}),
-                ...(meal === 'night' ? { night_present: present } : {}),
-              }
-            : student
-        )
-      );
+      if (selectedDate >= rangeFromDate && selectedDate <= rangeToDate) {
+        setStudents((prev) =>
+          prev.map((s) =>
+            targetIds.includes(s.student_uid)
+              ? {
+                  ...s,
+                  ...(meal === 'day' ? { day_present: present } : {}),
+                  ...(meal === 'noon' ? { noon_present: present } : {}),
+                  ...(meal === 'night' ? { night_present: present } : {}),
+                }
+              : s
+          )
+        );
+      }
 
       toast.success(
-        `${classId}: ${meal} marked ${present ? 'present' : 'absent'} for all students`
+        `${classId || 'Class'}: ${meal} marked ${present ? 'present' : 'absent'} for ${targetIds.length} students`
       );
     } catch (err: any) {
       console.error(err);
@@ -500,31 +578,48 @@ export default function KitchenAttendancePage() {
     }
   };
 
-  const handleClassWholeDayBulk = async (classId: string, present: boolean) => {
+  const handleBulkWholeDayUpdate = async (present: boolean, classId?: string) => {
+    if (!validateAttendanceDateRange()) return;
+
+    const targetIds = getBulkTargetIds(classId);
+    if (targetIds.length === 0) {
+      toast.error('No students found for bulk update.');
+      return;
+    }
+
+    const scopeLabel = getBulkScopeLabel(classId);
+    const confirmed = window.confirm(
+      `Mark ${scopeLabel} as Full ${present ? 'Present' : 'Absent'} from ${rangeLabel}?`
+    );
+    if (!confirmed) return;
+
     setBulkLoading(true);
 
     try {
-      const { error } = await supabase.rpc('set_class_whole_day_attendance', {
-        p_class_id: classId,
-        p_present: present,
+      await setKitchenAttendanceRange({
+        studentUids: targetIds,
+        fromDate: rangeFromDate,
+        toDate: rangeToDate,
+        meals: ['day', 'noon', 'night'],
+        present,
       });
 
-      if (error) throw error;
+      if (selectedDate >= rangeFromDate && selectedDate <= rangeToDate) {
+        setStudents((prev) =>
+          prev.map((s) =>
+            targetIds.includes(s.student_uid)
+              ? {
+                  ...s,
+                  day_present: present,
+                  noon_present: present,
+                  night_present: present,
+                }
+              : s
+          )
+        );
+      }
 
-      setStudents((prev) =>
-        prev.map((student) =>
-          student.class_id === classId
-            ? {
-                ...student,
-                day_present: present,
-                noon_present: present,
-                night_present: present,
-              }
-            : student
-        )
-      );
-
-      toast.success(`${classId}: full class marked ${present ? 'present' : 'absent'}`);
+      toast.success(`${classId || 'Class'} full class marked ${present ? 'present' : 'absent'} (${targetIds.length} students)`);
     } catch (err: any) {
       console.error(err);
       toast.error('Bulk full-day update failed', { description: err.message });
@@ -549,8 +644,8 @@ export default function KitchenAttendancePage() {
             <div>
               <h2 className="text-xl font-bold font-heading">{classId}</h2>
               <p className="text-sm text-muted-foreground">
-                {classSummary.total} students • Day Absent {classSummary.dayAbsent} • Noon Absent{' '}
-                {classSummary.noonAbsent} • Night Absent {classSummary.nightAbsent} • Full Absent{' '}
+                {classSummary.total} students • Breakfast Absent {classSummary.dayAbsent} • Lunch Absent{' '}
+                {classSummary.noonAbsent} • Dinner Absent {classSummary.nightAbsent} • Full Absent{' '}
                 {classSummary.fullAbsent}
               </p>
             </div>
@@ -560,22 +655,57 @@ export default function KitchenAttendancePage() {
                 size="sm"
                 variant="outline"
                 disabled={bulkLoading}
-                onClick={() => handleClassWholeDayBulk(classId, true)}
+                onClick={() => handleBulkWholeDayUpdate(true, classId)}
                 className="border-green-600 text-green-700 hover:bg-green-50 dark:hover:bg-green-950"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                Full Present
+                All Present
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={bulkLoading}
-                onClick={() => handleClassWholeDayBulk(classId, false)}
+                onClick={() => handleBulkWholeDayUpdate(false, classId)}
                 className="border-red-600 text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
               >
                 <XCircle className="mr-2 h-4 w-4" />
-                Full Absent
+                All Absent
               </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 rounded-xl bg-muted/30 p-4 border border-border/50">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Attendance Update Range</h3>
+              <p className="text-xs text-muted-foreground">
+                Student and bulk buttons below update every date in this range.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="w-full sm:w-[200px]">
+                <Select value={rangeFromDate} onValueChange={setRangeFromDate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="From Date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dateOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full sm:w-[200px]">
+                <Select value={rangeToDate} onValueChange={setRangeToDate}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="To Date" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {dateOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -584,57 +714,57 @@ export default function KitchenAttendancePage() {
               size="sm"
               disabled={bulkLoading}
               variant="secondary"
-              onClick={() => handleClassMealBulk(classId, 'day', true)}
+              onClick={() => handleBulkMealUpdate('day', true, classId)}
             >
               <Sun className="mr-2 h-4 w-4" />
-              Day Present
+              Breakfast P
             </Button>
             <Button
               size="sm"
               disabled={bulkLoading}
               variant="destructive"
-              onClick={() => handleClassMealBulk(classId, 'day', false)}
+              onClick={() => handleBulkMealUpdate('day', false, classId)}
             >
               <Sun className="mr-2 h-4 w-4" />
-              Day Absent
+              Breakfast A
             </Button>
 
             <Button
               size="sm"
               disabled={bulkLoading}
               variant="secondary"
-              onClick={() => handleClassMealBulk(classId, 'noon', true)}
+              onClick={() => handleBulkMealUpdate('noon', true, classId)}
             >
               <UtensilsCrossed className="mr-2 h-4 w-4" />
-              Noon Present
+              Lunch P
             </Button>
             <Button
               size="sm"
               disabled={bulkLoading}
               variant="destructive"
-              onClick={() => handleClassMealBulk(classId, 'noon', false)}
+              onClick={() => handleBulkMealUpdate('noon', false, classId)}
             >
               <UtensilsCrossed className="mr-2 h-4 w-4" />
-              Noon Absent
+              Lunch A
             </Button>
 
             <Button
               size="sm"
               disabled={bulkLoading}
               variant="secondary"
-              onClick={() => handleClassMealBulk(classId, 'night', true)}
+              onClick={() => handleBulkMealUpdate('night', true, classId)}
             >
               <MoonStar className="mr-2 h-4 w-4" />
-              Night Present
+              Dinner P
             </Button>
             <Button
               size="sm"
               disabled={bulkLoading}
               variant="destructive"
-              onClick={() => handleClassMealBulk(classId, 'night', false)}
+              onClick={() => handleBulkMealUpdate('night', false, classId)}
             >
               <MoonStar className="mr-2 h-4 w-4" />
-              Night Absent
+              Dinner A
             </Button>
           </div>
         </div>
@@ -661,9 +791,9 @@ export default function KitchenAttendancePage() {
                   <th className="px-4 py-3 text-left font-semibold">Student</th>
                   <th className="px-4 py-3 text-left font-semibold">CIC</th>
                   <th className="px-4 py-3 text-left font-semibold">Class</th>
-                  <th className="px-4 py-3 text-center font-semibold">Day</th>
-                  <th className="px-4 py-3 text-center font-semibold">Noon</th>
-                  <th className="px-4 py-3 text-center font-semibold">Night</th>
+                  <th className="px-4 py-3 text-center font-semibold">Breakfast</th>
+                  <th className="px-4 py-3 text-center font-semibold">Lunch</th>
+                  <th className="px-4 py-3 text-center font-semibold">Dinner</th>
                   <th className="px-4 py-3 text-center font-semibold">Whole Day</th>
                   <th className="px-4 py-3 text-center font-semibold">Status</th>
                 </tr>
@@ -751,62 +881,90 @@ export default function KitchenAttendancePage() {
     );
   };
 
-  const classKeys = useMemo(() => Object.keys(groupedStudents).sort(), [groupedStudents]);
   const teacherClassValue = getTeacherClassValue(profile);
 
   const pageDescription =
     profile?.role === 'class'
-      ? `Manage day, noon, and night attendance for your class${
-          teacherClassValue.value ? ` (${teacherClassValue.value})` : ''
-        }.`
-      : 'Manage kitchen attendance for all classes with class-wise bulk controls.';
+      ? `Manage attendance for ${teacherClassValue.value || 'your class'} on ${selectedDateLabel}.`
+      : `Manage kitchen attendance for all classes on ${selectedDateLabel}.`;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="space-y-6 pb-20">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary mb-3">
+            <CheckCircle2 className="h-4 w-4" />
+            Kitchen Monitoring
+          </div>
           <h1 className="text-3xl font-bold font-heading">Kitchen Attendance</h1>
-          <p className="mt-1 text-muted-foreground">{pageDescription}</p>
+          <p className="mt-1 text-muted-foreground max-w-2xl">{pageDescription}</p>
         </div>
 
-        <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
-          <div className="relative w-full sm:w-[260px]">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search name, CIC, class..."
-              className="pl-9"
-            />
-          </div>
-
-          <div className="w-full sm:w-[220px]">
-            <Select value={filter} onValueChange={(value) => setFilter(value as AttendanceFilter)}>
-              <SelectTrigger>
-                <div className="flex items-center gap-2">
-                  <Filter className="h-4 w-4" />
-                  <SelectValue placeholder="Filter" />
-                </div>
-              </SelectTrigger>
-              <SelectContent>
-                {FILTER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
+        <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
-            onClick={() => fetchKitchenStudents()}
+            onClick={() => fetchKitchenStudents(undefined, selectedDate)}
             disabled={loading || profileLoading}
           >
             <RefreshCcw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
+        </div>
+      </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">Attendance Date</h3>
+              <p className="text-sm text-muted-foreground">
+                Students are present by default. Mark absences or special changes.
+              </p>
+            </div>
+            <div className="w-full sm:w-[260px]">
+              <Select value={selectedDate} onValueChange={setSelectedDate}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Attendance Date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex w-full flex-col gap-3 sm:flex-row">
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search name, CIC, class..."
+            className="pl-9"
+          />
+        </div>
+
+        <div className="w-full sm:w-56">
+          <Select value={filter} onValueChange={(value) => setFilter(value as AttendanceFilter)}>
+            <SelectTrigger>
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <SelectValue placeholder="Filter" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -818,10 +976,10 @@ export default function KitchenAttendancePage() {
         </Alert>
       )}
 
-      {profileLoading || loading ? (
+      {profileLoading || (loading && students.length === 0) ? (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-28 w-full rounded-2xl" />
             ))}
           </div>
@@ -833,36 +991,30 @@ export default function KitchenAttendancePage() {
         </>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard
-              title="Total Students"
+              title="Total"
               value={summary.total}
-              description="Current filtered or loaded students"
+              description="Filtered students"
               icon={<Users className="h-5 w-5" />}
             />
             <StatCard
-              title="Day Absent"
+              title="Breakfast Absent"
               value={summary.dayAbsent}
               description="Breakfast absent count"
               icon={<Sun className="h-5 w-5" />}
             />
             <StatCard
-              title="Noon Absent"
+              title="Lunch Absent"
               value={summary.noonAbsent}
-              description="Meal absent count"
+              description="Lunch absent count"
               icon={<UtensilsCrossed className="h-5 w-5" />}
             />
             <StatCard
-              title="Night Absent"
+              title="Dinner Absent"
               value={summary.nightAbsent}
               description="Dinner absent count"
               icon={<MoonStar className="h-5 w-5" />}
-            />
-            <StatCard
-              title="Full Absent"
-              value={summary.fullAbsent}
-              description="Absent in all three times"
-              icon={<XCircle className="h-5 w-5" />}
             />
           </div>
 
@@ -870,15 +1022,14 @@ export default function KitchenAttendancePage() {
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <Users className="mb-4 h-10 w-10 text-muted-foreground" />
-                <h3 className="text-lg font-semibold">No kitchen students found</h3>
+                <h3 className="text-lg font-semibold">No students found</h3>
                 <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  Check whether your kitchen tables were created and whether student data was synced
-                  into <code>kitchen_students</code>.
+                  Ensure tables exist and students are synced.
                 </p>
               </CardContent>
             </Card>
           ) : profile?.role === 'officer' ? (
-            <Tabs defaultValue={classKeys[0] || ''} className="w-full">
+            <Tabs value={activeTab || classKeys[0] || ''} onValueChange={setActiveTab} className="w-full">
               <div className="overflow-x-auto pb-2">
                 <TabsList className="inline-flex h-auto min-w-max gap-2 rounded-2xl p-1">
                   {classKeys.map((classId) => (

@@ -1,8 +1,8 @@
-'use client';
-
+import React, { useState } from 'react';
+import { FileDown, Loader2 } from 'lucide-react';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { FileDown } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 
 interface KitchenTable {
   id: string;
@@ -54,235 +54,207 @@ function truncateText(text: string, maxLength: number) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
-export function ChefTablesPdfExport({
-  tables,
-  students,
-  assignments,
-}: ChefTablesPdfExportProps) {
-  const handleExportPdf = () => {
-    const activeTables = [...tables]
-      .filter((table) => table.is_active)
-      .sort((a, b) => {
-        if (a.row_number !== b.row_number) return a.row_number - b.row_number;
-        if (a.display_order !== b.display_order) return a.display_order - b.display_order;
-        return a.table_number - b.table_number;
-      });
+export function ChefTablesPdfExport({ tables, students, assignments }: ChefTablesPdfExportProps) {
+  const [exporting, setExporting] = useState(false);
 
-    if (activeTables.length === 0) {
-      return;
-    }
+  const handleExportPdf = async () => {
+    if (exporting) return;
 
-    const studentMap = new Map(students.map((student) => [student.student_uid, student]));
+    try {
+      setExporting(true);
 
-    const tableData = activeTables.map((table) => {
-      const rows: TableStudentRow[] = assignments
-        .filter((assignment) => assignment.kitchen_table_id === table.id)
-        .sort((a, b) => a.seat_number - b.seat_number)
-        .map((assignment) => {
-          const student = studentMap.get(assignment.student_uid);
-
-          return {
-            seat_number: assignment.seat_number,
-            name: student?.name || 'Unknown',
-            cic: student?.cic || '—',
-            class_id: student?.class_id || '—',
-          };
+      const activeTables = [...tables]
+        .filter((table) => table.is_active)
+        .sort((a, b) => {
+          if (a.row_number !== b.row_number) return a.row_number - b.row_number;
+          if (a.display_order !== b.display_order) return a.display_order - b.display_order;
+          return a.table_number - b.table_number;
         });
 
-      return {
-        table,
-        rows,
+      if (activeTables.length === 0) {
+        toast.info('No active tables to export.');
+        return;
+      }
+
+      const studentMap = new Map(students.map((student) => [student.student_uid, student]));
+
+      const tableData = activeTables.map((table) => {
+        const rows: TableStudentRow[] = assignments
+          .filter((assignment) => assignment.kitchen_table_id === table.id)
+          .sort((a, b) => a.seat_number - b.seat_number)
+          .map((assignment) => {
+            const student = studentMap.get(assignment.student_uid);
+            return {
+              seat_number: assignment.seat_number,
+              name: student?.name || 'Unknown',
+              cic: student?.cic || '—',
+              class_id: student?.class_id || '—',
+            };
+          });
+
+        return { table, rows };
+      });
+
+      const pdfDoc = await PDFDocument.create();
+      const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const fontItalic = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
+
+      const pageWidth = 595.28; // A4 portrait width
+      const pageHeight = 841.89; // A4 portrait height
+      const margin = 28;
+      const bottomLimit = 30;
+
+      const contentWidth = pageWidth - margin * 2;
+
+      const colSeat = 50;
+      const colName = 220;
+      const colCic = 100;
+      const colClass = contentWidth - colSeat - colName - colCic;
+
+      const colors = {
+        text: rgb(0.08, 0.13, 0.2),
+        muted: rgb(0.38, 0.44, 0.52),
+        border: rgb(0.87, 0.9, 0.94),
+        borderStrong: rgb(0.81, 0.84, 0.88),
+        softFill: rgb(0.965, 0.973, 0.988),
+        headerFill: rgb(0.933, 0.949, 0.969),
+        zebra: rgb(0.98, 0.984, 0.992),
       };
-    });
 
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4',
-      compress: true,
-    });
+      let page = pdfDoc.addPage([pageWidth, pageHeight]);
+      let y = pageHeight - margin;
+      let pageNumber = 1;
 
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
+      const drawText = (text: string, x: number, yPos: number, size = 10, font = fontRegular, color = colors.text) => {
+        page.drawText(text, { x, y: yPos, size, font, color });
+      };
 
-    const margin = 10;
-    const contentWidth = pageWidth - margin * 2;
-    const bottomLimit = pageHeight - 12;
+      const drawRect = (x: number, yPos: number, width: number, height: number, fillColor?: ReturnType<typeof rgb>, borderColor?: ReturnType<typeof rgb>, borderWidth = 1) => {
+        page.drawRectangle({ x, y: yPos, width, height, color: fillColor, borderColor, borderWidth });
+      };
 
-    const colSeat = 16;
-    const colName = 78;
-    const colCic = 35;
-    const colClass = contentWidth - colSeat - colName - colCic;
+      const drawPageFooter = () => {
+        drawText(`Page ${pageNumber}`, pageWidth - margin - 38, 12, 8, fontRegular, colors.muted);
+      };
 
-    let pageNumber = 1;
-    let y = 0;
+      const drawPageHeader = (isFirstPage = false) => {
+        y = pageHeight - margin;
+        if (isFirstPage) {
+          drawText('Chef Table Full Report', margin, y, 18, fontBold, colors.text);
+          y -= 18;
+          drawText(`Active Tables: ${tableData.length}`, margin, y, 9, fontRegular, colors.muted);
+          drawText('Generated from web export', pageWidth - margin - 120, y, 9, fontRegular, colors.muted);
+          y -= 22;
+        } else {
+          drawText('Chef Table Full Report', margin, y, 14, fontBold, colors.text);
+          y -= 18;
+        }
+      };
 
-    const drawPageHeader = (isFirstPage = false) => {
-      y = margin;
+      const startNewPage = () => {
+        drawPageFooter();
+        page = pdfDoc.addPage([pageWidth, pageHeight]);
+        pageNumber += 1;
+        drawPageHeader(false);
+      };
 
-      if (isFirstPage) {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(17);
-        doc.text('Chef Table Full Report', margin, y);
+      const ensureSpace = (neededHeight: number) => {
+        if (y - neededHeight < bottomLimit) startNewPage();
+      };
 
-        y += 6;
+      const drawTableSectionHeader = (title: string, totalStudents: number) => {
+        const boxHeight = 22;
+        ensureSpace(boxHeight + 8);
+        drawRect(margin, y - boxHeight, contentWidth, boxHeight, colors.softFill, colors.borderStrong, 1);
+        drawText(title, margin + 8, y - 14, 11, fontBold, colors.text);
+        drawText(`Total Students: ${totalStudents}`, pageWidth - margin - 105, y - 14, 9, fontRegular, colors.muted);
+        y -= boxHeight + 8;
+      };
 
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9);
-        doc.text(`Active Tables: ${tableData.length}`, margin, y);
+      const drawTableColumnHeader = () => {
+        const rowHeight = 18;
+        ensureSpace(rowHeight);
+        drawRect(margin, y - rowHeight, contentWidth, rowHeight, colors.headerFill, colors.borderStrong, 1);
+        let x = margin;
+        drawText('Seat', x + 6, y - 12, 9, fontBold);
+        x += colSeat;
+        drawText('Name', x + 6, y - 12, 9, fontBold);
+        x += colName;
+        drawText('CIC', x + 6, y - 12, 9, fontBold);
+        x += colCic;
+        drawText('Class', x + 6, y - 12, 9, fontBold);
+        y -= rowHeight;
+      };
 
-        y += 8;
-      } else {
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
-        doc.text('Chef Table Full Report', margin, y);
-        y += 7;
-      }
-    };
+      const drawStudentRow = (row: TableStudentRow, index: number) => {
+        const rowHeight = 18;
+        ensureSpace(rowHeight);
+        const fill = index % 2 === 0 ? colors.zebra : undefined;
+        drawRect(margin, y - rowHeight, contentWidth, rowHeight, fill, colors.border, 1);
+        let x = margin;
+        drawText(String(row.seat_number), x + 6, y - 12, 8.5, fontRegular);
+        x += colSeat;
+        drawText(truncateText(row.name, 34), x + 6, y - 12, 8.5, fontRegular);
+        x += colName;
+        drawText(truncateText(row.cic, 14), x + 6, y - 12, 8.5, fontRegular);
+        x += colCic;
+        drawText(truncateText(row.class_id, 18), x + 6, y - 12, 8.5, fontRegular);
+        y -= rowHeight;
+      };
 
-    const drawPageFooter = () => {
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text(`Page ${pageNumber}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
-    };
+      drawPageHeader(true);
 
-    const startNewPage = () => {
-      drawPageFooter();
-      doc.addPage();
-      pageNumber += 1;
-      drawPageHeader(false);
-    };
+      tableData.forEach((item, tableIndex) => {
+        const tableTitle = item.table.table_name || `Table ${item.table.table_number}`;
+        drawTableSectionHeader(tableTitle, item.rows.length);
+        drawTableColumnHeader();
 
-    const ensureSpace = (neededHeight: number) => {
-      if (y + neededHeight > bottomLimit) {
-        startNewPage();
-      }
-    };
+        if (item.rows.length === 0) {
+          const rowHeight = 18;
+          ensureSpace(rowHeight);
+          drawRect(margin, y - rowHeight, contentWidth, rowHeight, undefined, colors.border, 1);
+          drawText('No students assigned', margin + 6, y - 12, 8.5, fontItalic, colors.muted);
+          y -= rowHeight + 8;
+        } else {
+          item.rows.forEach((row, rowIndex) => {
+            if (y - 18 < bottomLimit) {
+              startNewPage();
+              drawTableSectionHeader(`${tableTitle} (continued)`, item.rows.length);
+              drawTableColumnHeader();
+            }
+            drawStudentRow(row, rowIndex);
+          });
+          y -= 10;
+        }
 
-    const drawTableSectionHeader = (title: string, totalStudents: number) => {
-      ensureSpace(16);
-
-      doc.setDrawColor(180);
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(margin, y, contentWidth, 10, 2, 2, 'FD');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.text(title, margin + 3, y + 6.5);
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text(`Total Students: ${totalStudents}`, pageWidth - margin - 3, y + 6.5, {
-        align: 'right',
+        if (tableIndex !== tableData.length - 1) ensureSpace(8);
       });
 
-      y += 12;
-    };
+      drawPageFooter();
 
-    const drawTableColumnHeader = () => {
-      ensureSpace(8);
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Chef_Table_Report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-      doc.setDrawColor(200);
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, y, contentWidth, 7, 'FD');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-
-      let x = margin;
-      doc.text('Seat', x + 2, y + 4.8);
-      x += colSeat;
-
-      doc.text('Name', x + 2, y + 4.8);
-      x += colName;
-
-      doc.text('CIC', x + 2, y + 4.8);
-      x += colCic;
-
-      doc.text('Class', x + 2, y + 4.8);
-
-      y += 7;
-    };
-
-    const drawStudentRow = (row: TableStudentRow, index: number) => {
-      ensureSpace(7);
-
-      const fill = index % 2 === 0;
-      if (fill) {
-        doc.setFillColor(250, 250, 250);
-        doc.rect(margin, y, contentWidth, 7, 'F');
-      }
-
-      doc.setDrawColor(225);
-      doc.rect(margin, y, contentWidth, 7);
-
-      let x = margin;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-
-      doc.text(String(row.seat_number), x + 2, y + 4.8);
-      x += colSeat;
-
-      doc.text(truncateText(row.name, 34), x + 2, y + 4.8);
-      x += colName;
-
-      doc.text(truncateText(row.cic, 14), x + 2, y + 4.8);
-      x += colCic;
-
-      doc.text(truncateText(row.class_id, 18), x + 2, y + 4.8);
-
-      y += 7;
-    };
-
-    drawPageHeader(true);
-
-    tableData.forEach((item, tableIndex) => {
-      const tableTitle = item.table.table_name || `Table ${item.table.table_number}`;
-      const sectionTitle = `${tableTitle}`;
-
-      drawTableSectionHeader(sectionTitle, item.rows.length);
-      drawTableColumnHeader();
-
-      if (item.rows.length === 0) {
-        ensureSpace(7);
-
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(8.5);
-        doc.text('No students assigned', margin + 2, y + 4.8);
-
-        doc.setDrawColor(225);
-        doc.rect(margin, y, contentWidth, 7);
-
-        y += 9;
-      } else {
-        item.rows.forEach((row, rowIndex) => {
-          if (y + 7 > bottomLimit) {
-            startNewPage();
-            drawTableSectionHeader(`${sectionTitle} (continued)`, item.rows.length);
-            drawTableColumnHeader();
-          }
-
-          drawStudentRow(row, rowIndex);
-        });
-
-        y += 4;
-      }
-
-      if (tableIndex !== tableData.length - 1) {
-        ensureSpace(4);
-        y += 2;
-      }
-    });
-
-    drawPageFooter();
-    doc.save('chef-table-full-report.pdf');
+    } catch (e: any) {
+      toast.error('Export Failed', { description: e.message || 'Could not export PDF' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
-    <Button type="button" variant="outline" onClick={handleExportPdf}>
-      <FileDown className="mr-2 h-4 w-4" />
-      Export PDF
+    <Button variant="outline" onClick={handleExportPdf} disabled={exporting}>
+      {exporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileDown className="w-4 h-4 mr-2" />}
+      {exporting ? 'Exporting...' : 'Export PDF'}
     </Button>
   );
 }

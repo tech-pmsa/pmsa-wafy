@@ -13,6 +13,14 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import {
+  fetchKitchenAttendanceForDate,
+  formatKitchenDateLabel,
+  getIstTodayDateValue,
+  getKitchenDateOptions,
+  KitchenAttendanceStudent,
+} from '@/lib/kitchenAttendance';
+
+import {
   AlertCircle,
   Building2,
   RefreshCcw,
@@ -34,14 +42,10 @@ interface StudentRow {
   uid: string;
 }
 
-interface KitchenStudent {
-  student_uid: string;
-  name: string;
-  class_id: string;
-  day_present: boolean;
-  noon_present: boolean;
-  night_present: boolean;
-}
+type KitchenStudent = Pick<
+  KitchenAttendanceStudent,
+  "student_uid" | "name" | "class_id" | "day_present" | "noon_present" | "night_present"
+>;
 
 interface FoodItem {
   id: string;
@@ -96,8 +100,8 @@ export default function MainOfficePage() {
   const [foodPreferences, setFoodPreferences] = useState<StudentFoodPreference[]>([]);
   const [selectedFoodId, setSelectedFoodId] = useState('default');
   
-  // New States from RN
   const [absentListMode, setAbsentListMode] = useState<AbsentListMode>("day_absent");
+  const [selectedDate, setSelectedDate] = useState(getIstTodayDateValue());
   const [copying, setCopying] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -137,18 +141,17 @@ export default function MainOfficePage() {
     try {
       const [
         { data: studentsData, error: studentsError },
-        { data: kitchenData, error: kitchenError },
         { data: foodsData, error: foodsError },
         { data: prefsData, error: prefsError },
+        kitchenData,
       ] = await Promise.all([
         supabase.from('students').select('uid'),
-        supabase.from('kitchen_students').select('student_uid, name, class_id, day_present, noon_present, night_present'),
         supabase.from('food_items').select('id, name, is_active, display_order').eq('is_active', true).order('display_order', { ascending: true }),
         supabase.from('student_food_preferences').select('id, student_uid, food_item_id, is_needed'),
+        fetchKitchenAttendanceForDate(selectedDate),
       ]);
 
       if (studentsError) throw studentsError;
-      if (kitchenError) throw kitchenError;
       if (foodsError) throw foodsError;
       if (prefsError) throw prefsError;
 
@@ -162,7 +165,7 @@ export default function MainOfficePage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedDate]);
 
   useEffect(() => {
     if (authUser?.id) fetchProfile();
@@ -171,6 +174,9 @@ export default function MainOfficePage() {
   useEffect(() => {
     if (profile) fetchData();
   }, [profile, fetchData]);
+
+  const dateOptions = useMemo(() => getKitchenDateOptions(), []);
+  const selectedDateLabel = useMemo(() => formatKitchenDateLabel(selectedDate), [selectedDate]);
 
   const summary = useMemo(() => {
     const totalStudents = students.length;
@@ -306,7 +312,7 @@ export default function MainOfficePage() {
 
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20 mb-2">
@@ -317,33 +323,73 @@ export default function MainOfficePage() {
             Main Office Dashboard
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Current college presence report and final food-needed present count.
+            Kitchen attendance and food requirement summary for {selectedDateLabel}.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="min-w-[220px]">
-            <Select value={selectedFoodId} onValueChange={setSelectedFoodId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select food" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Default</SelectItem>
-                {foods.map((food) => (
-                  <SelectItem key={food.id} value={food.id}>
-                    {food.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <Button variant="outline" onClick={fetchData} disabled={loading || profileLoading}>
-            <RefreshCcw className={`mr-2 h-4 w-4 ${loading && 'animate-spin'}`} />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" onClick={fetchData} disabled={loading || profileLoading}>
+          <RefreshCcw className={`mr-2 h-4 w-4 ${loading && 'animate-spin'}`} />
+          Refresh
+        </Button>
       </div>
+
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="font-semibold text-foreground">Attendance Date</h3>
+              <p className="text-sm text-muted-foreground">
+                Select today or an upcoming day to prepare kitchen counts.
+              </p>
+            </div>
+            <div className="w-full sm:w-[260px]">
+              <Select value={selectedDate} onValueChange={setSelectedDate}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Attendance Date" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/60 shadow-sm">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                <ClipboardList className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Food Requirement Filter</h3>
+                <p className="text-sm text-muted-foreground">
+                  Select a food item to calculate how many day-present students need it.
+                </p>
+              </div>
+            </div>
+            <div className="w-full sm:w-[260px]">
+              <Select value={selectedFoodId} onValueChange={setSelectedFoodId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select food" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Default</SelectItem>
+                  {foods.map((food) => (
+                    <SelectItem key={food.id} value={food.id}>
+                      {food.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {error && (
         <Alert variant="destructive">

@@ -12,6 +12,11 @@ interface Props {
   children: React.ReactNode;
 }
 
+export const resetChefSettingsAccess = () => {
+  sessionStorage.removeItem('chef-settings-access');
+};
+
+
 export default function ChefSettingsPasswordGate({ children }: Props) {
   const [verified, setVerified] = useState(false);
   const [checkingStored, setCheckingStored] = useState(true);

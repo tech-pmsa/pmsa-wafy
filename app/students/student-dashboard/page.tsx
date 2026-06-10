@@ -1,5 +1,5 @@
 // app/students/student-dashboard/page.tsx
-'use client'
+'use client';
 
 import React from 'react';
 import { useUserData } from '@/hooks/useUserData';
@@ -10,9 +10,10 @@ import StudentAttendanceCard from '@/components/StudentAttendanceCard';
 import StudentFeeDashboard from '@/components/StudentFeeDashboard';
 import AchievementsForm from '@/components/AchievementsForm';
 import ApprovedAchievements from '@/components/ApprovedAchievements';
+import InternalMarksViewer, { isInternalMarksBatch } from '@/components/student/InternalMarksViewer';
 
 export default function StudentDashboardPage() {
-  const { details, loading } = useUserData();
+  const { user, details, loading } = useUserData();
 
   // A modern skeleton loader that mimics the final layout
   if (loading) {
@@ -44,17 +45,20 @@ export default function StudentDashboardPage() {
           My Dashboard
         </h1>
         <p className="text-muted-foreground">
-          Welcome back, {details?.name}. Here's an overview of your progress.
+          Welcome back, {details?.name || 'Student'}. Here's an overview of your progress.
         </p>
       </div>
 
       {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-        {/* Primary Column (Attendance & Fees) */}
+        {/* Primary Column (Attendance, Fees & Academics) */}
         <div className="lg:col-span-2 flex flex-col gap-8">
           <StudentAttendanceCard />
           <StudentFeeDashboard />
+          {user?.id && isInternalMarksBatch(details?.batch) && (
+            <InternalMarksViewer studentUid={user.id} dashboard />
+          )}
         </div>
 
         {/* Secondary Column (Achievements) */}

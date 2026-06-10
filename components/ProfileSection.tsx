@@ -24,13 +24,43 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { User, Mail, Briefcase, Building, Shield, UserCheck, Phone, PhoneCall, Home, BookMarked, CropIcon } from 'lucide-react'
+import { User, Mail, Briefcase, Building, Shield, UserCheck, Phone, PhoneCall, Home, BookMarked, CropIcon, CalendarDays } from 'lucide-react'
 
 // Type Definitions
 export interface SubjectMark { id?: number; subject_name: string; marks_obtained: string; status: boolean; }
 export interface AcademicEntry { id?: number; title: string; subject_marks: SubjectMark[]; created_at: string; }
 export interface Sibling { name: string; education: string[]; occupation: string; responsibilities: string[]; }
 export interface FamilyData { student_uid: string; total_family_members: number | null; father_name: string | null; father_occupation: string | null; father_staying_place: string | null; father_responsibilities: string[]; mother_name: string | null; mother_occupation: string | null; brothers: Sibling[]; sisters: Sibling[]; chronically_ill_members: boolean; house_type: string | null; }
+
+function formatDob(value?: string | null) {
+  if (!value) return "";
+  const parts = value.split("-");
+  if (parts.length !== 3) return value;
+  const [year, month, day] = parts;
+  return `${day}/${month}/${year.slice(-2)}`;
+}
+
+function calculateAge(value?: string | null) {
+  if (!value) return null;
+  const dob = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(dob.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+}
+
+function dobDisplay(value?: string | null) {
+  const formatted = formatDob(value);
+  if (!formatted) return "";
+  const age = calculateAge(value);
+  return age === null ? formatted : `${formatted} (${age} years)`;
+}
 
 export default function ProfileSection() {
     const router = useRouter();
@@ -64,8 +94,8 @@ export default function ProfileSection() {
     const handleSave = async (familyFormData: Partial<FamilyData>) => {
         if (!user || !role) return; setIsSaving(true);
         const isStudent = role === 'student'; const table = isStudent ? 'students' : 'profiles';
-        const { name, phone, guardian, g_phone, address, designation, batch } = personalForm;
-        let updatedData: any = isStudent ? { name, phone, guardian, g_phone, address } : { name, designation, batch };
+        const { name, phone, guardian, g_phone, address, dob, designation, batch } = personalForm;
+        let updatedData: any = isStudent ? { name, phone, guardian, g_phone, address, dob: dob || null } : { name, designation, batch };
         try {
             if (file) {
                 const filePath = `avatars/${user.id}/${Date.now()}-cropped.png`;
@@ -116,8 +146,8 @@ export default function ProfileSection() {
                     <EditProfileDialog
                         isOpen={editOpen}
                         setIsOpen={setEditOpen}
-                        personalForm={details} // Pass details directly
-                        setPersonalForm={() => {}} // This can be handled internally or via a more robust state manager
+                        personalForm={personalForm}
+                        setPersonalForm={setPersonalForm}
                         familyData={familyData}
 
                         onSave={(updatedFamilyData: Partial<FamilyData>) => handleSave(updatedFamilyData)}
@@ -150,6 +180,7 @@ export default function ProfileSection() {
                                     {isStudent ? (
                                         <>
                                             <ProfileInfoLine icon={UserCheck} label="CIC Number" value={details.cic} />
+                                            <ProfileInfoLine icon={CalendarDays} label="DOB" value={dobDisplay(details.dob)} />
                                             <ProfileInfoLine icon={Building} label="Class" value={details.class_id} />
                                             <ProfileInfoLine icon={Shield} label="Council" value={details.council} />
                                             <ProfileInfoLine icon={Phone} label="Phone" value={details.phone} />
@@ -158,7 +189,9 @@ export default function ProfileSection() {
                                             <ProfileInfoLine icon={BookMarked} label="SSLC Board" value={details.sslc} />
                                             <ProfileInfoLine icon={BookMarked} label="Plus Two Board" value={details.plustwo} />
                                             <ProfileInfoLine icon={BookMarked} label="Plus Two Stream" value={details.plustwo_streams} />
-                                            <ProfileInfoLine icon={Home} label="Address" value={details.address} />
+                                            <div className="sm:col-span-2">
+                                                <ProfileInfoLine icon={Home} label="Address" value={details.address} />
+                                            </div>
                                         </>
                                     ) : (
                                         <>

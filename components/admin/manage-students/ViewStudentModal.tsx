@@ -1,7 +1,7 @@
 // components/admin/manage-students/ViewStudentModal.tsx
 'use client'
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import {
     Dialog,
@@ -42,20 +42,76 @@ function ProfileInfoLine({ icon: Icon, label, value, isList = false }: { icon: R
     );
 }
 
+function isEligibleBatch(batch?: string | null) {
+    const match = batch?.match(/Batch\s+(\d+)/i);
+    return match ? Number(match[1]) >= 17 : false;
+}
+
+function formatDateDisplay(dateStr: string) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        const [year, month, day] = parts;
+        return `${day}/${month}/${year}`;
+    }
+    return dateStr;
+}
+
+const GENERAL_FIELDS: { key: 'law_practice' | 'cleaness' | 'spirituality'; label: string }[] = [
+    { key: 'law_practice', label: 'Law Practice' },
+    { key: 'cleaness', label: 'Cleanliness' },
+    { key: 'spirituality', label: 'Spirituality' },
+];
+
 export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boolean; setIsOpen: (open: boolean) => void; student: StudentProfile | null; }) {
     const [marks, setMarks] = useState<AcademicEntry[]>([]);
     const [familyData, setFamilyData] = useState<Partial<FamilyData>>({});
+    const [internalData, setInternalData] = useState<any>(null);
     const [isLoadingData, setIsLoadingData] = useState(false);
 
     useEffect(() => {
         const fetchExtraData = async () => {
             if (!student) return;
             setIsLoadingData(true);
-            const marksPromise = supabase.from('academic_entries').select('*, subject_marks(*)').eq('student_uid', student.uid);
-            const familyPromise = supabase.from('family_data').select('*').eq('student_uid', student.uid).single();
-            const [{ data: marksData }, { data: familyDataRes }] = await Promise.all([marksPromise, familyPromise]);
+            
+            const promises: any[] = [
+                supabase.from('academic_entries').select('*, subject_marks(*)').eq('student_uid', student.uid),
+                supabase.from('family_data').select('*').eq('student_uid', student.uid).single()
+            ];
+
+            const isEligible = isEligibleBatch(student.batch);
+            if (isEligible) {
+                promises.push(
+                    supabase.from('internal_reading_marks').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false }),
+                    supabase.from('internal_writing_marks').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false }),
+                    supabase.from('internal_newspaper_marks').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false }),
+                    supabase.from('internal_general_marks').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false }),
+                    supabase.from('internal_student_skills').select('*').eq('student_uid', student.uid).order('skill_name'),
+                    supabase.from('internal_morning_talk_attendance').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false }),
+                    supabase.from('internal_f_talk_marks').select('*').eq('student_uid', student.uid).order('entry_date', { ascending: false })
+                );
+            }
+
+            const results = await Promise.all(promises);
+            const marksData = results[0]?.data;
+            const familyDataRes = results[1]?.data;
+            
             setMarks(marksData || []);
             setFamilyData(familyDataRes || {});
+
+            if (isEligible) {
+                setInternalData({
+                    reading: results[2]?.data || [],
+                    writing: results[3]?.data || [],
+                    newspaper: results[4]?.data || [],
+                    general: results[5]?.data || [],
+                    skills: results[6]?.data || [],
+                    morning: results[7]?.data || [],
+                    fTalk: results[8]?.data || [],
+                });
+            } else {
+                setInternalData(null);
+            }
             setIsLoadingData(false);
         };
         if (isOpen) {
@@ -79,6 +135,8 @@ export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boole
         { label: 'Address', value: student.address, icon: Home, fullWidth: true },
     ];
 
+    const isEligible = isEligibleBatch(student.batch);
+
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
@@ -90,7 +148,12 @@ export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boole
                     <DialogTitle className="text-2xl font-heading">{student.name}</DialogTitle>
                 </DialogHeader>
                 <Tabs defaultValue="personal" className="w-full flex-1 flex flex-col overflow-hidden">
-                    <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="personal">Personal</TabsTrigger><TabsTrigger value="academics">Academics</TabsTrigger><TabsTrigger value="family">Family</TabsTrigger></TabsList>
+                    <TabsList className={`grid w-full ${isEligible ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                        <TabsTrigger value="personal">Personal</TabsTrigger>
+                        <TabsTrigger value="academics">Academics</TabsTrigger>
+                        <TabsTrigger value="family">Family</TabsTrigger>
+                        {isEligible && <TabsTrigger value="internal">Internal Marks</TabsTrigger>}
+                    </TabsList>
 
                     <TabsContent value="personal" className="mt-4 flex-1 overflow-y-auto pr-2">
                         <div className="py-4 grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -163,6 +226,124 @@ export function ViewStudentModal({ isOpen, setIsOpen, student }: { isOpen: boole
                             )}
                         </div>
                     </TabsContent>
+
+                    {isEligible && (
+                        <TabsContent value="internal" className="mt-4 flex-1 overflow-y-auto pr-2">
+                            <div className="py-4 space-y-6">
+                                {isLoadingData ? (
+                                    <Skeleton className="h-40 w-full" />
+                                ) : internalData ? (
+                                    <div className="space-y-6">
+                                        {/* Metrics Summary Row */}
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            <Card className="bg-muted/10 border border-border/50">
+                                                <CardHeader className="py-2.5 px-4"><CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Reading Logs</CardTitle></CardHeader>
+                                                <CardContent className="px-4 pb-3"><p className="text-xl font-extrabold font-heading">{internalData.reading?.length || 0}</p></CardContent>
+                                            </Card>
+                                            <Card className="bg-muted/10 border border-border/50">
+                                                <CardHeader className="py-2.5 px-4"><CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Writing Logs</CardTitle></CardHeader>
+                                                <CardContent className="px-4 pb-3"><p className="text-xl font-extrabold font-heading">{internalData.writing?.length || 0}</p></CardContent>
+                                            </Card>
+                                            <Card className="bg-muted/10 border border-border/50 col-span-2 sm:col-span-1">
+                                                <CardHeader className="py-2.5 px-4"><CardTitle className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Newspaper Days</CardTitle></CardHeader>
+                                                <CardContent className="px-4 pb-3"><p className="text-xl font-extrabold font-heading">{internalData.newspaper?.length || 0}</p></CardContent>
+                                            </Card>
+                                        </div>
+
+                                        {/* Talents */}
+                                        <Card className="border border-border/50">
+                                            <CardHeader className="py-3 px-4 bg-muted/20 border-b"><CardTitle className="text-sm font-bold font-heading">Talents & Skills</CardTitle></CardHeader>
+                                            <CardContent className="p-4 flex flex-wrap gap-2">
+                                                {internalData.skills && internalData.skills.length > 0 ? (
+                                                    internalData.skills.map((s: any) => (
+                                                        <Badge key={s.id} variant="secondary" className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/15">{s.skill_name}</Badge>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic font-medium">No custom talents added yet.</span>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+
+                                        {/* Morning talk and F-talk summaries */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <Card className="border border-border/50">
+                                                <CardHeader className="py-3 px-4 bg-muted/20 border-b"><CardTitle className="text-sm font-bold font-heading">Morning Talk Participation</CardTitle></CardHeader>
+                                                <CardContent className="p-0 max-h-52 overflow-y-auto">
+                                                    <Table>
+                                                        <TableHeader><TableRow><TableHead className="text-[10px] uppercase font-bold">Date</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Present</TableHead><TableHead className="text-right text-[10px] uppercase font-bold">Score</TableHead></TableRow></TableHeader>
+                                                        <TableBody>
+                                                            {internalData.morning && internalData.morning.map((row: any) => (
+                                                                <TableRow key={row.id} className="hover:bg-muted/5"><TableCell className="py-2.5 font-semibold text-xs text-foreground/80">{formatDateDisplay(row.entry_date)}</TableCell><TableCell className="py-2.5 text-center font-bold text-xs">{row.present ? 'Yes' : 'No'}</TableCell><TableCell className="py-2.5 text-right font-extrabold text-xs text-primary">{row.mark ?? 0}/10</TableCell></TableRow>
+                                                            ))}
+                                                            {(!internalData.morning || internalData.morning.length === 0) && (
+                                                                <TableRow><TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-6 font-semibold">No participation records</TableCell></TableRow>
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </CardContent>
+                                            </Card>
+
+                                            <Card className="border border-border/50">
+                                                <CardHeader className="py-3 px-4 bg-muted/20 border-b"><CardTitle className="text-sm font-bold font-heading">F-Talk Presentation Logs</CardTitle></CardHeader>
+                                                <CardContent className="p-0 max-h-52 overflow-y-auto">
+                                                    <Table>
+                                                        <TableHeader><TableRow><TableHead className="text-[10px] uppercase font-bold">Date</TableHead><TableHead className="text-[10px] uppercase font-bold text-center">Talked</TableHead><TableHead className="text-right text-[10px] uppercase font-bold">Score</TableHead></TableRow></TableHeader>
+                                                        <TableBody>
+                                                            {internalData.fTalk && internalData.fTalk.map((row: any) => (
+                                                                <TableRow key={row.id} className="hover:bg-muted/5"><TableCell className="py-2.5 font-semibold text-xs text-foreground/80">{formatDateDisplay(row.entry_date)}</TableCell><TableCell className="py-2.5 text-center font-bold text-xs">{row.talked ? 'Yes' : 'No'}</TableCell><TableCell className="py-2.5 text-right font-extrabold text-xs text-primary">{row.mark ?? 0}/10</TableCell></TableRow>
+                                                            ))}
+                                                            {(!internalData.fTalk || internalData.fTalk.length === 0) && (
+                                                                <TableRow><TableCell colSpan={3} className="text-center text-xs text-muted-foreground py-6 font-semibold">No presentation records</TableCell></TableRow>
+                                                            )}
+                                                        </TableBody>
+                                                    </Table>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+
+                                        {/* Behavior Evaluations */}
+                                        <Card className="border border-border/50">
+                                            <CardHeader className="py-3 px-4 bg-muted/20 border-b"><CardTitle className="text-sm font-bold font-heading">Behavior logs</CardTitle></CardHeader>
+                                            <CardContent className="p-0 max-h-60 overflow-y-auto">
+                                                <Table>
+                                                    <TableHeader><TableRow><TableHead className="text-[10px] uppercase font-bold">Date</TableHead><TableHead className="text-[10px] uppercase font-bold">Metric</TableHead><TableHead className="text-[10px] uppercase font-bold">Status</TableHead><TableHead className="text-[10px] uppercase font-bold">Note / Comment</TableHead></TableRow></TableHeader>
+                                                    <TableBody>
+                                                        {internalData.general && internalData.general.map((row: any) => (
+                                                            <React.Fragment key={row.id}>
+                                                                {GENERAL_FIELDS.map((f) => {
+                                                                    const status = row[`${f.key}_status`];
+                                                                    const note = row[`${f.key}_note`];
+                                                                    if (!status && !note) return null;
+                                                                    return (
+                                                                        <TableRow key={`${row.id}-${f.key}`} className="hover:bg-muted/5">
+                                                                            <TableCell className="py-2.5 font-semibold text-xs text-foreground/80">{formatDateDisplay(row.entry_date)}</TableCell>
+                                                                            <TableCell className="py-2.5 font-bold text-xs">{f.label}</TableCell>
+                                                                            <TableCell className="py-2.5 text-xs">
+                                                                                <Badge variant={status === 'positive' ? 'default' : 'destructive'} className={`text-[9.5px] font-extrabold rounded-full ${status === 'positive' ? 'bg-emerald-600/80 hover:bg-emerald-600 text-white' : ''}`}>
+                                                                                    {String(status).toUpperCase()}
+                                                                                </Badge>
+                                                                            </TableCell>
+                                                                            <TableCell className="py-2.5 text-xs truncate max-w-[150px]" title={note || ''}>{note || '-'}</TableCell>
+                                                                        </TableRow>
+                                                                    );
+                                                                })}
+                                                            </React.Fragment>
+                                                        ))}
+                                                        {(!internalData.general || internalData.general.length === 0) && (
+                                                            <TableRow><TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-6 font-semibold">No behavioral logs recorded</TableCell></TableRow>
+                                                        )}
+                                                    </TableBody>
+                                                </Table>
+                                            </CardContent>
+                                        </Card>
+
+                                    </div>
+                                ) : (
+                                    <p className="text-center text-muted-foreground py-12">No internal marks found.</p>
+                                )}
+                            </div>
+                        </TabsContent>
+                    )}
                 </Tabs>
                 <DialogFooter className="pt-4 mt-auto border-t"><DialogClose asChild><Button>Close</Button></DialogClose></DialogFooter>
             </DialogContent>

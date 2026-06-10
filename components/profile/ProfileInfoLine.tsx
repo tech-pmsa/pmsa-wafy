@@ -12,16 +12,16 @@ export function ProfileInfoLine({ icon: Icon, label, value, isList = false }: Pr
     const hasValue = Array.isArray(value) ? value.length > 0 : value;
 
     return (
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-4 min-w-0 w-full">
             <Icon className="h-5 w-5 flex-shrink-0 text-muted-foreground mt-1" aria-hidden="true" />
-            <div>
+            <div className="min-w-0 flex-1">
                 <p className="text-sm text-muted-foreground">{label}</p>
                 {isList && Array.isArray(value) && value.length > 0 ? (
-                    <ul className="list-disc pl-5 font-medium text-foreground">
+                    <ul className="list-disc pl-5 font-medium text-foreground break-words whitespace-pre-wrap">
                         {value.map((item, i) => <li key={i}>{item}</li>)}
                     </ul>
                 ) : (
-                    <p className="font-medium text-foreground">{hasValue ? value : 'Not set'}</p>
+                    <p className="font-medium text-foreground break-words whitespace-pre-wrap">{hasValue ? value : 'Not set'}</p>
                 )}
             </div>
         </div>

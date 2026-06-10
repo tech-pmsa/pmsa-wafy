@@ -111,6 +111,7 @@ export function EditProfileDialog({ isOpen, setIsOpen, personalForm, setPersonal
                                 {isStudent ? (
                                     <>
                                         <div className="space-y-2 sm:col-span-2"><Label htmlFor="name">Full Name</Label><Input id="name" name="name" value={personalForm.name || ''} onChange={e => setPersonalForm({ ...personalForm, name: e.target.value })} /></div>
+                                        <div className="space-y-2"><Label htmlFor="dob">Date of Birth</Label><Input id="dob" name="dob" type="date" value={personalForm.dob || ''} onChange={e => setPersonalForm({ ...personalForm, dob: e.target.value })} /></div>
                                         <ReadOnlyField label="CIC" value={personalForm.cic} />
                                         <div className="space-y-2"><Label htmlFor="class_id">Class ID</Label><Input id="class_id" name="class_id" value={personalForm.class_id || ''} onChange={e => setPersonalForm({ ...personalForm, class_id: e.target.value })} /></div>
                                         <div className="space-y-2"><Label htmlFor="batch">Batch</Label><Input id="batch" name="batch" value={personalForm.batch || ''} onChange={e => setPersonalForm({ ...personalForm, batch: e.target.value })} /></div>

@@ -25,7 +25,7 @@ const initialFormData = {
 };
 
 const classOptions = [
-  "TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4", "Foundation A", "Foundation B"
+  "Foundation 8", "Foundation 9", "Foundation 10", "TH-1", "TH-2", "AL-1", "AL-2", "AL-3", "AL-4"
 ];
 
 export default function AddStudents() {

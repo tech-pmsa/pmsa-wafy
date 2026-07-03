@@ -30,6 +30,11 @@ function FeeSummaryBadge({ totalPaid }: { totalPaid: number }) {
   return (<div className="text-right"><p className="text-xs text-muted-foreground">Total Paid</p><Badge variant="secondary" className="text-base font-semibold">{formattedTotal}</Badge></div>);
 }
 
+const isOfferedHeader = (header: string) => {
+  const h = header.toLowerCase().trim();
+  return h === 'offered' || h === 'offerd' || h.includes('offered') || h.includes('offerd');
+};
+
 function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders: string[] }) {
   if (rows.length === 0) {
     return (
@@ -54,9 +59,9 @@ function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders
           if (rawValue === 'a' || rawValue === 'yk') { status = 'not_applicable'; }
           else if (!isNaN(amount) && amount > 0) { status = 'paid'; }
           else { status = 'unpaid'; }
-          return { month: header, status, amount: status === 'paid' ? amount : 0, };
+          return { month: header, status, amount: status === 'paid' ? amount : 0, isOffered: isOfferedHeader(header) };
         });
-        const totalAmountPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+        const totalAmountPaid = payments.reduce((sum, p) => sum + (p.isOffered ? 0 : p.amount), 0);
 
         return (
           <AccordionItem key={idx} value={`item-${idx}`} className="border rounded-lg bg-background shadow-sm">
@@ -70,15 +75,27 @@ function StudentFeeList({ rows, monthHeaders }: { rows: string[][]; monthHeaders
               <div className="border-t pt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                 {payments.map((payment) => (
                   <div key={payment.month} className="flex items-center space-x-2">
-                    {payment.status === 'paid' && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
-                    {payment.status === 'unpaid' && <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />}
-                    {payment.status === 'not_applicable' && <MinusCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                    {payment.isOffered ? (
+                      <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
+                    ) : (
+                      <>
+                        {payment.status === 'paid' && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                        {payment.status === 'unpaid' && <XCircle className="h-5 w-5 text-destructive flex-shrink-0" />}
+                        {payment.status === 'not_applicable' && <MinusCircle className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+                      </>
+                    )}
                     <div>
                       <p className="text-sm font-medium">{payment.month}</p>
                       <p className="text-xs text-muted-foreground">
-                        {payment.status === 'paid' && `₹${payment.amount.toLocaleString('en-IN')}`}
-                        {payment.status === 'unpaid' && 'Not Paid'}
-                        {payment.status === 'not_applicable' && 'Not Applicable'}
+                        {payment.isOffered ? (
+                          payment.amount > 0 ? `₹${payment.amount.toLocaleString('en-IN')}` : 'Not set'
+                        ) : (
+                          <>
+                            {payment.status === 'paid' && `₹${payment.amount.toLocaleString('en-IN')}`}
+                            {payment.status === 'unpaid' && 'Not Paid'}
+                            {payment.status === 'not_applicable' && 'Not Applicable'}
+                          </>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -121,19 +138,30 @@ function FeeSheetContent({
 const summary = useMemo(() => {
   const monthStartIndex = 3;
   let totalCollected = 0;
-  rows.forEach(row => { totalCollected += row.slice(monthStartIndex).reduce((sum, cell) => { const val = parseFloat(cell || '0'); return sum + (isNaN(val) ? 0 : val); }, 0); });
+  rows.forEach(row => {
+    headers.slice(monthStartIndex).forEach((header, i) => {
+      if (isOfferedHeader(header)) return;
+      const val = parseFloat(row[monthStartIndex + i] || '0');
+      totalCollected += isNaN(val) ? 0 : val;
+    });
+  });
   const totalStudents = rows.length;
   const averagePaid = totalStudents > 0 ? totalCollected / totalStudents : 0;
   return { totalStudents: totalStudents.toString(), totalCollected: totalCollected.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), averagePaid: averagePaid.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) };
-}, [rows]);
+}, [rows, headers]);
 
 const chartData = useMemo(() => {
   const monthStartIndex = 3;
   return rows.map(row => {
-    const totalPaid = row.slice(monthStartIndex).reduce((sum, cell) => { const val = parseFloat(cell || '0'); return sum + (isNaN(val) ? 0 : val); }, 0);
+    let totalPaid = 0;
+    headers.slice(monthStartIndex).forEach((header, i) => {
+      if (isOfferedHeader(header)) return;
+      const val = parseFloat(row[monthStartIndex + i] || '0');
+      totalPaid += isNaN(val) ? 0 : val;
+    });
     return { name: row[2], 'Total Paid': totalPaid };
   });
-}, [rows]);
+}, [rows, headers]);
 
 return (
   <div className="space-y-6">

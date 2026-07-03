@@ -40,6 +40,11 @@ function PaymentStatusBadge({ paid, total }: { paid: number; total: number }) {
   )
 }
 
+const isOfferedHeader = (header: string) => {
+  const h = header.toLowerCase().trim();
+  return h === 'offered' || h === 'offerd' || h.includes('offered') || h.includes('offerd');
+};
+
 // Main Component
 export default function StudentFeeDashboard() {
   const { loading: userLoading, details } = useUserData();
@@ -93,13 +98,13 @@ export default function StudentFeeDashboard() {
       if (rawValue === 'a' || rawValue === 'yk') { status = 'not_applicable'; }
       else if (!isNaN(amount) && amount > 0) { status = 'paid'; }
       else { status = 'unpaid'; }
-      return { month: header, status, amount: status === 'paid' ? amount : 0 };
+      return { month: header, status, amount: status === 'paid' ? amount : 0, isOffered: isOfferedHeader(header) };
     });
 
-    const applicablePayments = payments.filter(p => p.status !== 'not_applicable');
+    const applicablePayments = payments.filter(p => p.status !== 'not_applicable' && !p.isOffered);
     const paidCount = applicablePayments.filter(p => p.status === 'paid').length;
     const totalApplicableMonths = applicablePayments.length;
-    const totalPaidAmount = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalPaidAmount = payments.reduce((sum, p) => sum + (p.isOffered ? 0 : p.amount), 0);
 
     return { payments, paidCount, totalApplicableMonths, totalPaidAmount };
   }, [sheetData, details]);
@@ -167,15 +172,27 @@ export default function StudentFeeDashboard() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                             {payments.map((payment) => (
                                 <div key={payment.month} className="flex items-start space-x-3 rounded-lg bg-muted/50 p-3 border">
-                                    {payment.status === 'paid' && <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500" />}
-                                    {payment.status === 'unpaid' && <XCircle className="h-5 w-5 flex-shrink-0 text-destructive" />}
-                                    {payment.status === 'not_applicable' && <MinusCircle className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
+                                    {payment.isOffered ? (
+                                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-primary" />
+                                    ) : (
+                                        <>
+                                            {payment.status === 'paid' && <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-500" />}
+                                            {payment.status === 'unpaid' && <XCircle className="h-5 w-5 flex-shrink-0 text-destructive" />}
+                                            {payment.status === 'not_applicable' && <MinusCircle className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
+                                        </>
+                                    )}
                                     <div>
                                         <p className="text-sm font-semibold">{payment.month}</p>
                                         <p className="text-xs text-muted-foreground">
-                                            {payment.status === 'paid' && `₹${payment.amount.toLocaleString('en-IN')}`}
-                                            {payment.status === 'unpaid' && 'Pending'}
-                                            {payment.status === 'not_applicable' && 'Not Applicable'}
+                                            {payment.isOffered ? (
+                                                payment.amount > 0 ? `₹${payment.amount.toLocaleString('en-IN')}` : 'Not set'
+                                            ) : (
+                                                <>
+                                                    {payment.status === 'paid' && `₹${payment.amount.toLocaleString('en-IN')}`}
+                                                    {payment.status === 'unpaid' && 'Pending'}
+                                                    {payment.status === 'not_applicable' && 'Not Applicable'}
+                                                </>
+                                            )}
                                         </p>
                                     </div>
                                 </div>

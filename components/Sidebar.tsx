@@ -26,7 +26,9 @@ import {
   NotebookPen,
   BarChart3,
   FileCheck2,
+  Award,
 } from 'lucide-react';
+import { isFoundationUser } from '@/lib/academicUtils';
 
 const allNavItems = [
   {
@@ -51,13 +53,20 @@ const allNavItems = [
     href: '/admins/classleader/portions',
     label: 'Portions',
     icon: BarChart3,
-    roles: ['class-leader'],
+    roles: ['class-leader', 'class'],
   },
   {
     href: '/admins/classleader/ce-work',
     label: 'CE Work',
     icon: FileCheck2,
+    roles: ['class-leader', 'class'],
+  },
+  {
+    href: '/admins/classleader/academic',
+    label: 'Academic',
+    icon: Award,
     roles: ['class-leader'],
+    excludeFoundation: true,
   },
   {
     href: '/admins/staff/staff-dashboard',
@@ -76,6 +85,13 @@ const allNavItems = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     roles: ['student'],
+  },
+  {
+    href: '/students/academic',
+    label: 'Academic',
+    icon: Award,
+    roles: ['student'],
+    excludeFoundation: true,
   },
   {
     href: '/admins/manage-students',
@@ -120,13 +136,26 @@ const allNavItems = [
     href: '/admins/classroom/portions-statistics',
     label: 'Portions',
     icon: BarChart3,
-    roles: ['class'],
+    roles: ['staff', 'officer'],
   },
   {
     href: '/admins/classroom/ce-work-statistics',
     label: 'CE Work Statistics',
     icon: FileCheck2,
-    roles: ['class'],
+    roles: ['staff', 'officer'],
+  },
+  {
+    href: '/admins/classroom/cbcss',
+    label: 'CBCSS',
+    icon: GraduationCap,
+    roles: ['class', 'staff', 'officer'],
+  },
+  {
+    href: '/admins/classroom/academic',
+    label: 'Academic',
+    icon: Award,
+    roles: ['class', 'staff', 'officer'],
+    excludeFoundationForClass: true,
   },
   {
     href: '/admins/chef/chef-dashboard',
@@ -197,17 +226,21 @@ export default function Sidebar({ onLinkClick }: SidebarProps) {
     }
   }, [role, details]);
 
+  const isFoundation = useMemo(() => isFoundationUser(details), [details]);
+
   const accessibleNavItems = useMemo(() => {
     if (!role) return [];
     return allNavItems.filter((item) => {
       if (!item.roles.includes(role)) return false;
+      if ((item as any).excludeFoundation && isFoundation) return false;
+      if ((item as any).excludeFoundationForClass && role === 'class' && isFoundation) return false;
       const minBatch = 'minBatch' in item ? item.minBatch : undefined;
       if (!minBatch) return true;
 
       const batchNumber = getBatchNumber(details?.batch);
       return !!batchNumber && batchNumber >= minBatch;
     });
-  }, [role, details?.batch]);
+  }, [role, details, isFoundation]);
 
   const settingsRoute = '/admins/admin-settings';
   const isSettingsActive = pathname === settingsRoute || pathname.startsWith(settingsRoute + '/');

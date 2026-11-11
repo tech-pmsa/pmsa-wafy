@@ -1,90 +1,79 @@
+import { supabase } from '@/lib/supabaseClient';
+
 export type Semester = 'SEM-1' | 'SEM-2';
 
-export type SemesterDate = {
-  value: string; // "yyyy-MM-dd"
-  label: string; // "1", "2", ... (day of month)
-  monthLabel: string; // "June", "July", ...
-};
-
-export type WorkingWeek = {
+export type WeekBlock = {
   key: string;
-  monthLabel: string;
   monthKey: string;
+  monthLabel: string;
   weekNo: number;
   dateFrom: string;
   dateTo: string;
   workingDates: string[];
 };
 
-export const SEMESTER_MONTHS = {
+export const SEMESTER_MONTHS: Record<
+  Semester,
+  { month: number; label: string; half?: 'first' | 'second' }[]
+> = {
   'SEM-1': [
-    { label: 'June' },
-    { label: 'July' },
-    { label: 'August' },
-    { label: 'September' },
-    { label: 'October' }
+    { month: 5, label: 'Jun', half: 'second' },
+    { month: 6, label: 'Jul' },
+    { month: 7, label: 'Aug' },
+    { month: 8, label: 'Sep' },
+    { month: 9, label: 'Oct' },
+    { month: 10, label: 'Nov', half: 'first' },
   ],
   'SEM-2': [
-    { label: 'November' },
-    { label: 'December' },
-    { label: 'January' },
-    { label: 'February' },
-    { label: 'March' }
-  ]
+    { month: 10, label: 'Nov', half: 'second' },
+    { month: 11, label: 'Dec' },
+    { month: 0, label: 'Jan' },
+    { month: 1, label: 'Feb' },
+    { month: 2, label: 'Mar' },
+    { month: 3, label: 'Apr' },
+    { month: 4, label: 'May' },
+  ],
 };
 
-export function getAcademicYearBase(): number {
-  const today = new Date();
-  const month = today.getMonth(); // 0 = Jan, 5 = June
-  if (month < 5) {
-    return today.getFullYear() - 1;
-  }
-  return today.getFullYear();
-}
-
-export function toDateValue(date: Date): string {
+export function toDateValue(date: Date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 
-export function displayDate(value: string): string {
-  if (!value) return '';
-  const parts = value.split('-');
-  if (parts.length === 3) {
-    const [year, month, day] = parts;
-    return `${day}/${month}/${year}`;
-  }
-  return value;
+export function displayDate(value?: string | null) {
+  if (!value) return '-';
+  const [year, month, day] = value.split('T')[0].split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
-export function getSemesterDates(semester: Semester, academicYear: number): SemesterDate[] {
-  const dates: SemesterDate[] = [];
-  let start: Date;
-  let end: Date;
+export function getAcademicYearBase(today = new Date()) {
+  const year = today.getFullYear();
+  return today.getMonth() >= 5 ? year : year - 1;
+}
 
-  if (semester === 'SEM-1') {
-    start = new Date(academicYear, 5, 1); // June 1st
-    end = new Date(academicYear, 9, 31);   // October 31st
-  } else {
-    start = new Date(academicYear, 10, 1); // November 1st
-    end = new Date(academicYear + 1, 2, 31); // March 31st
-  }
+export function getSemesterDates(semester: Semester, academicYear = getAcademicYearBase()) {
+  const months = SEMESTER_MONTHS[semester];
+  const dates: { value: string; label: string; monthKey: string; monthLabel: string }[] = [];
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  for (const item of months) {
+    const year = item.month >= 5 ? academicYear : academicYear + 1;
+    const lastDay = new Date(year, item.month + 1, 0).getDate();
+    const startDay = 1;
+    const endDay = lastDay;
+    const monthKey = `${year}-${String(item.month + 1).padStart(2, '0')}`;
 
-  const current = new Date(start);
-  while (current <= end) {
-    dates.push({
-      value: toDateValue(current),
-      label: String(current.getDate()),
-      monthLabel: monthNames[current.getMonth()],
-    });
-    current.setDate(current.getDate() + 1);
+    for (let day = startDay; day <= endDay; day += 1) {
+      const date = new Date(year, item.month, day);
+      const value = toDateValue(date);
+      dates.push({
+        value,
+        label: String(day),
+        monthKey,
+        monthLabel: item.label,
+      });
+    }
   }
 
   return dates;
@@ -92,100 +81,163 @@ export function getSemesterDates(semester: Semester, academicYear: number): Seme
 
 export function buildWorkingWeeks(
   semester: Semester,
-  excluded: Set<string>,
-  academicYear: number
-): WorkingWeek[] {
-  const weeks: WorkingWeek[] = [];
-  let start: Date;
-  let end: Date;
+  excludedDates: Set<string>,
+  academicYear = getAcademicYearBase()
+): WeekBlock[] {
+  const allDates = getSemesterDates(semester, academicYear);
+  const weeks: WeekBlock[] = [];
 
-  if (semester === 'SEM-1') {
-    start = new Date(academicYear, 5, 1); // June 1st
-    end = new Date(academicYear, 9, 31);   // October 31st
-  } else {
-    start = new Date(academicYear, 10, 1); // November 1st
-    end = new Date(academicYear + 1, 2, 31); // March 31st
-  }
+  for (const monthConfig of SEMESTER_MONTHS[semester]) {
+    const monthDates = allDates.filter(
+      (d) => d.monthLabel === monthConfig.label
+    );
+    if (!monthDates.length) continue;
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+    const monthKey = monthDates[0].monthKey;
+    const monthLabel = monthConfig.label;
 
-  const current = new Date(start);
-  const dayOfWeek = current.getDay();
-  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  current.setDate(current.getDate() - offset);
+    const workingMonthDates = monthDates.filter(
+      (d) => !excludedDates.has(d.value)
+    );
 
-  let weekIndex = 1;
+    if (workingMonthDates.length > 0) {
+      let weekNo = 1;
+      for (let i = 0; i < workingMonthDates.length; i += 6) {
+        const slice = workingMonthDates.slice(i, i + 6);
+        if (!slice.length) continue;
 
-  while (current <= end) {
-    const monday = new Date(current);
-    const sunday = new Date(current);
-    sunday.setDate(sunday.getDate() + 6);
-
-    if (sunday < start) {
-      current.setDate(current.getDate() + 7);
-      continue;
-    }
-
-    const dateFrom = toDateValue(monday);
-    const dateTo = toDateValue(sunday);
-
-    const workingDates: string[] = [];
-    const dateIter = new Date(monday);
-    for (let i = 0; i < 7; i++) {
-      if (dateIter >= start && dateIter <= end) {
-        const dateStr = toDateValue(dateIter);
-        // exclude Sundays (0)
-        if (dateIter.getDay() !== 0 && !excluded.has(dateStr)) {
-          workingDates.push(dateStr);
-        }
+        weeks.push({
+          key: `${monthKey}-W${weekNo}`,
+          monthKey,
+          monthLabel,
+          weekNo,
+          dateFrom: slice[0].value,
+          dateTo: slice[slice.length - 1].value,
+          workingDates: slice.map((d) => d.value),
+        });
+        weekNo += 1;
       }
-      dateIter.setDate(dateIter.getDate() + 1);
     }
-
-    const midWeek = new Date(monday);
-    midWeek.setDate(midWeek.getDate() + 3); // Thursday
-    const monthLabel = monthNames[midWeek.getMonth()];
-    const monthKey = `${midWeek.getFullYear()}-${String(midWeek.getMonth() + 1).padStart(2, '0')}`;
-
-    weeks.push({
-      key: `WK-${weekIndex}`,
-      monthLabel,
-      monthKey,
-      weekNo: weekIndex,
-      dateFrom,
-      dateTo,
-      workingDates,
-    });
-
-    weekIndex++;
-    current.setDate(current.getDate() + 7);
   }
 
   return weeks;
 }
 
-export function getPortionStatus(actual: number, expected: number): string {
-  if (actual === 0) return 'pending';
-  if (actual < expected * 0.95) return 'behind';
-  if (actual > expected * 1.05) return 'ahead';
-  return 'on-track';
+export function getPortionStatus(actual: number, expected: number) {
+  if (expected <= 0) return 'same';
+  const diff = actual - expected;
+  if (diff < -0.01) return 'back';
+  if (diff > 0.01) return 'ahead';
+  return 'same';
 }
 
-export function statusLabel(status: string): string {
-  switch (status) {
-    case 'pending': return 'Pending';
-    case 'behind': return 'Behind';
-    case 'ahead': return 'Ahead';
-    case 'on-track': return 'On Track';
-    default: return 'Unknown';
-  }
+export function statusLabel(status: string) {
+  if (status === 'back') return 'Behind';
+  if (status === 'ahead') return 'Ahead';
+  return 'Same';
 }
 
 export function n(value: any): number {
   if (value === null || value === undefined) return 0;
   const num = Number(value);
   return isNaN(num) ? 0 : num;
+}
+
+export type ClassOption = {
+  id: string;
+  label: string;
+  queryKeys: string[];
+};
+
+export async function fetchClassOptions(
+  sourceTable?: 'portion_subjects' | 'ce_work_items' | 'cbcss_records'
+): Promise<ClassOption[]> {
+  try {
+    const { data: students, error: studentsError } = await supabase
+      .from('students')
+      .select('class_id, batch');
+
+    if (studentsError) throw studentsError;
+
+    const classMap: Record<string, Set<string>> = {};
+
+    (students || []).forEach((s: any) => {
+      const classId = s.class_id?.trim();
+      const batch = s.batch?.trim();
+      if (!classId && !batch) return;
+
+      const primaryKey = classId || batch;
+      if (!classMap[primaryKey]) {
+        classMap[primaryKey] = new Set<string>();
+      }
+      if (classId) {
+        classMap[primaryKey].add(classId);
+        classMap[primaryKey].add(`${classId} Class`);
+      }
+      if (batch) {
+        classMap[primaryKey].add(batch);
+        classMap[primaryKey].add(`${batch} Class`);
+      }
+    });
+
+    if (sourceTable) {
+      const { data: sourceRows } = await supabase
+        .from(sourceTable)
+        .select('batch');
+
+      (sourceRows || []).forEach((row: any) => {
+        const batch = row.batch?.trim();
+        if (!batch) return;
+
+        const alreadyCovered = Object.values(classMap).some((keys) =>
+          keys.has(batch)
+        );
+        if (!alreadyCovered) {
+          if (!classMap[batch]) {
+            classMap[batch] = new Set<string>();
+          }
+          classMap[batch].add(batch);
+        }
+      });
+    }
+
+    const options: ClassOption[] = Object.keys(classMap)
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+      .map((key) => ({
+        id: key,
+        label: key,
+        queryKeys: Array.from(classMap[key]),
+      }));
+
+    return options;
+  } catch (err) {
+    console.error('Failed to fetch class options:', err);
+    return [];
+  }
+}
+
+export function findMatchingClass(
+  classes: ClassOption[],
+  userBatch?: string | null,
+  userDesignation?: string | null
+): string {
+  if (!classes.length) return '';
+  const b = userBatch?.trim() || '';
+  const d = userDesignation?.trim() || '';
+  const cleanD = d.replace(/\s+Class$/i, '').trim();
+
+  const match = classes.find(
+    (c) =>
+      c.id === b ||
+      c.id === d ||
+      c.id === cleanD ||
+      c.label === b ||
+      c.label === d ||
+      c.label === cleanD ||
+      c.queryKeys.includes(b) ||
+      c.queryKeys.includes(d) ||
+      c.queryKeys.includes(cleanD)
+  );
+
+  return match ? match.id : classes[0].id;
 }

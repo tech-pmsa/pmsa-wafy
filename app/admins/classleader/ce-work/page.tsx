@@ -4,55 +4,96 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUserData } from '@/hooks/useUserData';
 import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Progress as UIProgress } from '@/components/ui/progress';
 import {
   CalendarDays,
   ChevronDown,
   ChevronUp,
-  Edit,
+  Edit2,
   Plus,
-  Save,
   Trash2,
-  X,
   Loader2,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
+  FileCheck2,
+  Download,
+  Calendar,
+  Clock,
+  Check,
 } from 'lucide-react';
-import { displayDate, toDateValue } from '@/lib/portionUtils';
+import {
+  displayDate,
+  toDateValue,
+  Semester,
+} from '@/lib/portionUtils';
+import { exportCeWorkPdf } from '@/lib/ceWorkPdfService';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
+const CE_WORK_OPTIONS = [
+  'المقالة',
+  'الاستبانة',
+  'الأطروحة',
+  'الترجمة',
+  'مراجعة الكتاب',
+  'البحث',
+  'تلخيص المقالة',
+  'تصميم البوستر',
+  'المشروع العملي',
+  'Other',
+];
 
 type Work = {
   id: string;
   batch: string;
+  semester?: string;
   work_name: string;
   subject_name: string;
+  teacher_name?: string | null;
   started_date: string;
   submission_date: string;
+  mark?: number | null;
 };
 
 const blank = {
-  work_name: '',
+  work_name: 'المقالة',
+  custom_work_name: '',
   subject_name: '',
+  teacher_name: '',
   started_date: toDateValue(new Date()),
   submission_date: toDateValue(new Date()),
+  mark: '',
 };
 
 function batchFrom(details: any) {
   return details?.designation || details?.batch || '';
 }
 
-// Convert class designator like "1st Year B.Sc Class" to ID like "1st Year B.Sc"
-function classIdFrom(details: any) {
-  return details?.designation?.replace(/\s+Class$/i, '') || details?.batch || '';
-}
-
 export default function CEWorkPage() {
-  const { user, details, role, loading: userLoading } = useUserData();
+  const { user, details, loading: userLoading } = useUserData();
   const batch = batchFrom(details);
-  const classId = classIdFrom(details);
+
+  const [semester, setSemester] = useState<Semester>('SEM-1');
   const [works, setWorks] = useState<Work[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [workStudents, setWorkStudents] = useState<any[]>([]);
@@ -62,26 +103,78 @@ export default function CEWorkPage() {
   const [editingWork, setEditingWork] = useState<Work | null>(null);
   const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const loadData = useCallback(async () => {
-    if (!batch) return;
+    if (!batch && !details?.batch && !details?.designation) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
+      const batchKeys = new Set<string>();
+      if (batch) {
+        batchKeys.add(batch);
+        batchKeys.add(batch.replace(/\s+Class$/i, ''));
+      }
+      if (details?.batch) {
+        batchKeys.add(details.batch);
+        batchKeys.add(details.batch.replace(/\s+Class$/i, ''));
+      }
+      if (details?.designation) {
+        batchKeys.add(details.designation);
+        batchKeys.add(details.designation.replace(/\s+Class$/i, ''));
+      }
+
+      const lookupBatch = details?.batch || batch;
+      if (lookupBatch) {
+        const { data: relatedStudents } = await supabase
+          .from('students')
+          .select('class_id, batch')
+          .or(`batch.eq.${lookupBatch},class_id.eq.${lookupBatch}`);
+
+        (relatedStudents || []).forEach((student: any) => {
+          if (student.class_id) {
+            batchKeys.add(student.class_id);
+            batchKeys.add(`${student.class_id} Class`);
+          }
+          if (student.batch) {
+            batchKeys.add(student.batch);
+          }
+        });
+      }
+
+      const keys = Array.from(batchKeys).filter(Boolean);
+
       const [worksRes, batchStudentsRes, classStudentsRes] = await Promise.all([
-        supabase.from('ce_work_items').select('*').eq('batch', batch).order('submission_date', { ascending: false }),
-        supabase.from('students').select('uid, name, cic').eq('batch', batch).order('name'),
-        supabase.from('students').select('uid, name, cic').eq('class_id', classId).order('name'),
+        supabase
+          .from('ce_work_items')
+          .select('*')
+          .in('batch', keys.length ? keys : [batch])
+          .or(`semester.eq.${semester},semester.is.null`)
+          .order('submission_date', { ascending: false }),
+        supabase
+          .from('students')
+          .select('uid, name, cic')
+          .in('batch', keys.length ? keys : [batch])
+          .order('name'),
+        supabase
+          .from('students')
+          .select('uid, name, cic')
+          .in('class_id', keys.length ? keys : [batch])
+          .order('name'),
       ]);
+
       if (worksRes.error) throw worksRes.error;
-      if (batchStudentsRes.error) throw batchStudentsRes.error;
-      if (classStudentsRes.error) throw classStudentsRes.error;
 
       // Unify student sets
       const studentMap = new Map<string, any>();
       [...(batchStudentsRes.data || []), ...(classStudentsRes.data || [])].forEach((student) => {
         studentMap.set(student.uid, student);
       });
-      const safeStudents = Array.from(studentMap.values());
+      const safeStudents = Array.from(studentMap.values()).sort((a, b) =>
+        a.name.localeCompare(b.name)
+      );
       const safeWorks = (worksRes.data || []) as Work[];
 
       setWorks(safeWorks);
@@ -89,47 +182,25 @@ export default function CEWorkPage() {
       const workIds = safeWorks.map((work) => work.id);
 
       if (workIds.length) {
-        const { data, error } = await supabase.from('ce_work_students').select('*').in('work_id', workIds);
+        const { data, error } = await supabase
+          .from('ce_work_students')
+          .select('*')
+          .in('work_id', workIds);
         if (error) throw error;
-        const existingRows = data || [];
-        const existingKeys = new Set(existingRows.map((row: any) => `${row.work_id}-${row.student_uid}`));
-        const missingRows = safeWorks.flatMap((work) =>
-          safeStudents
-            .filter((student) => !existingKeys.has(`${work.id}-${student.uid}`))
-            .map((student) => ({
-              work_id: work.id,
-              student_uid: student.uid,
-              student_name: student.name,
-              cic: student.cic,
-              is_submitted: false,
-              is_removed: false,
-            }))
-        );
-
-        if (missingRows.length) {
-          const { error: backfillError } = await supabase
-            .from('ce_work_students')
-            .upsert(missingRows, { onConflict: 'work_id,student_uid' });
-          if (backfillError) throw backfillError;
-
-          const { data: refreshedRows, error: refreshError } = await supabase
-            .from('ce_work_students')
-            .select('*')
-            .in('work_id', workIds);
-          if (refreshError) throw refreshError;
-          setWorkStudents(refreshedRows || []);
-        } else {
-          setWorkStudents(existingRows);
-        }
+        setWorkStudents(data || []);
       } else {
         setWorkStudents([]);
       }
+
+      if (safeWorks.length > 0 && !expandedId) {
+        setExpandedId(safeWorks[0].id);
+      }
     } catch (err: any) {
-      toast.error('Failed to load CE work items', { description: err.message });
+      toast.error('Failed to load CE works', { description: err.message });
     } finally {
       setLoading(false);
     }
-  }, [batch, classId]);
+  }, [batch, details?.batch, details?.designation, semester, expandedId]);
 
   useEffect(() => {
     if (!userLoading) loadData();
@@ -144,6 +215,25 @@ export default function CEWorkPage() {
     return map;
   }, [workStudents]);
 
+  const toggleStudent = async (row: any) => {
+    try {
+      const nextStatus = !row.is_submitted;
+      // Optimistic update
+      setWorkStudents((prev) =>
+        prev.map((r) => (r.id === row.id ? { ...r, is_submitted: nextStatus } : r))
+      );
+
+      const { error } = await supabase
+        .from('ce_work_students')
+        .update({ is_submitted: nextStatus })
+        .eq('id', row.id);
+      if (error) throw error;
+    } catch (err: any) {
+      toast.error('Failed to update submission status', { description: err.message });
+      loadData();
+    }
+  };
+
   const openAdd = () => {
     setEditingWork(null);
     setForm(blank);
@@ -152,36 +242,66 @@ export default function CEWorkPage() {
 
   const openEdit = (work: Work) => {
     setEditingWork(work);
+    const isCustom = !CE_WORK_OPTIONS.includes(work.work_name);
     setForm({
-      work_name: work.work_name,
+      work_name: isCustom ? 'Other' : work.work_name,
+      custom_work_name: isCustom ? work.work_name : '',
       subject_name: work.subject_name,
+      teacher_name: work.teacher_name || '',
       started_date: work.started_date,
       submission_date: work.submission_date,
+      mark: work.mark !== undefined && work.mark !== null ? String(work.mark) : '',
     });
     setModalOpen(true);
   };
 
-  const saveWork = async () => {
+  const saveWork = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!batch || !user?.id) return;
-    if (!form.work_name.trim() || !form.subject_name.trim()) {
-      toast.warning('Required fields missing', { description: 'Work name and subject name are required.' });
+
+    const chosenName =
+      form.work_name === 'Other'
+        ? form.custom_work_name.trim()
+        : form.work_name.trim();
+
+    if (!chosenName || !form.subject_name.trim()) {
+      toast.error('Work name and subject name are required.');
       return;
     }
+
     setSaving(true);
     try {
-      const { data, error } = await supabase.from('ce_work_items').upsert({
+      const targetBatch =
+        editingWork?.batch ||
+        works[0]?.batch ||
+        batch ||
+        details?.batch ||
+        details?.designation ||
+        '';
+
+      const payload = {
         id: editingWork?.id,
-        batch,
-        work_name: form.work_name.trim(),
+        batch: targetBatch,
+        semester,
+        work_name: chosenName,
         subject_name: form.subject_name.trim().toUpperCase(),
+        teacher_name: form.teacher_name.trim() || null,
         started_date: form.started_date,
         submission_date: form.submission_date,
+        mark: form.mark ? Number(form.mark) : 0,
         created_by: user.id,
-      }).select().single();
+      };
+
+      const { data, error } = await supabase
+        .from('ce_work_items')
+        .upsert(payload)
+        .select()
+        .single();
       if (error) throw error;
 
-      if (!editingWork) {
-        const rows = students.map((student) => ({
+      // Populate student rows for newly added works
+      if (!editingWork && students.length > 0) {
+        const studentPayload = students.map((student) => ({
           work_id: data.id,
           student_uid: student.uid,
           student_name: student.name,
@@ -189,326 +309,435 @@ export default function CEWorkPage() {
           is_submitted: false,
           is_removed: false,
         }));
-        if (rows.length) {
-          const { error: studentError } = await supabase.from('ce_work_students').upsert(rows, { onConflict: 'work_id,student_uid' });
-          if (studentError) throw studentError;
-        }
+        await supabase
+          .from('ce_work_students')
+          .upsert(studentPayload, { onConflict: 'work_id,student_uid' });
       }
 
+      toast.success(editingWork ? 'CE Work updated!' : 'CE Work created!');
       setModalOpen(false);
-      toast.success(editingWork ? 'CE Work updated successfully' : 'CE Work item created successfully');
       loadData();
     } catch (err: any) {
-      toast.error('Error saving CE work', { description: err.message });
+      toast.error('Failed to save CE work', { description: err.message });
     } finally {
       setSaving(false);
     }
   };
 
   const deleteWork = async (work: Work) => {
-    if (!confirm(`Are you sure you want to delete ${work.work_name}?`)) return;
-
     try {
       const { error } = await supabase.from('ce_work_items').delete().eq('id', work.id);
       if (error) throw error;
-      toast.success('CE Work item deleted successfully');
+      toast.success(`"${work.work_name}" deleted.`);
       loadData();
     } catch (err: any) {
-      toast.error('Error deleting CE work', { description: err.message });
+      toast.error('Failed to delete work', { description: err.message });
     }
   };
 
-  const toggleSubmit = async (row: any) => {
-    const nextSubmitted = !row.is_submitted;
-    // Optimistic UI Update
-    setWorkStudents((prev) =>
-      prev.map((item) => (item.id === row.id ? { ...item, is_submitted: nextSubmitted } : item))
-    );
-
-    const { error } = await supabase.from('ce_work_students').update({ is_submitted: nextSubmitted }).eq('id', row.id);
-    if (error) {
-      toast.error('Failed to update submission status');
-      // Rollback
-      setWorkStudents((prev) =>
-        prev.map((item) => (item.id === row.id ? { ...item, is_submitted: row.is_submitted } : item))
-      );
-    } else {
-      toast.success(`${row.student_name} marked as ${nextSubmitted ? 'Submitted' : 'Not Submitted'}`);
+  const handleExportPdf = async () => {
+    if (!works.length) {
+      toast.error(`No CE works recorded in ${semester}.`);
+      return;
     }
-  };
-
-  const removeStudent = async (row: any) => {
-    if (!confirm(`Remove ${row.student_name} from this CE Work list?`)) return;
-
+    setExportingPdf(true);
     try {
-      const { error } = await supabase.from('ce_work_students').update({ is_removed: true }).eq('id', row.id);
-      if (error) throw error;
-      toast.success(`${row.student_name} removed from this CE task`);
-      loadData();
+      await exportCeWorkPdf({
+        className: batch,
+        semester,
+        works,
+        workStudents,
+      });
+      toast.success('Print report window opened.');
     } catch (err: any) {
-      toast.error('Failed to remove student', { description: err.message });
+      toast.error('Failed to generate CE work PDF', { description: err.message });
+    } finally {
+      setExportingPdf(false);
     }
   };
 
-  if (userLoading || loading) {
+  if (userLoading || (loading && !works.length)) {
     return (
-      <div className="flex h-[75vh] w-full items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (role !== 'class-leader') {
-    return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <Card className="max-w-md w-full border-destructive/20 bg-destructive/5">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
-              <AlertTriangle className="h-8 w-8" />
-            </div>
-            <CardTitle className="text-2xl font-bold font-heading text-destructive">Access Denied</CardTitle>
-            <CardDescription className="text-destructive-foreground/75 mt-1">
-              CE Work management is only accessible to class leaders.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex h-96 flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-2 text-xs text-muted-foreground">Loading CE works...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold font-heading text-foreground tracking-tight">CE Work</h1>
-          <p className="text-muted-foreground mt-1">{batch || 'Class'} Continuous Evaluation (CE) submission tracking.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Continuous Evaluation (CE Work)</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            Track student assignments, term papers, and project submissions for {batch}.
+          </p>
         </div>
-        <Button onClick={openAdd} className="gap-1.5 shadow-sm font-semibold rounded-xl sm:w-fit self-start sm:self-auto">
-          <Plus className="h-4 w-4" /> Add CE Work
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button onClick={openAdd} className="text-xs h-9 gap-1.5">
+            <Plus className="h-4 w-4" />
+            Add CE Work
+          </Button>
+
+          <Button
+            variant="outline"
+            onClick={handleExportPdf}
+            disabled={exportingPdf || works.length === 0}
+            className="text-xs h-9 gap-1.5"
+          >
+            {exportingPdf ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : (
+              <Download className="h-4 w-4 text-primary" />
+            )}
+            Download PDF
+          </Button>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {works.length ? (
-          works.map((work) => {
+      {/* Semester Switcher */}
+      <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-xl w-fit border border-border">
+        {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => {
+          const isActive = semester === sem;
+          return (
+            <button
+              key={sem}
+              type="button"
+              onClick={() => setSemester(sem)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Works List or Empty State */}
+      {works.length === 0 ? (
+        <Card className="border-dashed bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-3">
+            <FileCheck2 className="h-10 w-10 text-muted-foreground/60" />
+            <h3 className="text-base font-bold text-foreground">No CE Works in {semester}</h3>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              No continuous evaluation works found for {batch} in {semester}. Click below to add a new work.
+            </p>
+            <Button onClick={openAdd} size="sm" className="text-xs gap-1.5">
+              <Plus className="h-4 w-4" />
+              Add CE Work
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {works.map((work) => {
             const isOpen = expandedId === work.id;
-            const rows = (studentsByWork[work.id] || []).filter((row) => !row.is_removed);
-            const totalStudents = rows.length;
-            const submittedCount = rows.filter((r) => r.is_submitted).length;
-            const percent = totalStudents > 0 ? Math.round((submittedCount / totalStudents) * 100) : 0;
+            const currentRoster = studentsByWork[work.id] || [];
+            const submittedCount = currentRoster.filter((r) => r.is_submitted).length;
+            const totalCount = currentRoster.length;
+            const percent = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0;
 
             return (
-              <Card key={work.id} className="border border-border/50 shadow-sm overflow-hidden transition-all">
-                {/* Accordion Trigger Header */}
+              <Card key={work.id} className="overflow-hidden border border-border shadow-sm">
+                {/* Header */}
                 <div
                   onClick={() => setExpandedId(isOpen ? null : work.id)}
-                  className="flex items-center justify-between p-5 cursor-pointer bg-card/60 hover:bg-card/90 transition-all border-b border-border/40 select-none"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer hover:bg-muted/40 transition-colors select-none gap-4"
                 >
-                  <div className="space-y-1 min-w-0 flex-grow pr-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-extrabold text-foreground tracking-tight leading-snug truncate">
-                        {work.work_name}
-                      </h3>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary uppercase">
-                        {work.subject_name}
-                      </span>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <FileCheck2 className="h-5 w-5" />
                     </div>
-                    <p className="text-xs font-semibold text-muted-foreground/90">
-                      Duration: {displayDate(work.started_date)} to {displayDate(work.submission_date)}
-                    </p>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">{work.work_name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Subject: <span className="font-semibold text-foreground">{work.subject_name}</span>
+                        {work.teacher_name && <span> &bull; Teacher: {work.teacher_name}</span>}
+                        {work.mark !== undefined && work.mark !== null && (
+                          <span> &bull; Max Mark: {work.mark}</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-4.5 shrink-0">
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-xs font-bold text-foreground">
-                        Progress: <span className="text-primary font-extrabold">{submittedCount}/{totalStudents}</span> ({percent}%)
-                      </span>
-                      <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary rounded-full transition-all duration-300"
-                          style={{ width: `${percent}%` }}
-                        />
+                  <div className="flex items-center gap-4 self-end sm:self-auto">
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-foreground">
+                        {submittedCount} / {totalCount} Submitted
+                      </div>
+                      <div className="w-28 mt-1">
+                        <UIProgress value={percent} className="h-1.5" />
                       </div>
                     </div>
+
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-semibold ${
+                        percent === 100
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : percent > 50
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                          : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                      }`}
+                    >
+                      {percent}%
+                    </Badge>
+
                     {isOpen ? (
-                      <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
                     ) : (
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     )}
                   </div>
                 </div>
 
-                {/* Always visible action utility strip */}
-                <div className="px-5 py-3.5 bg-muted/20 border-b flex justify-end gap-2.5">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEdit(work);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1 text-xs font-semibold rounded-xl"
-                  >
-                    <Edit className="h-3.5 w-3.5" /> Edit
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteWork(work);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="h-8 gap-1 text-xs font-semibold rounded-xl text-destructive hover:text-destructive hover:bg-destructive/5"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Delete
-                  </Button>
-                </div>
-
-                {/* Collapsible Content Area */}
+                {/* Expanded Details: Dates, Edit/Delete & Submissions Grid */}
                 {isOpen && (
-                  <CardContent className="p-0 animate-in slide-in-from-top-1 duration-200">
-                    {rows.length ? (
-                      <div className="divide-y divide-border/50">
-                        {rows.map((row) => (
-                          <div
-                            key={row.id}
-                            className="flex items-center justify-between p-4 px-5 hover:bg-muted/10 transition-colors"
-                          >
-                            <div className="min-w-0 flex-grow pr-4">
-                              <h4 className="text-sm font-bold text-foreground truncate">{row.student_name}</h4>
-                              <p className="text-[10.5px] font-semibold text-muted-foreground/80 mt-0.5">
-                                CIC: {row.cic || '-'}
-                              </p>
-                            </div>
+                  <CardContent className="p-4 pt-0 border-t border-border space-y-4 bg-muted/10">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>Started: {displayDate(work.started_date)}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5 text-primary" />
+                          <span className="font-semibold text-foreground">
+                            Due: {displayDate(work.submission_date)}
+                          </span>
+                        </div>
+                      </div>
 
-                            <div className="flex items-center gap-3 shrink-0">
-                              <button
-                                onClick={() => toggleSubmit(row)}
-                                className={`h-8 px-4 text-xs font-extrabold rounded-xl transition-all border flex items-center justify-center min-w-[110px] ${
-                                  row.is_submitted
-                                    ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/15 shadow-sm'
-                                    : 'bg-destructive/5 text-destructive border-destructive/10 hover:bg-destructive/10'
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEdit(work)}
+                          className="text-xs h-7 px-2.5 gap-1"
+                        >
+                          <Edit2 className="h-3 w-3 text-primary" />
+                          Edit Work
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-xs h-7 px-2.5 gap-1 text-destructive hover:bg-destructive/10 border-destructive/20"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              Delete
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete CE Work</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete &quot;{work.work_name}&quot;? All student
+                                submission records for this work will be removed.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteWork(work)}
+                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </div>
+
+                    {/* Submissions Grid */}
+                    <div className="space-y-2 pt-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Student Submissions ({submittedCount} of {totalCount} Done)
+                      </h4>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                        {currentRoster.map((r) => {
+                          const isDone = r.is_submitted;
+                          return (
+                            <div
+                              key={r.id}
+                              onClick={() => toggleStudent(r)}
+                              className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer select-none transition-colors ${
+                                isDone
+                                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200'
+                                  : 'bg-card border-border hover:bg-muted/40 text-foreground'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate pr-2">
+                                <div
+                                  className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${
+                                    isDone
+                                      ? 'bg-emerald-600 border-emerald-600 text-white'
+                                      : 'border-muted-foreground/40'
+                                  }`}
+                                >
+                                  {isDone && <Check className="h-3 w-3 stroke-[3]" />}
+                                </div>
+                                <span className="font-semibold truncate">{r.student_name}</span>
+                              </div>
+
+                              <Badge
+                                variant={isDone ? 'default' : 'outline'}
+                                className={`text-[10px] shrink-0 font-bold ${
+                                  isDone
+                                    ? 'bg-emerald-600 text-white hover:bg-emerald-600'
+                                    : 'text-muted-foreground'
                                 }`}
                               >
-                                {row.is_submitted ? (
-                                  <span className="flex items-center gap-1">
-                                    <CheckCircle className="h-3.5 w-3.5" /> Submitted
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1">
-                                    <XCircle className="h-3.5 w-3.5" /> Pending
-                                  </span>
-                                )}
-                              </button>
-
-                              <button
-                                onClick={() => removeStudent(row)}
-                                className="h-8 w-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
-                                title="Remove student from list"
-                              >
-                                <X className="h-4 w-4" />
-                              </button>
+                                {isDone ? 'Submitted' : 'Pending'}
+                              </Badge>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
-                    ) : (
-                      <div className="p-6 text-center text-sm text-muted-foreground font-semibold">
-                        No students linked to this work.
-                      </div>
-                    )}
+                    </div>
                   </CardContent>
                 )}
               </Card>
             );
-          })
-        ) : (
-          <Card className="border border-border/50 shadow-md">
-            <CardContent className="py-12 text-center text-muted-foreground font-semibold">
-              No CE work tracking records created yet. Click "Add CE Work" to configure one.
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Add / Edit CE Work Dialog Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-card text-card-foreground border rounded-2xl max-w-md w-full shadow-2xl p-6 relative animate-in zoom-in-95 duration-200">
-            <button
-              onClick={() => setModalOpen(false)}
-              className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <h3 className="text-xl font-bold font-heading mb-4 text-foreground">
-              {editingWork ? 'Edit CE Task Details' : 'Configure New CE Work'}
-            </h3>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="work-name" className="text-xs font-bold text-muted-foreground">Work Name / Title</Label>
-                <Input
-                  id="work-name"
-                  value={form.work_name}
-                  onChange={(e) => setForm({ ...form, work_name: e.target.value })}
-                  placeholder="e.g. Assignment 1 or Seminar"
-                  className="rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="sub-name" className="text-xs font-bold text-muted-foreground">Subject Name</Label>
-                <Input
-                  id="sub-name"
-                  value={form.subject_name}
-                  onChange={(e) => setForm({ ...form, subject_name: e.target.value })}
-                  placeholder="e.g. TAFSEER"
-                  className="rounded-xl"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="start-date" className="text-xs font-bold text-muted-foreground">Started Date</Label>
-                  <Input
-                    id="start-date"
-                    type="date"
-                    value={form.started_date}
-                    onChange={(e) => setForm({ ...form, started_date: e.target.value })}
-                    className="rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="sub-date" className="text-xs font-bold text-muted-foreground">Submission Date</Label>
-                  <Input
-                    id="sub-date"
-                    type="date"
-                    value={form.submission_date}
-                    onChange={(e) => setForm({ ...form, submission_date: e.target.value })}
-                    className="rounded-xl"
-                  />
-                </div>
-              </div>
-
-              <Button
-                onClick={saveWork}
-                disabled={saving}
-                className="w-full mt-2 gap-2 font-bold shadow-md rounded-xl"
-              >
-                {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Save CE Assignment
-              </Button>
-            </div>
-          </div>
+          })}
         </div>
       )}
+
+      {/* Add / Edit Dialog */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="max-w-xl w-[95vw] max-h-[90vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-bold">
+              {editingWork ? 'Edit CE Work' : 'Add CE Work'}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {batch} &bull; {semester}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={saveWork} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {/* Preset CE Work Options */}
+              <div className="space-y-1.5">
+                <Label>CE Work Type</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CE_WORK_OPTIONS.map((name) => (
+                    <Button
+                      key={name}
+                      type="button"
+                      size="sm"
+                      variant={form.work_name === name ? 'default' : 'outline'}
+                      onClick={() => setForm({ ...form, work_name: name })}
+                      className="text-xs h-7"
+                    >
+                      {name}
+                    </Button>
+                  ))}
+                </div>
+                {form.work_name === 'Other' && (
+                  <Input
+                    placeholder="Enter custom work name"
+                    value={form.custom_work_name}
+                    onChange={(e) => setForm({ ...form, custom_work_name: e.target.value })}
+                    className="mt-2 text-xs h-9"
+                  />
+                )}
+              </div>
+
+              {/* Subject Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="subject_name">Subject Name</Label>
+                <Input
+                  id="subject_name"
+                  required
+                  placeholder="e.g. TAFSEER / HADITH / FIQH"
+                  value={form.subject_name}
+                  onChange={(e) => setForm({ ...form, subject_name: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              {/* Teacher Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="teacher_name">Teacher Name (Optional)</Label>
+                <Input
+                  id="teacher_name"
+                  placeholder="e.g. Usthad K.V. Mohammed"
+                  value={form.teacher_name}
+                  onChange={(e) => setForm({ ...form, teacher_name: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              {/* Mark */}
+              <div className="space-y-1.5">
+                <Label htmlFor="mark">Max Mark (Optional)</Label>
+                <Input
+                  id="mark"
+                  type="number"
+                  placeholder="e.g. 10, 20"
+                  value={form.mark}
+                  onChange={(e) => setForm({ ...form, mark: e.target.value })}
+                  className="h-9 text-xs"
+                />
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="started_date">Started Date</Label>
+                  <Input
+                    id="started_date"
+                    type="date"
+                    required
+                    value={form.started_date}
+                    onChange={(e) => setForm({ ...form, started_date: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="submission_date">Submission Due Date</Label>
+                  <Input
+                    id="submission_date"
+                    type="date"
+                    required
+                    value={form.submission_date}
+                    onChange={(e) => setForm({ ...form, submission_date: e.target.value })}
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="px-6 py-3 border-t border-border flex items-center justify-end gap-2 bg-muted/20">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setModalOpen(false)}
+                disabled={saving}
+                className="text-xs h-9"
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving} className="text-xs h-9 min-w-28 gap-1.5">
+                {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {editingWork ? 'Update Work' : 'Save Work'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,4 +1,3 @@
-// app/admins/classroom/portions-statistics/page.tsx
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -7,11 +6,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { toast } from 'sonner';
 
 // UI Components
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Progress as UIProgress } from '@/components/ui/progress';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 
 // Icons & Utilities
 import {
@@ -19,22 +17,22 @@ import {
   CalendarDays,
   User,
   BookOpen,
-  CheckCircle,
-  AlertTriangle,
   Loader2,
   TrendingUp,
   Clock,
-  ChevronRight,
-  Info,
+  ChevronDown,
+  ChevronUp,
+  Printer,
 } from 'lucide-react';
 import {
+  ClassOption,
   Semester,
-  SEMESTER_MONTHS,
   buildWorkingWeeks,
   displayDate,
+  fetchClassOptions,
+  findMatchingClass,
   getAcademicYearBase,
   getPortionStatus,
-  getSemesterDates,
   n,
   statusLabel,
 } from '@/lib/portionUtils';
@@ -64,406 +62,481 @@ type Progress = {
   pages_taken: number;
 };
 
-function getBatch(details: any) {
-  return details?.designation || details?.batch || '';
-}
-
 export default function PortionsStatisticsPage() {
   const { details, role, loading: userLoading } = useUserData();
-  const batch = getBatch(details);
+
+  const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [activeClass, setActiveClass] = useState<string>('');
+  const [classesLoading, setClassesLoading] = useState(true);
+
   const [semester, setSemester] = useState<Semester>('SEM-1');
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [allProgress, setAllProgress] = useState<Progress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const academicYear = getAcademicYearBase();
+  const isClassTeacher = role === 'class';
 
-  // Load calendar exclusions and subjects
+  // 1. Fetch available classes and set initial activeClass
+  useEffect(() => {
+    let isMounted = true;
+    async function initClasses() {
+      if (userLoading) return;
+      setClassesLoading(true);
+      try {
+        const classList = await fetchClassOptions('portion_subjects');
+        if (!isMounted) return;
+        setClasses(classList);
+
+        const defaultClass = findMatchingClass(
+          classList,
+          details?.batch,
+          details?.designation
+        );
+        setActiveClass((prev) => prev || defaultClass || classList[0]?.id || '');
+      } catch (err: any) {
+        console.error('Failed to load classes for portion statistics:', err);
+      } finally {
+        if (isMounted) setClassesLoading(false);
+      }
+    }
+
+    initClasses();
+    return () => {
+      isMounted = false;
+    };
+  }, [userLoading, details?.batch, details?.designation]);
+
+  // 2. Load calendar exclusions, subjects, and progress for activeClass
   const loadData = useCallback(async () => {
-    if (!batch) {
+    if (!activeClass) {
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
+      const activeOption = classes.find((c) => c.id === activeClass);
+      const baseKeys = activeOption ? activeOption.queryKeys : [activeClass];
+      const expandedKeys = new Set<string>();
+      baseKeys.forEach((k) => {
+        if (!k) return;
+        expandedKeys.add(k);
+        expandedKeys.add(`${k} Class`);
+        expandedKeys.add(k.replace(/\s+Class$/i, ''));
+      });
+      const keys = Array.from(expandedKeys).filter(Boolean);
+
       const [excludedRes, subjectsRes] = await Promise.all([
         supabase.from('portion_calendar_exclusions').select('*').eq('semester', semester),
         supabase
           .from('portion_subjects')
           .select('*')
-          .eq('batch', batch)
+          .in('batch', keys.length ? keys : [activeClass])
           .eq('semester', semester)
           .order('subject_name'),
       ]);
+
       if (excludedRes.error) throw excludedRes.error;
       if (subjectsRes.error) throw subjectsRes.error;
 
       const subjectRows = (subjectsRes.data || []) as Subject[];
-      setExcluded(new Set((excludedRes.data || []).map((row: any) => row.excluded_date)));
       setSubjects(subjectRows);
+      setExcluded(
+        new Set((excludedRes.data || []).map((row: any) => row.excluded_date))
+      );
 
-      if (subjectRows.length > 0) {
-        const subjectIds = subjectRows.map((s) => s.id);
-        const { data: progressData, error: progressErr } = await supabase
+      if (subjectRows.length) {
+        const { data: progressData, error: progressError } = await supabase
           .from('portion_week_progress')
           .select('*')
-          .in('subject_id', subjectIds);
-        
-        if (progressErr) throw progressErr;
-        setAllProgress((progressData || []) as Progress[]);
+          .in('subject_id', subjectRows.map((s) => s.id));
+
+        if (progressError) throw progressError;
+        setAllProgress(progressData || []);
+        if (!expandedId) setExpandedId(subjectRows[0].id);
       } else {
         setAllProgress([]);
       }
     } catch (err: any) {
-      toast.error('Failed to load portions statistics', { description: err.message });
+      toast.error('Failed to load portion statistics', { description: err.message });
     } finally {
       setLoading(false);
     }
-  }, [batch, semester]);
+  }, [activeClass, classes, semester, expandedId]);
 
   useEffect(() => {
-    if (!userLoading) loadData();
-  }, [userLoading, loadData]);
+    if (!classesLoading && activeClass) {
+      loadData();
+    }
+  }, [classesLoading, activeClass, loadData]);
 
-  // Semester weeks calculations
+  // Working weeks calculation
   const weeks = useMemo(
     () => buildWorkingWeeks(semester, excluded, academicYear),
     [semester, excluded, academicYear]
   );
-  const workingDaysCount = weeks.reduce((total, week) => total + week.workingDates.length, 0);
 
-  // Compile calculations for each subject
-  const subjectStats = useMemo(() => {
-    return subjects.map((subject) => {
-      const subjectProgress = allProgress.filter((p) => p.subject_id === subject.id);
-      
-      const totalPagesCovered = subjectProgress.reduce((sum, p) => sum + n(p.pages_taken), 0);
-      const totalPeriodsTaken = subjectProgress.reduce((sum, p) => sum + n(p.period_taken), 0);
+  const progressMap = useMemo(() => {
+    const map: Record<string, Record<string, Progress>> = {};
+    allProgress.forEach((p) => {
+      if (!map[p.subject_id]) map[p.subject_id] = {};
+      map[p.subject_id][p.week_key] = p;
+    });
+    return map;
+  }, [allProgress]);
 
-      // Expected metrics up to current date or overall semester weeks
-      const expectedPagesTotal = weeks.length * n(subject.pages_per_week);
-      const expectedPeriodsTotal = weeks.length * n(subject.period_per_week);
+  // Calculate detailed statistics for a subject
+  const calculateSubjectStats = useCallback(
+    (subject: Subject) => {
+      const semWorkingDays = weeks.reduce((sum, w) => sum + w.workingDates.length, 0);
+      const pagesPerDay = semWorkingDays > 0 ? n(subject.total_pages) / semWorkingDays : 0;
+      const periodPerDay = semWorkingDays > 0 ? n(subject.total_period) / semWorkingDays : 0;
 
-      const status = getPortionStatus(totalPagesCovered, expectedPagesTotal);
-      
-      const pageProgressPercent = subject.total_pages > 0 
-        ? Math.min(Math.round((totalPagesCovered / subject.total_pages) * 100), 100)
-        : 0;
+      let totalPagesTaken = 0;
+      let totalPeriodsTaken = 0;
 
-      const periodProgressPercent = subject.total_period > 0 
-        ? Math.min(Math.round((totalPeriodsTaken / subject.total_period) * 100), 100)
-        : 0;
-
-      // Map progress rows by week key
-      const progressByWeek: Record<string, Progress> = {};
-      subjectProgress.forEach((p) => {
-        progressByWeek[p.week_key] = p;
+      weeks.forEach((w) => {
+        const prog = progressMap[subject.id]?.[w.key];
+        if (prog) {
+          totalPagesTaken += n(prog.pages_taken);
+          totalPeriodsTaken += n(prog.period_taken);
+        }
       });
 
+      const pagesPercent =
+        subject.total_pages > 0
+          ? Math.min(100, Math.round((totalPagesTaken / subject.total_pages) * 100))
+          : 0;
+
+      const expectedPagesTotal = semWorkingDays * pagesPerDay;
+      const status = getPortionStatus(totalPagesTaken, expectedPagesTotal);
+
       return {
-        subject,
-        totalPagesCovered,
+        totalPagesTaken,
         totalPeriodsTaken,
-        expectedPagesTotal,
-        expectedPeriodsTotal,
+        pagesPercent,
         status,
-        pageProgressPercent,
-        periodProgressPercent,
-        progressByWeek,
+        pagesPerDay,
+        periodPerDay,
+        semWorkingDays,
       };
-    });
-  }, [subjects, allProgress, weeks]);
+    },
+    [weeks, progressMap]
+  );
 
-  // Aggregate stats
-  const aggregates = useMemo(() => {
-    if (subjectStats.length === 0) return { avgCoverage: 0, behindCount: 0, aheadCount: 0, onTrackCount: 0 };
-    
-    let totalPercent = 0;
-    let behind = 0;
-    let ahead = 0;
-    let onTrack = 0;
+  // Overall status summary count
+  const statsOverview = useMemo(() => {
+    let aheadCount = 0;
+    let onTrackCount = 0;
+    let behindCount = 0;
 
-    subjectStats.forEach((s) => {
-      totalPercent += s.pageProgressPercent;
-      if (s.status === 'behind') behind++;
-      else if (s.status === 'ahead') ahead++;
-      else onTrack++;
+    subjects.forEach((s) => {
+      const { status } = calculateSubjectStats(s);
+      if (status === 'ahead') aheadCount++;
+      else if (status === 'back') behindCount++;
+      else onTrackCount++;
     });
 
     return {
-      avgCoverage: Math.round(totalPercent / subjectStats.length),
-      behindCount: behind,
-      aheadCount: ahead,
-      onTrackCount: onTrack,
+      totalSubjects: subjects.length,
+      aheadCount,
+      onTrackCount,
+      behindCount,
     };
-  }, [subjectStats]);
+  }, [subjects, calculateSubjectStats]);
 
-  if (userLoading || loading) {
-    return (
-      <div className="space-y-6 max-w-7xl mx-auto px-4 py-8 animate-in fade-in duration-300">
-        <div className="space-y-2">
-          <Skeleton className="h-9 w-64" />
-          <Skeleton className="h-5 w-80" />
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-          <Skeleton className="h-24 rounded-2xl" />
-        </div>
-        <Skeleton className="h-[400px] w-full rounded-2xl" />
-      </div>
-    );
-  }
+  const handlePrint = () => {
+    window.print();
+  };
 
-  const isClassTeacher = role === 'class';
-  if (!isClassTeacher) {
+  if (userLoading || classesLoading || (loading && !subjects.length)) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh] px-4">
-        <Card className="max-w-md w-full border border-destructive/20 bg-destructive/5">
-          <CardHeader className="text-center pb-2">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive shadow-inner">
-              <AlertTriangle className="h-8 w-8" />
-            </div>
-            <CardTitle className="text-2xl font-bold font-heading text-destructive">Access Denied</CardTitle>
-            <CardDescription className="text-destructive-foreground/70 mt-1">
-              Classroom Portions Tracking is only accessible to Class Teachers.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="flex h-96 flex-col items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-2 text-xs text-muted-foreground">Loading portion statistics...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 animate-in fade-in duration-500">
-      
-      {/* Welcome & Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-6">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold font-heading tracking-tight flex items-center gap-2.5">
-            <BarChart3 className="h-8 w-8 text-primary" />
-            Portions Statistics
-          </h1>
-          <p className="text-sm text-muted-foreground font-semibold">
-            Portions coverage overview and syllabus tracking for <span className="text-foreground font-bold">{batch}</span>.
+    <div className="space-y-6">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Portions Statistics</h1>
+          <p className="text-xs text-muted-foreground mt-1">
+            {activeClass
+              ? `${activeClass} (${semester}) syllabus progress tracking & completion metrics.`
+              : 'Class syllabus coverage and portion completion analysis.'}
           </p>
         </div>
 
-        {/* Semester Selector */}
-        <div className="flex gap-1.5 p-1.5 bg-muted rounded-xl w-fit self-start">
-          {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => (
-            <Button
+        <Button
+          variant="outline"
+          onClick={handlePrint}
+          disabled={subjects.length === 0}
+          className="text-xs h-9 gap-1.5"
+        >
+          <Printer className="h-4 w-4 text-primary" />
+          Print Report
+        </Button>
+      </div>
+
+      {/* Class Selector Tabs for Staff & Officer */}
+      {!isClassTeacher && classes.length > 0 && (
+        <Card className="border border-border">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+              {classes.map((cls) => {
+                const isActive = activeClass === cls.id;
+                return (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => setActiveClass(cls.id)}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-colors ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {cls.label}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Semester Switcher Tabs */}
+      <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-xl w-fit border border-border">
+        {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => {
+          const isActive = semester === sem;
+          return (
+            <button
               key={sem}
-              variant={semester === sem ? 'default' : 'ghost'}
-              size="sm"
+              type="button"
               onClick={() => setSemester(sem)}
-              className="rounded-lg font-bold text-xs px-4"
+              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                isActive
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
             >
-              {sem}
-            </Button>
-          ))}
-        </div>
+              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-border/50 bg-card/40 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
-              <TrendingUp className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold font-heading tracking-tight">{aggregates.avgCoverage}%</p>
-              <p className="text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">Average Coverage</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 bg-card/40 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
-              <CheckCircle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold font-heading tracking-tight">{aggregates.onTrackCount + aggregates.aheadCount}</p>
-              <p className="text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">On Track / Ahead</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 bg-card/40 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-              <AlertTriangle className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold font-heading tracking-tight text-amber-600">{aggregates.behindCount}</p>
-              <p className="text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">Syllabus Behind</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/50 bg-card/40 backdrop-blur-sm shadow-sm">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-violet-500/10 text-violet-600 flex items-center justify-center shrink-0">
-              <CalendarDays className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-2xl font-extrabold font-heading tracking-tight">{workingDaysCount} Days</p>
-              <p className="text-[10.5px] font-bold text-muted-foreground uppercase tracking-wider">Semester Calendar</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Subjects Coverage List */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold font-heading text-foreground">Syllabus Progress by Subject</h2>
-          <span className="text-xs font-semibold text-muted-foreground">Semester Weeks: {weeks.length}</span>
-        </div>
-
-        {subjectStats.length > 0 ? (
-          <div className="space-y-4">
-            {subjectStats.map(({ subject, totalPagesCovered, totalPeriodsTaken, status, pageProgressPercent, periodProgressPercent, progressByWeek }) => (
-              <Card key={subject.id} className="border border-border/50 bg-card/25 shadow-sm hover:bg-card/40 transition-colors">
-                <CardContent className="p-6">
-                  
-                  {/* Subject Header & Info */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-border/40">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2.5">
-                        <h3 className="text-base font-extrabold font-heading text-foreground uppercase">
-                          {subject.subject_name}
-                        </h3>
-                        <span
-                          className={`text-[9.5px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                            status === 'pending'
-                              ? 'bg-muted text-muted-foreground border'
-                              : status === 'behind'
-                              ? 'bg-rose-500/10 text-rose-600'
-                              : status === 'ahead'
-                              ? 'bg-emerald-500/10 text-emerald-600'
-                              : 'bg-primary/10 text-primary'
-                          }`}
-                        >
-                          {statusLabel(status).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground font-semibold">
-                        <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" /> Teacher: {subject.teacher_name}</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> Timetable: {subject.period_per_week} Periods/Week</span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs text-muted-foreground md:text-right font-medium">
-                      <p>Syllabus Target: <span className="font-bold text-foreground">{subject.total_pages} Pages</span></p>
-                      <p>Periods Goal: <span className="font-bold text-foreground">{subject.total_period} Classes</span></p>
-                    </div>
-                  </div>
-
-                  {/* Progress Bars Section */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-6">
-                    {/* Pages Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-muted-foreground flex items-center gap-1.5"><BookOpen className="h-4 w-4 text-primary" /> Pages Coverage</span>
-                        <span className="text-foreground">{totalPagesCovered} / {subject.total_pages} Pages ({pageProgressPercent}%)</span>
-                      </div>
-                      <UIProgress value={pageProgressPercent} className="h-2.5 rounded-full" />
-                    </div>
-
-                    {/* Periods Progress */}
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-bold">
-                        <span className="text-muted-foreground flex items-center gap-1.5"><Clock className="h-4 w-4 text-violet-500" /> Periods Taken</span>
-                        <span className="text-foreground">{totalPeriodsTaken} / {subject.total_period} Periods ({periodProgressPercent}%)</span>
-                      </div>
-                      <UIProgress value={periodProgressPercent} className="h-2.5 rounded-full" />
-                    </div>
-                  </div>
-
-                  {/* Detailed Week Accordion Logs */}
-                  <Accordion type="single" collapsible className="w-full border-t border-border/40">
-                    <AccordionItem value="weeks-progress" className="border-none">
-                      <AccordionTrigger className="py-2.5 text-xs font-bold hover:no-underline text-muted-foreground hover:text-foreground">
-                        Show Weekly Progress Logs
-                      </AccordionTrigger>
-                      <AccordionContent className="pt-2">
-                        <div className="relative border-l border-border/80 pl-6 ml-3 space-y-4 py-2">
-                          {weeks.map((week) => {
-                            const p = progressByWeek[week.key];
-                            const wStatus = getPortionStatus(n(p?.pages_taken), n(subject.pages_per_week));
-                            
-                            return (
-                              <div key={week.key} className="relative">
-                                {/* Timeline Dot */}
-                                <div className={`absolute -left-[31px] top-1 h-3.5 w-3.5 rounded-full border-2 bg-background ${
-                                  wStatus === 'behind'
-                                    ? 'border-rose-500'
-                                    : wStatus === 'ahead'
-                                    ? 'border-emerald-500'
-                                    : wStatus === 'on-track'
-                                    ? 'border-primary'
-                                    : 'border-muted-foreground/35'
-                                }`} />
-                                
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-extrabold text-foreground">{week.monthLabel} • Week {week.weekNo}</span>
-                                    <span className={`text-[8.5px] font-extrabold px-2 rounded-full scale-90 ${
-                                      wStatus === 'behind'
-                                        ? 'bg-rose-500/15 text-rose-600'
-                                        : wStatus === 'ahead'
-                                        ? 'bg-emerald-500/15 text-emerald-600'
-                                        : wStatus === 'on-track'
-                                        ? 'bg-primary/15 text-primary'
-                                        : 'bg-muted text-muted-foreground'
-                                    }`}>
-                                      {statusLabel(wStatus)}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10px] text-muted-foreground font-semibold">
-                                    {displayDate(week.dateFrom)} to {displayDate(week.dateTo)}
-                                  </p>
-                                  <div className="text-xs font-semibold text-foreground/80 pt-1">
-                                    <span>Pages covered: <span className="font-bold text-foreground">{n(p?.pages_taken)}</span></span>
-                                    <span className="mx-2 text-muted-foreground">|</span>
-                                    <span>Periods taken: <span className="font-bold text-foreground">{n(p?.period_taken)}</span></span>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  </Accordion>
-
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="border-dashed py-16 text-center shadow-none rounded-2xl bg-card/10">
-            <CardContent className="flex flex-col items-center justify-center space-y-4">
-              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
-                <BarChart3 className="h-8 w-8" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-lg font-bold font-heading">No Portions Set Up</h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto font-medium">
-                  Syllabus portions and subjects have not yet been configured by the Class Leader for {semester} of {batch}.
-                </p>
+      {/* Summary Metrics */}
+      {subjects.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="border border-border">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-foreground">{statsOverview.totalSubjects}</div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Total Subjects
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
 
+          <Card className="border border-border">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                {statsOverview.aheadCount}
+              </div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Ahead
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {statsOverview.onTrackCount}
+              </div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                On Track
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border">
+            <CardContent className="p-4 text-center">
+              <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                {statsOverview.behindCount}
+              </div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mt-1">
+                Behind
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Subjects List or Empty State */}
+      {subjects.length === 0 ? (
+        <Card className="border-dashed bg-muted/20">
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-3">
+            <BookOpen className="h-10 w-10 text-muted-foreground/60" />
+            <h3 className="text-base font-bold text-foreground">No Portions in {semester}</h3>
+            <p className="text-xs text-muted-foreground max-w-sm">
+              {activeClass
+                ? `No syllabus subjects added for ${activeClass} in ${semester}.`
+                : 'No subjects found.'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {subjects.map((subject) => {
+            const isOpen = expandedId === subject.id;
+            const stats = calculateSubjectStats(subject);
+
+            return (
+              <Card key={subject.id} className="overflow-hidden border border-border shadow-sm">
+                {/* Header */}
+                <div
+                  onClick={() => setExpandedId(isOpen ? null : subject.id)}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 cursor-pointer hover:bg-muted/40 transition-colors select-none gap-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <BookOpen className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">{subject.subject_name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Teacher: <span className="font-semibold text-foreground">{subject.teacher_name}</span>
+                        <span> &bull; Total Pages: {subject.total_pages}</span>
+                        <span> &bull; Total Periods: {subject.total_period}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 self-end sm:self-auto">
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-foreground">
+                        {stats.totalPagesTaken} / {subject.total_pages} Pages
+                      </div>
+                      <div className="w-28 mt-1">
+                        <UIProgress value={stats.pagesPercent} className="h-1.5" />
+                      </div>
+                    </div>
+
+                    <Badge
+                      variant="outline"
+                      className={`text-xs font-semibold ${
+                        stats.status === 'ahead'
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : stats.status === 'back'
+                          ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                          : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
+                      }`}
+                    >
+                      {statusLabel(stats.status)}
+                    </Badge>
+
+                    {isOpen ? (
+                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded Details: Week Progress Grid */}
+                {isOpen && (
+                  <CardContent className="p-4 pt-0 border-t border-border space-y-4 bg-muted/10">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
+                      <div className="p-2.5 rounded-lg bg-background border border-border">
+                        <div className="text-muted-foreground font-medium">Pages Per Day</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">
+                          {stats.pagesPerDay.toFixed(1)}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border">
+                        <div className="text-muted-foreground font-medium">Pages Per Week</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">
+                          {subject.pages_per_week?.toFixed(1) || (stats.pagesPerDay * 6).toFixed(1)}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border">
+                        <div className="text-muted-foreground font-medium">Periods Taken</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">
+                          {stats.totalPeriodsTaken} / {subject.total_period}
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-background border border-border">
+                        <div className="text-muted-foreground font-medium">Working Days</div>
+                        <div className="text-sm font-bold text-foreground mt-0.5">
+                          {stats.semWorkingDays} Days
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Weekly Breakdown Table */}
+                    <div className="space-y-2 pt-2">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Weekly Progression ({weeks.length} Weeks)
+                      </h4>
+
+                      <div className="overflow-x-auto border border-border rounded-xl bg-background">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase text-[10px] font-bold">
+                            <tr>
+                              <th className="py-2.5 px-3">Week</th>
+                              <th className="py-2.5 px-3">Dates</th>
+                              <th className="py-2.5 px-3">Working Days</th>
+                              <th className="py-2.5 px-3 text-center">Periods Taken</th>
+                              <th className="py-2.5 px-3 text-center">Pages Taken</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/60">
+                            {weeks.map((w) => {
+                              const prog = progressMap[subject.id]?.[w.key];
+                              const periods = prog ? n(prog.period_taken) : 0;
+                              const pages = prog ? n(prog.pages_taken) : 0;
+
+                              return (
+                                <tr key={w.key} className="hover:bg-muted/20">
+                                  <td className="py-2 px-3 font-semibold text-foreground">
+                                    {w.monthLabel} - W{w.weekNo}
+                                  </td>
+                                  <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">
+                                    {displayDate(w.dateFrom)} &rarr; {displayDate(w.dateTo)}
+                                  </td>
+                                  <td className="py-2 px-3 text-muted-foreground">
+                                    {w.workingDates.length} Days
+                                  </td>
+                                  <td className="py-2 px-3 text-center font-semibold text-foreground">
+                                    {periods}
+                                  </td>
+                                  <td className="py-2 px-3 text-center font-bold text-primary">
+                                    {pages}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

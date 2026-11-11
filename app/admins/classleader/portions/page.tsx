@@ -474,9 +474,7 @@ export default function ClassLeaderPortionsPage() {
                             </h3>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                subjectStatus === 'pending'
-                                  ? 'bg-muted text-muted-foreground border'
-                                  : subjectStatus === 'behind'
+                                subjectStatus === 'back'
                                   ? 'bg-destructive/10 text-destructive'
                                   : subjectStatus === 'ahead'
                                   ? 'bg-emerald-500/10 text-emerald-600'
@@ -592,9 +590,7 @@ export default function ClassLeaderPortionsPage() {
                               </span>
                               <span
                                 className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
-                                  pageStatus === 'pending'
-                                    ? 'bg-muted text-muted-foreground border'
-                                    : pageStatus === 'behind'
+                                  pageStatus === 'back'
                                     ? 'bg-destructive/10 text-destructive'
                                     : pageStatus === 'ahead'
                                     ? 'bg-emerald-500/10 text-emerald-600'

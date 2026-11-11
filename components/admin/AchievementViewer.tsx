@@ -3,6 +3,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { useUserData } from '@/hooks/useUserData'
 import { Trophy, Calendar, User as UserIcon, Search, Inbox, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 
@@ -52,17 +53,32 @@ function AchievementDisplayCard({ achievement }: { achievement: any }) {
 }
 
 export default function AchievementViewer() {
+  const { role, details, loading: userLoading } = useUserData()
+
   const [allAchievements, setAllAchievements] = useState<any[]>([])
   const [batches, setBatches] = useState<string[]>([])
   const [search, setSearch] = useState('')
   const [selectedBatch, setSelectedBatch] = useState('All')
   const [isLoading, setIsLoading] = useState(true)
 
-  // Your data fetching logic is preserved
+  // Data fetching logic with role & batch restriction
   useEffect(() => {
+    if (userLoading) return
+
     const fetchInitialData = async () => {
       setIsLoading(true)
-      const { data, error } = await supabase.from('achievements').select('*').eq('approved', true).order('submitted_at', { ascending: false });
+      let query = supabase
+        .from('achievements')
+        .select('*')
+        .eq('approved', true)
+        .order('submitted_at', { ascending: false })
+
+      // If the user is NOT an officer, restrict the query to only their batch
+      if (role !== 'officer') {
+        query = query.eq('batch', details?.batch || 'NO_BATCH_ASSIGNED')
+      }
+
+      const { data, error } = await query
 
       if (error) {
         console.error("Error fetching achievements:", error)
@@ -74,7 +90,7 @@ export default function AchievementViewer() {
       setIsLoading(false)
     }
     fetchInitialData()
-  }, [])
+  }, [role, details, userLoading])
 
   // Your filtering logic is preserved
   const filteredAchievements = useMemo(() => {
@@ -119,7 +135,7 @@ export default function AchievementViewer() {
           )}
         </div>
 
-        {isLoading ? (
+        {isLoading || userLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Skeleton className="h-56 w-full" />
             <Skeleton className="h-56 w-full" />

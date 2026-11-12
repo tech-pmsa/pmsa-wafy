@@ -22,8 +22,6 @@ import {
   Book,
   CookingPot,
   LogOut,
-  ClipboardList,
-  NotebookPen,
   BarChart3,
   FileCheck2,
   Award,
@@ -120,20 +118,6 @@ const allNavItems = [
     notification: 'achievements',
   },
   {
-    href: '/admins/classroom/internal-marks',
-    label: 'Internal Marks',
-    icon: ClipboardList,
-    roles: ['class'],
-    minBatch: 17,
-  },
-  {
-    href: '/admins/classroom/homework',
-    label: 'Homework',
-    icon: NotebookPen,
-    roles: ['class'],
-    minBatch: 17,
-  },
-  {
     href: '/admins/classroom/portions',
     label: 'Portions',
     icon: BarChart3,
@@ -196,11 +180,6 @@ const allNavItems = [
   },
 ];
 
-function getBatchNumber(batch?: string | null) {
-  const match = batch?.match(/Batch\s+(\d+)/i);
-  return match ? Number(match[1]) : null;
-}
-
 interface SidebarProps {
   onLinkClick?: () => void;
 }
@@ -247,13 +226,9 @@ export default function Sidebar({ onLinkClick }: SidebarProps) {
       if (!item.roles.includes(role)) return false;
       if ((item as any).excludeFoundation && isFoundation) return false;
       if ((item as any).excludeFoundationForClass && role === 'class' && isFoundation) return false;
-      const minBatch = 'minBatch' in item ? item.minBatch : undefined;
-      if (!minBatch) return true;
-
-      const batchNumber = getBatchNumber(details?.batch);
-      return !!batchNumber && batchNumber >= minBatch;
+      return true;
     });
-  }, [role, details, isFoundation]);
+  }, [role, isFoundation]);
 
   const settingsRoute = '/admins/admin-settings';
   const isSettingsActive = pathname === settingsRoute || pathname.startsWith(settingsRoute + '/');

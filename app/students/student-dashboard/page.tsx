@@ -10,7 +10,6 @@ import StudentAttendanceCard from '@/components/StudentAttendanceCard';
 import StudentFeeDashboard from '@/components/StudentFeeDashboard';
 import AchievementsForm from '@/components/AchievementsForm';
 import ApprovedAchievements from '@/components/ApprovedAchievements';
-import InternalMarksViewer, { isInternalMarksBatch } from '@/components/student/InternalMarksViewer';
 
 export default function StudentDashboardPage() {
   const { user, details, loading } = useUserData();
@@ -56,9 +55,6 @@ export default function StudentDashboardPage() {
         <div className="lg:col-span-2 flex flex-col gap-8">
           <StudentAttendanceCard />
           <StudentFeeDashboard />
-          {user?.id && isInternalMarksBatch(details?.batch) && (
-            <InternalMarksViewer studentUid={user.id} dashboard />
-          )}
         </div>
 
         {/* Secondary Column (Achievements) */}

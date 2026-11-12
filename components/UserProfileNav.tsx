@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LayoutDashboard, Settings, LogOut, User, ChevronDown } from 'lucide-react';
+import { clearAllClientAuth } from '@/lib/authUtils';
 
 export default function UserProfileNav() {
   const router = useRouter();
@@ -28,12 +29,11 @@ export default function UserProfileNav() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      await fetch('/api/auth/signout', { method: 'POST' }).catch(() => {});
+      await clearAllClientAuth();
     } catch (e) {
       console.error(e);
     } finally {
-      window.location.href = '/login';
+      window.location.replace('/login');
     }
   };
 

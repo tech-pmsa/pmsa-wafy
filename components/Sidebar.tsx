@@ -29,6 +29,7 @@ import {
   Award,
 } from 'lucide-react';
 import { isFoundationUser } from '@/lib/academicUtils';
+import { clearAllClientAuth } from '@/lib/authUtils';
 
 const allNavItems = [
   {
@@ -260,12 +261,11 @@ export default function Sidebar({ onLinkClick }: SidebarProps) {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      await fetch('/api/auth/signout', { method: 'POST' }).catch(() => {});
+      await clearAllClientAuth();
     } catch (e) {
       console.error(e);
     } finally {
-      window.location.href = '/login';
+      window.location.replace('/login');
     }
   };
 

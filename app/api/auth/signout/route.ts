@@ -6,9 +6,24 @@ export async function POST(request: Request) {
   const cookieStore = cookies();
   const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
-  await supabase.auth.signOut();
+  try {
+    await supabase.auth.signOut();
+  } catch (err) {
+    console.error('Sign out error:', err);
+  }
 
-  return NextResponse.redirect(new URL('/login', request.url), {
-    status: 302,
+  const response = NextResponse.json({ success: true });
+
+  // Manually clear any lingering supabase auth cookies
+  const allCookies = cookieStore.getAll();
+  allCookies.forEach((cookie) => {
+    if (cookie.name.includes('supabase') || cookie.name.includes('sb-') || cookie.name.includes('auth-token')) {
+      response.cookies.set(cookie.name, '', {
+        path: '/',
+        expires: new Date(0),
+      });
+    }
   });
+
+  return response;
 }

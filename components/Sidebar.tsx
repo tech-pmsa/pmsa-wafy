@@ -259,8 +259,14 @@ export default function Sidebar({ onLinkClick }: SidebarProps) {
   const userInitial = details?.name?.charAt(0)?.toUpperCase() || 'U';
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+    try {
+      await supabase.auth.signOut();
+      await fetch('/api/auth/signout', { method: 'POST' }).catch(() => {});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   // Premium Skeleton Loading Screen

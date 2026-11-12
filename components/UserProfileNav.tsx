@@ -27,8 +27,14 @@ export default function UserProfileNav() {
   const { user, role, details, loading } = useUserData();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
+    try {
+      await supabase.auth.signOut();
+      await fetch('/api/auth/signout', { method: 'POST' }).catch(() => {});
+    } catch (e) {
+      console.error(e);
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   const getDashboardLink = () => {

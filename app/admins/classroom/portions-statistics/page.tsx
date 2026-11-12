@@ -187,44 +187,47 @@ export default function PortionsStatisticsPage() {
     return map;
   }, [allProgress]);
 
-  // Calculate detailed statistics for a subject
-  const calculateSubjectStats = useCallback(
-    (subject: Subject) => {
-      const semWorkingDays = weeks.reduce((sum, w) => sum + w.workingDates.length, 0);
-      const pagesPerDay = semWorkingDays > 0 ? n(subject.total_pages) / semWorkingDays : 0;
-      const periodPerDay = semWorkingDays > 0 ? n(subject.total_period) / semWorkingDays : 0;
+  const subjectRows = (subject: Subject) => {
+    const rows: any[] = [];
+    const semWorkingDays = weeks.reduce((sum, w) => sum + w.workingDates.length, 0);
+    const pagesPerDay = semWorkingDays > 0 ? n(subject.total_pages) / semWorkingDays : 0;
+    const periodPerDay = semWorkingDays > 0 ? n(subject.total_period) / semWorkingDays : 0;
 
-      let totalPagesTaken = 0;
-      let totalPeriodsTaken = 0;
-
-      weeks.forEach((w) => {
-        const prog = progressMap[subject.id]?.[w.key];
-        if (prog) {
-          totalPagesTaken += n(prog.pages_taken);
-          totalPeriodsTaken += n(prog.period_taken);
-        }
-      });
-
-      const pagesPercent =
-        subject.total_pages > 0
-          ? Math.min(100, Math.round((totalPagesTaken / subject.total_pages) * 100))
-          : 0;
-
-      const expectedPagesTotal = semWorkingDays * pagesPerDay;
-      const status = getPortionStatus(totalPagesTaken, expectedPagesTotal);
-
-      return {
-        totalPagesTaken,
-        totalPeriodsTaken,
-        pagesPercent,
-        status,
+    const sem = { expP: 0, actP: 0, expPg: 0, actPg: 0 };
+    const monthKeys = Array.from(new Set(weeks.map((week) => week.monthKey)));
+    monthKeys.forEach((monthKey) => {
+      const monthWeeks = weeks.filter((week) => week.monthKey === monthKey);
+      const month = monthWeeks[0]?.monthLabel || monthKey;
+      const monthWorkingDays = monthWeeks.reduce((sum, w) => sum + w.workingDates.length, 0);
+      const expP = monthWorkingDays * periodPerDay;
+      const expPg = monthWorkingDays * pagesPerDay;
+      const actP = monthWeeks.reduce(
+        (sum, week) => sum + n(progressMap[subject.id]?.[week.key]?.period_taken),
+        0
+      );
+      const actPg = monthWeeks.reduce(
+        (sum, week) => sum + n(progressMap[subject.id]?.[week.key]?.pages_taken),
+        0
+      );
+      sem.expP += expP;
+      sem.actP += actP;
+      sem.expPg += expPg;
+      sem.actPg += actPg;
+      rows.push({
+        month,
+        monthWeeks,
+        monthWorkingDays,
+        expP,
+        expPg,
+        actP,
+        actPg,
+        sem: { ...sem },
         pagesPerDay,
         periodPerDay,
-        semWorkingDays,
-      };
-    },
-    [weeks, progressMap]
-  );
+      });
+    });
+    return rows;
+  };
 
   // Overall status summary count
   const statsOverview = useMemo(() => {
@@ -233,7 +236,9 @@ export default function PortionsStatisticsPage() {
     let behindCount = 0;
 
     subjects.forEach((s) => {
-      const { status } = calculateSubjectStats(s);
+      const rows = subjectRows(s);
+      const lastRow = rows[rows.length - 1];
+      const status = lastRow ? getPortionStatus(lastRow.sem.actPg, lastRow.sem.expPg) : 'same';
       if (status === 'ahead') aheadCount++;
       else if (status === 'back') behindCount++;
       else onTrackCount++;
@@ -245,7 +250,7 @@ export default function PortionsStatisticsPage() {
       onTrackCount,
       behindCount,
     };
-  }, [subjects, calculateSubjectStats]);
+  }, [subjects, weeks, progressMap]);
 
   const handlePrint = () => {
     window.print();
@@ -396,7 +401,15 @@ export default function PortionsStatisticsPage() {
         <div className="space-y-4">
           {subjects.map((subject) => {
             const isOpen = expandedId === subject.id;
-            const stats = calculateSubjectStats(subject);
+            const rows = subjectRows(subject);
+            const lastRow = rows[rows.length - 1];
+            const subjectStatus = lastRow
+              ? getPortionStatus(lastRow.sem.actPg, lastRow.sem.expPg)
+              : 'same';
+
+            const displayTitle = subject.teacher_name?.trim()
+              ? `${subject.subject_name} - ${subject.teacher_name.trim()}`
+              : subject.subject_name;
 
             return (
               <Card key={subject.id} className="overflow-hidden border border-border shadow-sm">
@@ -410,36 +423,27 @@ export default function PortionsStatisticsPage() {
                       <BookOpen className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-foreground">{subject.subject_name}</h3>
+                      <h3 className="text-sm font-bold text-foreground">
+                        {displayTitle}
+                      </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Teacher: <span className="font-semibold text-foreground">{subject.teacher_name}</span>
-                        <span> &bull; Total Pages: {subject.total_pages}</span>
-                        <span> &bull; Total Periods: {subject.total_period}</span>
+                        TR {subject.teacher_name} | TPgS {subject.total_pages} | TLP {subject.total_period}
                       </p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-4 self-end sm:self-auto">
-                    <div className="text-right">
-                      <div className="text-xs font-bold text-foreground">
-                        {stats.totalPagesTaken} / {subject.total_pages} Pages
-                      </div>
-                      <div className="w-28 mt-1">
-                        <UIProgress value={stats.pagesPercent} className="h-1.5" />
-                      </div>
-                    </div>
-
                     <Badge
                       variant="outline"
                       className={`text-xs font-semibold ${
-                        stats.status === 'ahead'
+                        subjectStatus === 'ahead'
                           ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                          : stats.status === 'back'
+                          : subjectStatus === 'back'
                           ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
                           : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
                       }`}
                     >
-                      {statusLabel(stats.status)}
+                      {statusLabel(subjectStatus)}
                     </Badge>
 
                     {isOpen ? (
@@ -450,85 +454,65 @@ export default function PortionsStatisticsPage() {
                   </div>
                 </div>
 
-                {/* Expanded Details: Week Progress Grid */}
+                {/* Expanded Details: Exactly as in App */}
                 {isOpen && (
                   <CardContent className="p-4 pt-0 border-t border-border space-y-4 bg-muted/10">
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 text-xs">
-                      <div className="p-2.5 rounded-lg bg-background border border-border">
-                        <div className="text-muted-foreground font-medium">Pages Per Day</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">
-                          {stats.pagesPerDay.toFixed(1)}
-                        </div>
-                      </div>
+                    <div className="space-y-3 pt-3">
+                      {rows.map((row) => {
+                        const pageStatus = getPortionStatus(row.actPg, row.expPg);
 
-                      <div className="p-2.5 rounded-lg bg-background border border-border">
-                        <div className="text-muted-foreground font-medium">Pages Per Week</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">
-                          {subject.pages_per_week?.toFixed(1) || (stats.pagesPerDay * 6).toFixed(1)}
-                        </div>
-                      </div>
+                        return (
+                          <div
+                            key={row.month}
+                            className="p-3.5 rounded-xl border border-border bg-card space-y-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between pb-1 border-b border-border/60">
+                              <span className="font-extrabold text-sm text-foreground">{row.month}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-[10px] font-bold ${
+                                  pageStatus === 'ahead'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : pageStatus === 'back'
+                                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                }`}
+                              >
+                                {statusLabel(pageStatus)}
+                              </Badge>
+                            </div>
 
-                      <div className="p-2.5 rounded-lg bg-background border border-border">
-                        <div className="text-muted-foreground font-medium">Periods Taken</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">
-                          {stats.totalPeriodsTaken} / {subject.total_period}
-                        </div>
-                      </div>
+                            <p className="text-muted-foreground font-medium">
+                              Month Period TL/STS: <span className="font-semibold text-foreground">{row.expP.toFixed(1)}/{row.actP}</span> | Page TL/STS: <span className="font-semibold text-foreground">{row.expPg.toFixed(2)}/{row.actPg}</span>
+                            </p>
 
-                      <div className="p-2.5 rounded-lg bg-background border border-border">
-                        <div className="text-muted-foreground font-medium">Working Days</div>
-                        <div className="text-sm font-bold text-foreground mt-0.5">
-                          {stats.semWorkingDays} Days
-                        </div>
-                      </div>
-                    </div>
+                            <p className="text-muted-foreground font-medium">
+                              Sem Period TL/STS: <span className="font-semibold text-foreground">{row.sem.expP.toFixed(1)}/{row.sem.actP}</span> | Sem Page TL/STS: <span className="font-semibold text-foreground">{row.sem.expPg.toFixed(2)}/{row.sem.actPg}</span>
+                            </p>
 
-                    {/* Weekly Breakdown Table */}
-                    <div className="space-y-2 pt-2">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                        Weekly Progression ({weeks.length} Weeks)
-                      </h4>
+                            <div className="space-y-1 pt-1.5 border-t border-dashed border-border/80">
+                              {row.monthWeeks.map((week: any) => {
+                                const rec = progressMap[subject.id]?.[week.key];
+                                const expWkPg = (week.workingDates.length * row.pagesPerDay).toFixed(1);
 
-                      <div className="overflow-x-auto border border-border rounded-xl bg-background">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-muted/50 border-b border-border text-muted-foreground uppercase text-[10px] font-bold">
-                            <tr>
-                              <th className="py-2.5 px-3">Week</th>
-                              <th className="py-2.5 px-3">Dates</th>
-                              <th className="py-2.5 px-3">Working Days</th>
-                              <th className="py-2.5 px-3 text-center">Periods Taken</th>
-                              <th className="py-2.5 px-3 text-center">Pages Taken</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-border/60">
-                            {weeks.map((w) => {
-                              const prog = progressMap[subject.id]?.[w.key];
-                              const periods = prog ? n(prog.period_taken) : 0;
-                              const pages = prog ? n(prog.pages_taken) : 0;
-
-                              return (
-                                <tr key={w.key} className="hover:bg-muted/20">
-                                  <td className="py-2 px-3 font-semibold text-foreground">
-                                    {w.monthLabel} - W{w.weekNo}
-                                  </td>
-                                  <td className="py-2 px-3 text-muted-foreground font-mono text-[11px]">
-                                    {displayDate(w.dateFrom)} &rarr; {displayDate(w.dateTo)}
-                                  </td>
-                                  <td className="py-2 px-3 text-muted-foreground">
-                                    {w.workingDates.length} Days
-                                  </td>
-                                  <td className="py-2 px-3 text-center font-semibold text-foreground">
-                                    {periods}
-                                  </td>
-                                  <td className="py-2 px-3 text-center font-bold text-primary">
-                                    {pages}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                                return (
+                                  <div
+                                    key={week.key}
+                                    className="flex flex-wrap items-center justify-between text-[11px] py-0.5 text-muted-foreground"
+                                  >
+                                    <span className="font-medium text-foreground">
+                                      WK-{week.weekNo} ({week.workingDates.length}d):
+                                    </span>
+                                    <span>
+                                      P.STS <strong className="text-foreground">{n(rec?.period_taken)}</strong> | Pg.STS <strong className="text-primary">{n(rec?.pages_taken)}</strong> / {expWkPg}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </CardContent>
                 )}

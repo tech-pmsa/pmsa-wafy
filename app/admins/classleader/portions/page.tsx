@@ -86,18 +86,46 @@ export default function ClassLeaderPortionsPage() {
   const academicYear = getAcademicYearBase();
 
   const loadData = useCallback(async () => {
-    if (!batch) {
+    if (!batch && !details?.batch && !details?.designation) {
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
+      const batchKeys = new Set<string>();
+      if (batch) batchKeys.add(batch);
+      if (details?.batch) batchKeys.add(details.batch);
+      if (details?.designation) {
+        batchKeys.add(details.designation);
+        batchKeys.add(details.designation.replace(/\s+Class$/i, ''));
+      }
+
+      const lookupBatch = details?.batch || batch;
+      if (lookupBatch) {
+        const { data: relatedStudents } = await supabase
+          .from('students')
+          .select('class_id, batch')
+          .or(`batch.eq.${lookupBatch},class_id.eq.${lookupBatch}`);
+
+        (relatedStudents || []).forEach((student: any) => {
+          if (student.class_id) {
+            batchKeys.add(student.class_id);
+            batchKeys.add(`${student.class_id} Class`);
+          }
+          if (student.batch) {
+            batchKeys.add(student.batch);
+          }
+        });
+      }
+
+      const keys = Array.from(batchKeys).filter(Boolean);
+
       const [excludedRes, subjectsRes] = await Promise.all([
         supabase.from('portion_calendar_exclusions').select('*').eq('semester', semester),
         supabase
           .from('portion_subjects')
           .select('*')
-          .eq('batch', batch)
+          .in('batch', keys.length ? keys : [batch])
           .eq('semester', semester)
           .order('subject_name'),
       ]);
@@ -116,7 +144,7 @@ export default function ClassLeaderPortionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [batch, semester, selectedSubjectId]);
+  }, [batch, details?.batch, details?.designation, semester, selectedSubjectId]);
 
   useEffect(() => {
     if (!userLoading) loadData();
@@ -237,7 +265,7 @@ export default function ClassLeaderPortionsPage() {
   };
 
   const saveSubject = async () => {
-    if (!batch || !user?.id) return;
+    if ((!batch && !details?.batch && !details?.designation) || !user?.id) return;
     const totalPages = n(form.total_pages);
     const totalPeriod = n(form.total_period);
     const periodPerWeek = n(form.period_per_week);
@@ -251,9 +279,17 @@ export default function ClassLeaderPortionsPage() {
 
     setSavingSubject(true);
     try {
+      const targetBatch =
+        editingSubject?.batch ||
+        subjects[0]?.batch ||
+        batch ||
+        details?.batch ||
+        details?.designation ||
+        '';
+
       const payload = {
         id: editingSubject?.id,
-        batch,
+        batch: targetBatch,
         semester,
         subject_name: form.subject_name.trim().toUpperCase(),
         teacher_name: form.teacher_name.trim().toUpperCase(),
@@ -348,7 +384,7 @@ export default function ClassLeaderPortionsPage() {
     );
   }
 
-  if (role !== 'class-leader') {
+  if (role !== 'class-leader' && role !== 'class') {
     return (
       <div className="flex items-center justify-center min-h-[70vh] px-4">
         <Card className="max-w-md w-full border-destructive/20 bg-destructive/5">
@@ -358,7 +394,7 @@ export default function ClassLeaderPortionsPage() {
             </div>
             <CardTitle className="text-2xl font-bold font-heading text-destructive">Access Denied</CardTitle>
             <CardDescription className="text-destructive-foreground/75 mt-1">
-              Portions planning is only accessible to class leaders.
+              Portions planning is only accessible to class leaders and class teachers.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -544,7 +580,7 @@ export default function ClassLeaderPortionsPage() {
                   >
                     {subjects.map((sub) => (
                       <option key={sub.id} value={sub.id}>
-                        {sub.subject_name}
+                        {sub.subject_name}{sub.teacher_name ? ` - ${sub.teacher_name}` : ''}
                       </option>
                     ))}
                   </select>

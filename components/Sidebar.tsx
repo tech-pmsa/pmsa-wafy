@@ -53,13 +53,13 @@ const allNavItems = [
     href: '/admins/classleader/portions',
     label: 'Portions',
     icon: BarChart3,
-    roles: ['class-leader', 'class'],
+    roles: ['class-leader'],
   },
   {
     href: '/admins/classleader/ce-work',
     label: 'CE Work',
     icon: FileCheck2,
-    roles: ['class-leader', 'class'],
+    roles: ['class-leader'],
   },
   {
     href: '/admins/classleader/academic',
@@ -131,6 +131,18 @@ const allNavItems = [
     icon: NotebookPen,
     roles: ['class'],
     minBatch: 17,
+  },
+  {
+    href: '/admins/classroom/portions',
+    label: 'Portions',
+    icon: BarChart3,
+    roles: ['class'],
+  },
+  {
+    href: '/admins/classroom/ce-work',
+    label: 'CE Work',
+    icon: FileCheck2,
+    roles: ['class'],
   },
   {
     href: '/admins/classroom/portions-statistics',

@@ -72,10 +72,25 @@ export async function middleware(req: NextRequest) {
 
         const requiredPath = roleRedirects[role];
 
-        // --- EDITED: Simplified logic for shared pages ---
-        const sharedAdminPaths = ['/admins/admin-settings', '/admins/manage-students', '/admins/kitchen'];
+        // --- Shared pages accessible across multiple roles ---
+        const sharedAdminPaths = [
+            '/admins/admin-settings',
+            '/admins/manage-students',
+            '/admins/kitchen',
+            '/admins/students-detail',
+        ];
         if (sharedAdminPaths.some(p => pathname.startsWith(p))) {
             return res; // Allow access without redirecting
+        }
+
+        // Allow staff and officer to access shared curriculum/statistics modules
+        if ((role === 'staff' || role === 'officer') && (
+            pathname.startsWith('/admins/classroom/portions-statistics') ||
+            pathname.startsWith('/admins/classroom/ce-work-statistics') ||
+            pathname.startsWith('/admins/classroom/cbcss') ||
+            pathname.startsWith('/admins/classroom/academic')
+        )) {
+            return res;
         }
 
         // If a logged-in user tries to access the login page, redirect them to their dashboard

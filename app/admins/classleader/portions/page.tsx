@@ -189,16 +189,27 @@ export default function ClassLeaderPortionsPage() {
 
   const monthSummaries = useMemo(() => {
     if (!selectedSubject) return [];
+    const pagesPerDay = workingDays > 0 ? n(selectedSubject.total_pages) / workingDays : 0;
+    const periodPerDay = workingDays > 0 ? n(selectedSubject.total_period) / workingDays : 0;
+
     return SEMESTER_MONTHS[semester].map((month) => {
-      const monthKey = weeks.find((w) => w.monthLabel === month.label)?.monthKey;
-      const monthWeeks = monthKey ? weeks.filter((week) => week.monthKey === monthKey) : [];
-      const expectedPeriod = monthWeeks.length * n(selectedSubject.period_per_week);
-      const expectedPages = monthWeeks.length * n(selectedSubject.pages_per_week);
+      const monthWeeks = weeks.filter((week) => week.monthLabel === month.label);
+      const monthWorkingDays = monthWeeks.reduce((sum, w) => sum + w.workingDates.length, 0);
+      const expectedPeriod = monthWorkingDays * periodPerDay;
+      const expectedPages = monthWorkingDays * pagesPerDay;
       const actualPeriod = monthWeeks.reduce((sum, week) => sum + n(progressMap[week.key]?.period_taken), 0);
       const actualPages = monthWeeks.reduce((sum, week) => sum + n(progressMap[week.key]?.pages_taken), 0);
-      return { label: month.label, weeks: monthWeeks.length, expectedPeriod, expectedPages, actualPeriod, actualPages };
-    }).filter((row) => row.weeks > 0);
-  }, [semester, weeks, selectedSubject, progressMap]);
+      return {
+        label: month.label,
+        weeks: monthWeeks.length,
+        workingDays: monthWorkingDays,
+        expectedPeriod,
+        expectedPages,
+        actualPeriod,
+        actualPages,
+      };
+    }).filter((row) => row.workingDays > 0 || row.weeks > 0);
+  }, [semester, weeks, selectedSubject, progressMap, workingDays]);
 
   const semSummary = useMemo(() => {
     return monthSummaries.reduce(
@@ -269,8 +280,9 @@ export default function ClassLeaderPortionsPage() {
     const totalPages = n(form.total_pages);
     const totalPeriod = n(form.total_period);
     const periodPerWeek = n(form.period_per_week);
-    const pagesPerDay = totalPeriod > 0 ? totalPages / totalPeriod : 0;
-    const pagesPerWeek = pagesPerDay * periodPerWeek;
+    const semWorkingDays = workingDays > 0 ? workingDays : 1;
+    const pagesPerDay = totalPages / semWorkingDays;
+    const pagesPerWeek = pagesPerDay * (periodPerWeek > 0 ? periodPerWeek : 6);
 
     if (!form.subject_name.trim() || !form.teacher_name.trim()) {
       toast.warning('Required fields missing', { description: 'Subject and teacher names are required.' });
@@ -491,12 +503,21 @@ export default function ClassLeaderPortionsPage() {
               {subjects.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {subjects.map((subject, index) => {
-                    const subjectStatus = getPortionStatus(
+                    const pagesPerDay = workingDays > 0 ? n(subject.total_pages) / workingDays : 0;
+                    const totalActualPages = progressRows
+                      .filter((row) => row.subject_id === subject.id)
+                      .reduce((sum, row) => sum + n(row.pages_taken), 0);
+
+                    const recordedWeekKeys = new Set(
                       progressRows
-                        .filter((row) => row.subject_id === subject.id)
-                        .reduce((sum, row) => sum + n(row.pages_taken), 0),
-                      weeks.length * n(subject.pages_per_week)
+                        .filter((r) => r.subject_id === subject.id && (n(r.pages_taken) > 0 || n(r.period_taken) > 0))
+                        .map((r) => r.week_key)
                     );
+                    const expectedSoFar = recordedWeekKeys.size > 0
+                      ? weeks.filter((w) => recordedWeekKeys.has(w.key)).reduce((sum, w) => sum + (w.workingDates.length * pagesPerDay), 0)
+                      : 0;
+
+                    const subjectStatus = getPortionStatus(totalActualPages, expectedSoFar > 0 ? expectedSoFar : n(subject.total_pages));
 
                     return (
                       <div
@@ -594,16 +615,16 @@ export default function ClassLeaderPortionsPage() {
                       <div className="space-y-2">
                         {monthSummaries.map((month) => (
                           <div key={month.label} className="flex justify-between text-xs font-semibold py-1 border-b border-muted last:border-b-0">
-                            <span className="text-muted-foreground">{month.label}</span>
+                            <span className="text-muted-foreground">{month.label} ({month.workingDays} Days)</span>
                             <span className="text-foreground">
-                              Pd: <span className="font-bold">{month.actualPeriod}/{month.expectedPeriod}</span> | Pg: <span className="font-bold">{month.actualPages}/{month.expectedPages.toFixed(1)}</span>
+                              Pd: <span className="font-bold">{month.actualPeriod}/{month.expectedPeriod.toFixed(1)}</span> | Pg: <span className="font-bold">{month.actualPages}/{month.expectedPages.toFixed(2)}</span>
                             </span>
                           </div>
                         ))}
                         <div className="flex justify-between text-xs font-extrabold pt-2 text-primary">
-                          <span>Semester Total</span>
+                          <span>Semester Total ({workingDays} Working Days)</span>
                           <span>
-                            Pd: {semSummary.actualPeriod}/{semSummary.expectedPeriod} | Pg: {semSummary.actualPages}/{semSummary.expectedPages.toFixed(1)}
+                            Pd: {semSummary.actualPeriod}/{semSummary.expectedPeriod.toFixed(1)} | Pg: {semSummary.actualPages}/{semSummary.expectedPages.toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -613,7 +634,9 @@ export default function ClassLeaderPortionsPage() {
                     <div className="space-y-3.5 max-h-[50vh] overflow-y-auto pr-1">
                       {weeks.map((week) => {
                         const row = progressMap[week.key];
-                        const pageStatus = getPortionStatus(n(row?.pages_taken), n(selectedSubject.pages_per_week));
+                        const pagesPerDay = workingDays > 0 ? n(selectedSubject.total_pages) / workingDays : 0;
+                        const weekExpectedPages = week.workingDates.length * pagesPerDay;
+                        const pageStatus = getPortionStatus(n(row?.pages_taken), weekExpectedPages);
 
                         return (
                           <div
@@ -622,7 +645,7 @@ export default function ClassLeaderPortionsPage() {
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-xs font-extrabold text-foreground font-heading">
-                                {week.monthLabel} Week {week.weekNo}
+                                {week.monthLabel} Week {week.weekNo} ({week.workingDates.length} Days)
                               </span>
                               <span
                                 className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full ${
@@ -637,7 +660,7 @@ export default function ClassLeaderPortionsPage() {
                               </span>
                             </div>
                             <span className="block text-[11px] text-muted-foreground font-semibold">
-                              {displayDate(week.dateFrom)} to {displayDate(week.dateTo)}
+                              {displayDate(week.dateFrom)} to {displayDate(week.dateTo)} &bull; Exp: {weekExpectedPages.toFixed(1)} Pages
                             </span>
 
                             <div className="grid grid-cols-2 gap-3.5 pt-1">

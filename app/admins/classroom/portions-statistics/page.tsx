@@ -27,6 +27,7 @@ import {
 import {
   ClassOption,
   Semester,
+  allocateIntegerTotal,
   buildWorkingWeeks,
   displayDate,
   fetchClassOptions,
@@ -189,43 +190,66 @@ export default function PortionsStatisticsPage() {
 
   const subjectRows = (subject: Subject) => {
     const rows: any[] = [];
-    const semWorkingDays = weeks.reduce((sum, w) => sum + w.workingDates.length, 0);
-    const pagesPerDay = semWorkingDays > 0 ? n(subject.total_pages) / semWorkingDays : 0;
-    const periodPerDay = semWorkingDays > 0 ? n(subject.total_period) / semWorkingDays : 0;
+    const totalPeriod = n(subject.total_period);
+    const totalPages = n(subject.total_pages);
+    const pagesPerPeriod = totalPeriod > 0 ? totalPages / totalPeriod : 0;
 
-    const sem = { expP: 0, actP: 0, expPg: 0, actPg: 0 };
     const monthKeys = Array.from(new Set(weeks.map((week) => week.monthKey)));
-    monthKeys.forEach((monthKey) => {
+    const monthGroups = monthKeys.map((monthKey) => {
       const monthWeeks = weeks.filter((week) => week.monthKey === monthKey);
       const month = monthWeeks[0]?.monthLabel || monthKey;
       const monthWorkingDays = monthWeeks.reduce((sum, w) => sum + w.workingDates.length, 0);
-      const expP = monthWorkingDays * periodPerDay;
-      const expPg = monthWorkingDays * pagesPerDay;
-      const actP = monthWeeks.reduce(
+      return { monthKey, month, monthWeeks, monthWorkingDays };
+    });
+
+    const monthDaysList = monthGroups.map((m) => m.monthWorkingDays);
+    const allocatedMonthPeriods = allocateIntegerTotal(totalPeriod, monthDaysList);
+
+    const sem = { expP: 0, actP: 0, expPg: 0, actPg: 0 };
+
+    monthGroups.forEach((mg, idx) => {
+      const expP = allocatedMonthPeriods[idx] || 0; // Pure integer
+      const expPg = expP * pagesPerPeriod;           // Decimal pages
+
+      // Allocate week periods
+      const weekDays = mg.monthWeeks.map((w) => w.workingDates.length);
+      const allocatedWeekPeriods = allocateIntegerTotal(expP, weekDays);
+      const weekAllocations: Record<string, { expP: number; expPg: number }> = {};
+
+      mg.monthWeeks.forEach((w, wIdx) => {
+        const wExpP = allocatedWeekPeriods[wIdx] || 0;
+        const wExpPg = wExpP * pagesPerPeriod;
+        weekAllocations[w.key] = { expP: wExpP, expPg: wExpPg };
+      });
+
+      const actP = mg.monthWeeks.reduce(
         (sum, week) => sum + n(progressMap[subject.id]?.[week.key]?.period_taken),
         0
       );
-      const actPg = monthWeeks.reduce(
+      const actPg = mg.monthWeeks.reduce(
         (sum, week) => sum + n(progressMap[subject.id]?.[week.key]?.pages_taken),
         0
       );
+
       sem.expP += expP;
       sem.actP += actP;
       sem.expPg += expPg;
       sem.actPg += actPg;
+
       rows.push({
-        month,
-        monthWeeks,
-        monthWorkingDays,
+        month: mg.month,
+        monthWeeks: mg.monthWeeks,
+        monthWorkingDays: mg.monthWorkingDays,
         expP,
         expPg,
         actP,
         actPg,
         sem: { ...sem },
-        pagesPerDay,
-        periodPerDay,
+        weekAllocations,
+        pagesPerPeriod,
       });
     });
+
     return rows;
   };
 
@@ -426,9 +450,15 @@ export default function PortionsStatisticsPage() {
                       <h3 className="text-sm font-bold text-foreground">
                         {displayTitle}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        TR {subject.teacher_name} | TPgS {subject.total_pages} | TLP {subject.total_period}
-                      </p>
+                      {(() => {
+                        const subPagesPerPeriod = n(subject.total_period) > 0 ? n(subject.total_pages) / n(subject.total_period) : 0;
+                        const subPagesPerWeek = n(subject.period_per_week) * subPagesPerPeriod;
+                        return (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            TR {subject.teacher_name} | TPgS {subject.total_pages} | TLP {subject.total_period} | TLP/W {subject.period_per_week} | TPg/W {subPagesPerWeek.toFixed(2)} | TPg/P {subPagesPerPeriod.toFixed(2)}
+                          </p>
+                        );
+                      })()}
                     </div>
                   </div>
 
@@ -483,17 +513,17 @@ export default function PortionsStatisticsPage() {
                             </div>
 
                             <p className="text-muted-foreground font-medium">
-                              Month Period TL/STS: <span className="font-semibold text-foreground">{row.expP.toFixed(1)}/{row.actP}</span> | Page TL/STS: <span className="font-semibold text-foreground">{row.expPg.toFixed(2)}/{row.actPg}</span>
+                              Month Period TL/STS: <span className="font-semibold text-foreground">{row.expP}/{row.actP}</span> | Page TL/STS: <span className="font-semibold text-foreground">{row.expPg.toFixed(2)}/{row.actPg}</span>
                             </p>
 
                             <p className="text-muted-foreground font-medium">
-                              Sem Period TL/STS: <span className="font-semibold text-foreground">{row.sem.expP.toFixed(1)}/{row.sem.actP}</span> | Sem Page TL/STS: <span className="font-semibold text-foreground">{row.sem.expPg.toFixed(2)}/{row.sem.actPg}</span>
+                              Sem Period TL/STS: <span className="font-semibold text-foreground">{row.sem.expP}/{row.sem.actP}</span> | Sem Page TL/STS: <span className="font-semibold text-foreground">{row.sem.expPg.toFixed(2)}/{row.sem.actPg}</span>
                             </p>
 
                             <div className="space-y-1 pt-1.5 border-t border-dashed border-border/80">
                               {row.monthWeeks.map((week: any) => {
                                 const rec = progressMap[subject.id]?.[week.key];
-                                const expWkPg = (week.workingDates.length * row.pagesPerDay).toFixed(1);
+                                const wAlloc = row.weekAllocations[week.key] || { expP: 0, expPg: 0 };
 
                                 return (
                                   <div
@@ -504,7 +534,7 @@ export default function PortionsStatisticsPage() {
                                       WK-{week.weekNo} ({week.workingDates.length}d):
                                     </span>
                                     <span>
-                                      P.STS <strong className="text-foreground">{n(rec?.period_taken)}</strong> | Pg.STS <strong className="text-primary">{n(rec?.pages_taken)}</strong> / {expWkPg}
+                                      P.STS <strong className="text-foreground">{n(rec?.period_taken)}/{wAlloc.expP}</strong> | Pg.STS <strong className="text-primary">{n(rec?.pages_taken)}/{wAlloc.expPg.toFixed(1)}</strong>
                                     </span>
                                   </div>
                                 );

@@ -27,22 +27,22 @@ import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Search, 
 interface Student { uid: string; name: string; }
 interface PeriodDetail {
     status: 'Present' | 'Absent';
-    reason?: 'Home' | 'Medical' | 'Cic Related' | 'Wsf Related' | 'Exam Related';
+    reason?: 'Not Attended' | 'Home' | 'Medical' | 'Cic Related' | 'Wsf Related' | 'Exam Related';
     description?: string;
 }
 interface AttendanceRecord { [period: string]: PeriodDetail }
 const periods = Array.from({ length: 8 }, (_, i) => `period_${i + 1}`);
-const absenceReasons = ['Home', 'Medical', 'Cic Related', 'Wsf Related', 'Exam Related'];
+const absenceReasons = ['Not Attended', 'Home', 'Medical', 'Cic Related', 'Wsf Related', 'Exam Related'];
 const excusedAbsences = ['Cic Related', 'Wsf Related', 'Exam Related'];
 
 // Polished Reason Modal (Unchanged)
 function ReasonModal({ isOpen, onClose, onSave, studentName, lastReason }: { isOpen: boolean, onClose: () => void, onSave: (reason: PeriodDetail) => void, studentName: string, lastReason: PeriodDetail | null }) {
-    const [reason, setReason] = useState<PeriodDetail['reason']>('Home');
+    const [reason, setReason] = useState<PeriodDetail['reason']>('Not Attended');
     const [description, setDescription] = useState('');
 
     useEffect(() => {
         if (isOpen) {
-            setReason(lastReason?.reason || 'Home');
+            setReason(lastReason?.reason || 'Not Attended');
             setDescription(lastReason?.description || '');
         }
     }, [isOpen, lastReason]);

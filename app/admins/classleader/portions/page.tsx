@@ -53,8 +53,8 @@ type Progress = {
   week_no: number;
   date_from: string;
   date_to: string;
-  period_taken: number;
-  pages_taken: number;
+  period_taken: number | string;
+  pages_taken: number | string;
 };
 
 const blankForm = {
@@ -120,13 +120,18 @@ export default function ClassLeaderPortionsPage() {
       }
 
       const keys = Array.from(batchKeys).filter(Boolean);
+      const queryBatches = keys.length ? keys : (batch ? [batch] : []);
 
       const [excludedRes, subjectsRes] = await Promise.all([
-        supabase.from('portion_calendar_exclusions').select('*').eq('semester', semester),
+        supabase
+          .from('portion_calendar_exclusions')
+          .select('*')
+          .in('batch', queryBatches)
+          .eq('semester', semester),
         supabase
           .from('portion_subjects')
           .select('*')
-          .in('batch', keys.length ? keys : [batch])
+          .in('batch', queryBatches)
           .eq('semester', semester)
           .order('subject_name'),
       ]);
@@ -271,6 +276,12 @@ export default function ClassLeaderPortionsPage() {
   }, [semester, weeks, selectedSubject, progressMap]);
 
   const toggleExcludedDate = async (date: string) => {
+    const targetBatch = batch || details?.batch || details?.designation?.replace(/\s+Class$/i, '') || '';
+    if (!targetBatch) {
+      toast.error('Class identifier not found.');
+      return;
+    }
+
     const isExcluded = excluded.has(date);
     const next = new Set(excluded);
     if (isExcluded) next.delete(date);
@@ -281,6 +292,7 @@ export default function ClassLeaderPortionsPage() {
       const { error } = await supabase
         .from('portion_calendar_exclusions')
         .delete()
+        .eq('batch', targetBatch)
         .eq('semester', semester)
         .eq('excluded_date', date);
       if (error) {
@@ -291,10 +303,11 @@ export default function ClassLeaderPortionsPage() {
       }
     } else {
       const { error } = await supabase.from('portion_calendar_exclusions').upsert({
+        batch: targetBatch,
         semester,
         excluded_date: date,
         created_by: user?.id || null,
-      }, { onConflict: 'semester,excluded_date' });
+      }, { onConflict: 'batch,semester,excluded_date' });
       if (error) {
         toast.error('Error excluding date', { description: error.message });
         setExcluded(excluded);
@@ -388,6 +401,17 @@ export default function ClassLeaderPortionsPage() {
   const updateProgressDraft = (weekKey: string, field: 'period_taken' | 'pages_taken', value: string) => {
     const week = weeks.find((item) => item.key === weekKey);
     if (!selectedSubject || !week) return;
+
+    let cleanVal = value.replace(/[^0-9.]/g, '');
+    if (field === 'period_taken') {
+      cleanVal = cleanVal.replace(/\./g, '');
+    } else {
+      const parts = cleanVal.split('.');
+      if (parts.length > 2) {
+        cleanVal = `${parts[0]}.${parts.slice(1).join('')}`;
+      }
+    }
+
     setProgressRows((prev) => {
       const existing = prev.find((row) => row.week_key === weekKey);
       const nextRow: Progress = {
@@ -398,10 +422,10 @@ export default function ClassLeaderPortionsPage() {
           week_no: week.weekNo,
           date_from: week.dateFrom,
           date_to: week.dateTo,
-          period_taken: 0,
-          pages_taken: 0,
+          period_taken: '',
+          pages_taken: '',
         }),
-        [field]: n(value),
+        [field]: cleanVal,
       };
       return existing ? prev.map((row) => (row.week_key === weekKey ? nextRow : row)) : [...prev, nextRow];
     });
@@ -719,7 +743,8 @@ export default function ClassLeaderPortionsPage() {
                                   value={row?.period_taken !== undefined && row.period_taken !== null ? String(row.period_taken) : ''}
                                   onChange={(e) => updateProgressDraft(week.key, 'period_taken', e.target.value)}
                                   placeholder="0"
-                                  type="number"
+                                  type="text"
+                                  inputMode="numeric"
                                   className="h-8 rounded-lg text-xs"
                                 />
                               </div>
@@ -729,7 +754,8 @@ export default function ClassLeaderPortionsPage() {
                                   value={row?.pages_taken !== undefined && row.pages_taken !== null ? String(row.pages_taken) : ''}
                                   onChange={(e) => updateProgressDraft(week.key, 'pages_taken', e.target.value)}
                                   placeholder="0"
-                                  type="number"
+                                  type="text"
+                                  inputMode="decimal"
                                   className="h-8 rounded-lg text-xs"
                                 />
                               </div>

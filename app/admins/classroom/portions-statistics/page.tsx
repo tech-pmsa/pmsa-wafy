@@ -130,7 +130,11 @@ export default function PortionsStatisticsPage() {
       const keys = Array.from(expandedKeys).filter(Boolean);
 
       const [excludedRes, subjectsRes] = await Promise.all([
-        supabase.from('portion_calendar_exclusions').select('*').eq('semester', semester),
+        supabase
+          .from('portion_calendar_exclusions')
+          .select('*')
+          .in('batch', keys.length ? keys : [activeClass])
+          .eq('semester', semester),
         supabase
           .from('portion_subjects')
           .select('*')

@@ -24,7 +24,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { CalendarIcon, Check, X, UserCheck, UserX, Lock, Loader2, Save, Search, AlertCircle } from 'lucide-react'
 
 // Type Definitions
-interface Student { uid: string; name: string; }
+interface Student { uid: string; name: string; cic?: string | null; }
 interface PeriodDetail {
     status: 'Present' | 'Absent';
     reason?: 'Not Attended' | 'Home' | 'Medical' | 'Cic Related' | 'Wsf Related' | 'Exam Related';
@@ -85,7 +85,7 @@ export default function AttendanceForm() {
         setLoading(true);
         const date = format(selectedDate, 'yyyy-MM-dd');
 
-        const studentsPromise = supabase.from('students').select('uid, name').eq('class_id', classId).order('name');
+        const studentsPromise = supabase.from('students').select('uid, name, cic').eq('class_id', classId);
         const attendancePromise = supabase.from('attendance').select('*').eq('class_id', classId).eq('date', date);
 
         const [{ data: studentsData, error: studentsError }, { data: attendanceData, error: attendanceError }] = await Promise.all([studentsPromise, attendancePromise]);
@@ -97,14 +97,20 @@ export default function AttendanceForm() {
         }
 
         if (studentsData) {
-            setStudents(studentsData);
+            const sortedStudents = [...studentsData].sort((a: any, b: any) =>
+                (a.cic || "").localeCompare(b.cic || "", undefined, {
+                    numeric: true,
+                    sensitivity: "base",
+                })
+            );
+            setStudents(sortedStudents);
             const initialAttendance: { [uid: string]: AttendanceRecord } = {};
             const initialLastReasons: { [uid: string]: PeriodDetail } = {};
             const isDayLocked = attendanceData?.[0]?.status_locked || false;
             setIsLocked(isDayLocked);
             setIsLeaveDay(attendanceData?.[0]?.is_leave_day || false);
 
-            studentsData.forEach(student => {
+            sortedStudents.forEach(student => {
                 const record = attendanceData?.find(att => att.student_uid === student.uid);
                 if (record) {
                     initialAttendance[student.uid] = periods.reduce((acc, p) => ({ ...acc, [p]: record[p] || { status: 'Present' } }), {});
@@ -122,7 +128,13 @@ export default function AttendanceForm() {
 
     useEffect(() => { if (!userLoading && classId) fetchDataForDate(); }, [userLoading, fetchDataForDate, classId]);
 
-    const filteredStudents = useMemo(() => students.filter(student => student.name.toLowerCase().includes(searchTerm.toLowerCase())), [students, searchTerm]);
+    const filteredStudents = useMemo(() =>
+        students.filter(student =>
+            student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (student.cic && student.cic.toLowerCase().includes(searchTerm.toLowerCase()))
+        ),
+        [students, searchTerm]
+    );
 
     const attendanceSummary = useMemo(() => {
         const presentCount = students.filter(student => { const studentAttendance = attendance[student.uid]; return studentAttendance && Object.values(studentAttendance).some(p => p.status === 'Present' || excusedAbsences.includes(p.reason || '')); }).length;
@@ -244,7 +256,12 @@ export default function AttendanceForm() {
                             <AccordionItem key={student.uid} value={student.uid} className={`border rounded-lg bg-background shadow-sm transition-opacity ${isLocked || isLeaveDay ? 'opacity-60 pointer-events-none' : ''}`}>
                                 <AccordionTrigger className="px-4 py-2 hover:no-underline">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between w-full gap-4">
-                                        <h3 className="font-semibold text-base sm:text-lg">{student.name}</h3>
+                                        <div className="text-left">
+                                            <h3 className="font-semibold text-base sm:text-lg">{student.name}</h3>
+                                            {student.cic ? (
+                                                <p className="text-xs font-medium text-primary mt-0.5">CIC: {student.cic}</p>
+                                            ) : null}
+                                        </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto">
                                             <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); markAll(student.uid, true); }} className="flex-1"><Check className="h-4 w-4 mr-1"/> All Present</Button>
                                             <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); markAll(student.uid, false); }} className="flex-1"><X className="h-4 w-4 mr-1"/> All Absent</Button>

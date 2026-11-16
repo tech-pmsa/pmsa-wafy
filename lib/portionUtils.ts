@@ -157,6 +157,66 @@ export function statusLabel(status: string, diffOrActual?: number, expected?: nu
   return 'On Track';
 }
 
+export type SubjectProgressStatus = {
+  status: 'back' | 'ahead' | 'same';
+  diff: number;
+  actual: number;
+  expected: number;
+  latestWeekNo: number;
+  hasUpdates: boolean;
+};
+
+export function computeSubjectProgressStatus(
+  weeks: WeekBlock[],
+  weekAllocations: Record<string, { expectedPeriod?: number; expP?: number; expectedPages?: number; expPg?: number }>,
+  progressMap: Record<string, { period_taken?: any; pages_taken?: any } | undefined>
+): SubjectProgressStatus {
+  if (!weeks.length) {
+    return { status: 'same', diff: 0, actual: 0, expected: 0, latestWeekNo: 0, hasUpdates: false };
+  }
+
+  // Find all week indices that have been updated
+  const updatedIndices: number[] = [];
+  weeks.forEach((w, idx) => {
+    const rec = progressMap[w.key];
+    const hasPages = rec?.pages_taken !== '' && rec?.pages_taken !== null && rec?.pages_taken !== undefined && n(rec?.pages_taken) > 0;
+    const hasPeriod = rec?.period_taken !== '' && rec?.period_taken !== null && rec?.period_taken !== undefined && n(rec?.period_taken) > 0;
+    if (hasPages || hasPeriod) {
+      updatedIndices.push(idx);
+    }
+  });
+
+  const hasUpdates = updatedIndices.length > 0;
+  // If no updates yet: default to first week (index 0) so default shows behind by week 1's quota
+  const lastIndex = hasUpdates ? updatedIndices[updatedIndices.length - 1] : 0;
+  const targetWeeks = weeks.slice(0, lastIndex + 1);
+
+  let totalActual = 0;
+  let totalExpected = 0;
+
+  targetWeeks.forEach((w) => {
+    const rec = progressMap[w.key];
+    const alloc = weekAllocations[w.key];
+    const expPages = alloc ? (alloc.expectedPages ?? alloc.expPg ?? 0) : 0;
+    const actPages = n(rec?.pages_taken);
+
+    totalActual += actPages;
+    totalExpected += expPages;
+  });
+
+  const diff = totalActual - totalExpected;
+  const status = getPortionStatus(totalActual, totalExpected);
+
+  return {
+    status,
+    diff,
+    actual: totalActual,
+    expected: totalExpected,
+    latestWeekNo: targetWeeks[targetWeeks.length - 1].weekNo,
+    hasUpdates,
+  };
+}
+
 export function getDefaultSemester(date = new Date()): Semester {
   const month = date.getMonth(); // 0 = Jan, 5 = June, 10 = Nov, 11 = Dec
   if (month === 10) {
@@ -295,6 +355,152 @@ export function allocateIntegerTotal(total: number, weights: number[]): number[]
   }
 
   return floors;
+}
+
+export type WeeklyProgressLike = {
+  week_key: string;
+  pages_taken?: number | string | null;
+  period_taken?: number | string | null;
+};
+
+export type SubjectWeeklyStatus = {
+  status: 'back' | 'ahead' | 'same';
+  diff: number;
+  actualPages: number;
+  expectedPages: number;
+  evaluatedWeeksCount: number;
+  isDefault: boolean;
+};
+
+export function computeWeekAllocations(
+  semester: Semester,
+  weeks: WeekBlock[],
+  totalPages: number | string,
+  totalPeriod: number | string
+): Record<string, { expectedPeriod: number; expectedPages: number }> {
+  const totPages = n(totalPages);
+  const totPeriod = n(totalPeriod);
+  const pagesPerPeriod = totPeriod > 0 ? totPages / totPeriod : 0;
+
+  const rawMonths = SEMESTER_MONTHS[semester]
+    .map((month) => {
+      const monthWeeks = weeks.filter((week) => week.monthLabel === month.label);
+      const monthWorkingDays = monthWeeks.reduce((sum, w) => sum + w.workingDates.length, 0);
+      return {
+        label: month.label,
+        monthWeeks,
+        workingDays: monthWorkingDays,
+      };
+    })
+    .filter((m) => m.workingDays > 0 || m.monthWeeks.length > 0);
+
+  const monthWorkingDaysList = rawMonths.map((m) => m.workingDays);
+  const allocatedMonthPeriods = allocateIntegerTotal(totPeriod, monthWorkingDaysList);
+
+  const weekAllocMap: Record<string, { expectedPeriod: number; expectedPages: number }> = {};
+
+  rawMonths.forEach((month, idx) => {
+    const expectedMonthPeriod = allocatedMonthPeriods[idx] || 0;
+    const weekDays = month.monthWeeks.map((w) => w.workingDates.length);
+    const allocatedWeekPeriods = allocateIntegerTotal(expectedMonthPeriod, weekDays);
+
+    month.monthWeeks.forEach((w, wIdx) => {
+      const wExpPeriod = allocatedWeekPeriods[wIdx] || 0;
+      const wExpPages = wExpPeriod * pagesPerPeriod;
+      weekAllocMap[w.key] = {
+        expectedPeriod: wExpPeriod,
+        expectedPages: wExpPages,
+      };
+    });
+  });
+
+  return weekAllocMap;
+}
+
+export function calculateSubjectWeeklyStatus(
+  subject: { total_pages: number | string; total_period: number | string },
+  weeks: WeekBlock[],
+  weekAllocations: Record<string, { expectedPeriod: number; expectedPages: number }>,
+  progressList: WeeklyProgressLike[]
+): SubjectWeeklyStatus {
+  const totalPages = n(subject.total_pages);
+
+  if (totalPages <= 0 || !weeks.length) {
+    return {
+      status: 'same',
+      diff: 0,
+      actualPages: 0,
+      expectedPages: 0,
+      evaluatedWeeksCount: 0,
+      isDefault: true,
+    };
+  }
+
+  const pMap: Record<string, WeeklyProgressLike> = {};
+  (progressList || []).forEach((p) => {
+    if (p && p.week_key) pMap[p.week_key] = p;
+  });
+
+  // Find the highest week index that has been updated
+  // A week is updated if pages_taken > 0 or period_taken > 0
+  let lastUpdatedIdx = -1;
+  weeks.forEach((w, idx) => {
+    const rec = pMap[w.key];
+    const pages = n(rec?.pages_taken);
+    const period = n(rec?.period_taken);
+    if (pages > 0 || period > 0) {
+      lastUpdatedIdx = idx;
+    }
+  });
+
+  // If no week has been updated yet, default state:
+  // "in default it will be behind when they update the first week data then check how much should they take in that week and consider behind and ahead"
+  if (lastUpdatedIdx === -1) {
+    let firstExp = 0;
+    for (const w of weeks) {
+      const exp = weekAllocations[w.key]?.expectedPages || 0;
+      if (exp > 0) {
+        firstExp = exp;
+        break;
+      }
+    }
+    if (firstExp === 0 && totalPages > 0) {
+      firstExp = totalPages / weeks.length;
+    }
+
+    return {
+      status: 'back',
+      diff: -firstExp,
+      actualPages: 0,
+      expectedPages: firstExp,
+      evaluatedWeeksCount: 1,
+      isDefault: true,
+    };
+  }
+
+  // Evaluate from week 0 up to lastUpdatedIdx
+  const evaluatedWeeks = weeks.slice(0, lastUpdatedIdx + 1);
+  let totalExpPages = 0;
+  let totalActPages = 0;
+
+  evaluatedWeeks.forEach((w) => {
+    const alloc = weekAllocations[w.key];
+    totalExpPages += alloc ? alloc.expectedPages : 0;
+    const rec = pMap[w.key];
+    totalActPages += n(rec?.pages_taken);
+  });
+
+  const diff = totalActPages - totalExpPages;
+  const status = getPortionStatus(totalActPages, totalExpPages);
+
+  return {
+    status,
+    diff,
+    actualPages: totalActPages,
+    expectedPages: totalExpPages,
+    evaluatedWeeksCount: evaluatedWeeks.length,
+    isDefault: false,
+  };
 }
 
 export type ClassOption = {

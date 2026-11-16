@@ -23,6 +23,7 @@ import {
   Semester,
   fetchClassOptions,
   findMatchingClass,
+  getDefaultSemester,
 } from '@/lib/portionUtils';
 import { exportCbcssPdf } from '@/lib/cbcssPdfService';
 import { Button } from '@/components/ui/button';
@@ -83,7 +84,7 @@ export default function CbcssPage() {
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [activeClass, setActiveClass] = useState<string>('');
   const [classesLoading, setClassesLoading] = useState(true);
-  const [semester, setSemester] = useState<Semester>('SEM-1');
+  const [semester, setSemester] = useState<Semester>(() => getDefaultSemester());
 
   const [records, setRecords] = useState<CbcssRecord[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -455,7 +456,7 @@ export default function CbcssPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
+              {sem === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
             </button>
           );
         })}

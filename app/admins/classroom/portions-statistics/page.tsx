@@ -29,6 +29,8 @@ import {
   Semester,
   allocateIntegerTotal,
   buildWorkingWeeks,
+  calculateSubjectWeeklyStatus,
+  computeWeekAllocations,
   displayDate,
   fetchClassOptions,
   findMatchingClass,
@@ -269,18 +271,18 @@ export default function PortionsStatisticsPage() {
     return rows;
   };
 
-  // Overall status summary count
+  // Overall status summary count (based on weekly update progress)
   const statsOverview = useMemo(() => {
     let aheadCount = 0;
     let onTrackCount = 0;
     let behindCount = 0;
 
     subjects.forEach((s) => {
-      const rows = subjectRows(s);
-      const lastRow = rows[rows.length - 1];
-      const status = lastRow ? getPortionStatus(lastRow.sem.actPg, lastRow.sem.expPg) : 'same';
-      if (status === 'ahead') aheadCount++;
-      else if (status === 'back') behindCount++;
+      const weekAllocations = computeWeekAllocations(semester, weeks, s.total_pages, s.total_period);
+      const subjProgress = allProgress.filter((p) => p.subject_id === s.id);
+      const weeklyStatus = calculateSubjectWeeklyStatus(s, weeks, weekAllocations, subjProgress);
+      if (weeklyStatus.status === 'ahead') aheadCount++;
+      else if (weeklyStatus.status === 'back') behindCount++;
       else onTrackCount++;
     });
 
@@ -290,7 +292,7 @@ export default function PortionsStatisticsPage() {
       onTrackCount,
       behindCount,
     };
-  }, [subjects, weeks, progressMap]);
+  }, [subjects, weeks, allProgress, semester]);
 
   const handlePrint = () => {
     window.print();
@@ -457,13 +459,11 @@ export default function PortionsStatisticsPage() {
           {subjects.map((subject) => {
             const isOpen = expandedId === subject.id;
             const rows = subjectRows(subject);
-            const lastRow = rows[rows.length - 1];
-            const subjectStatus = lastRow
-              ? getPortionStatus(lastRow.sem.actPg, lastRow.sem.expPg)
-              : 'same';
-            const subjectDiff = lastRow
-              ? lastRow.sem.actPg - lastRow.sem.expPg
-              : 0;
+            const weekAllocations = computeWeekAllocations(semester, weeks, subject.total_pages, subject.total_period);
+            const subjProgress = allProgress.filter((p) => p.subject_id === subject.id);
+            const weeklyStatus = calculateSubjectWeeklyStatus(subject, weeks, weekAllocations, subjProgress);
+            const subjectStatus = weeklyStatus.status;
+            const subjectDiff = weeklyStatus.diff;
 
             const displayTitle = subject.teacher_name?.trim()
               ? `${subject.subject_name} - ${subject.teacher_name.trim()}`

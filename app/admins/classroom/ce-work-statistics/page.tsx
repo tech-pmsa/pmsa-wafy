@@ -26,6 +26,7 @@ import {
   Semester,
   fetchClassOptions,
   findMatchingClass,
+  getDefaultSemester,
   displayDate,
   toDateValue,
 } from '@/lib/portionUtils';
@@ -97,7 +98,7 @@ export default function CEWorkStatisticsPage() {
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [activeClass, setActiveClass] = useState<string>('');
   const [classesLoading, setClassesLoading] = useState(true);
-  const [semester, setSemester] = useState<Semester>('SEM-1');
+  const [semester, setSemester] = useState<Semester>(() => getDefaultSemester());
 
   const [works, setWorks] = useState<CEWork[]>([]);
   const [rows, setRows] = useState<any[]>([]);
@@ -474,7 +475,7 @@ export default function CEWorkStatisticsPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
+              {sem === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
             </button>
           );
         })}

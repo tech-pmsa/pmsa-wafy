@@ -27,6 +27,7 @@ import {
 import {
   displayDate,
   toDateValue,
+  getDefaultSemester,
   Semester,
 } from '@/lib/portionUtils';
 import { exportCeWorkPdf } from '@/lib/ceWorkPdfService';
@@ -93,7 +94,7 @@ export default function CEWorkPage() {
   const { user, details, loading: userLoading } = useUserData();
   const batch = batchFrom(details);
 
-  const [semester, setSemester] = useState<Semester>('SEM-1');
+  const [semester, setSemester] = useState<Semester>(() => getDefaultSemester());
   const [works, setWorks] = useState<Work[]>([]);
   const [students, setStudents] = useState<any[]>([]);
   const [workStudents, setWorkStudents] = useState<any[]>([]);
@@ -413,7 +414,7 @@ export default function CEWorkPage() {
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
+              {sem === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
             </button>
           );
         })}

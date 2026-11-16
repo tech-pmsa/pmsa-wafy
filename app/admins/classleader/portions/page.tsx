@@ -27,6 +27,8 @@ import {
   SEMESTER_MONTHS,
   allocateIntegerTotal,
   buildWorkingWeeks,
+  calculateSubjectWeeklyStatus,
+  computeWeekAllocations,
   displayDate,
   getAcademicYearBase,
   getDefaultSemester,
@@ -82,6 +84,7 @@ export default function ClassLeaderPortionsPage() {
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [progressRows, setProgressRows] = useState<Progress[]>([]);
+  const [allProgressRows, setAllProgressRows] = useState<Progress[]>([]);
   const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [loading, setLoading] = useState(true);
   const [subjectModalOpen, setSubjectModalOpen] = useState(false);
@@ -147,6 +150,17 @@ export default function ClassLeaderPortionsPage() {
       const subjectRows = (subjectsRes.data || []) as Subject[];
       setExcluded(new Set((excludedRes.data || []).map((row: any) => row.excluded_date)));
       setSubjects(subjectRows);
+
+      if (subjectRows.length) {
+        const { data: allProg } = await supabase
+          .from('portion_week_progress')
+          .select('*')
+          .in('subject_id', subjectRows.map((s) => s.id));
+        setAllProgressRows((allProg || []) as Progress[]);
+      } else {
+        setAllProgressRows([]);
+      }
+
       if (subjectRows.length && !subjectRows.some((s) => s.id === selectedSubjectId)) {
         setSelectedSubjectId(subjectRows[0].id);
       }
@@ -461,6 +475,10 @@ export default function ClassLeaderPortionsPage() {
       });
       const { error } = await supabase.from('portion_week_progress').upsert(payload, { onConflict: 'subject_id,week_key' });
       if (error) throw error;
+      setAllProgressRows((prev) => {
+        const others = prev.filter((r) => r.subject_id !== selectedSubject.id);
+        return [...others, ...(payload as Progress[])];
+      });
       toast.success('Weekly portions progress saved');
     } catch (err: any) {
       toast.error('Error saving progress', { description: err.message });
@@ -640,23 +658,11 @@ export default function ClassLeaderPortionsPage() {
                     const subPagesPerPeriod = n(subject.total_period) > 0 ? n(subject.total_pages) / n(subject.total_period) : 0;
                     const subPagesPerWeek = n(subject.period_per_week) * subPagesPerPeriod;
 
-                    const pagesPerDay = workingDays > 0 ? n(subject.total_pages) / workingDays : 0;
-                    const totalActualPages = progressRows
-                      .filter((row) => row.subject_id === subject.id)
-                      .reduce((sum, row) => sum + n(row.pages_taken), 0);
-
-                    const recordedWeekKeys = new Set(
-                      progressRows
-                        .filter((r) => r.subject_id === subject.id && (n(r.pages_taken) > 0 || n(r.period_taken) > 0))
-                        .map((r) => r.week_key)
-                    );
-                    const expectedSoFar = recordedWeekKeys.size > 0
-                      ? weeks.filter((w) => recordedWeekKeys.has(w.key)).reduce((sum, w) => sum + (w.workingDates.length * pagesPerDay), 0)
-                      : 0;
-
-                    const expTarget = expectedSoFar > 0 ? expectedSoFar : n(subject.total_pages);
-                    const subjectStatus = getPortionStatus(totalActualPages, expTarget);
-                    const subjectDiff = totalActualPages - expTarget;
+                    const weekAllocations = computeWeekAllocations(semester, weeks, subject.total_pages, subject.total_period);
+                    const subjProgress = selectedSubject?.id === subject.id
+                      ? progressRows
+                      : allProgressRows.filter((r) => r.subject_id === subject.id);
+                    const weeklyStatus = calculateSubjectWeeklyStatus(subject, weeks, weekAllocations, subjProgress);
 
                     return (
                       <div
@@ -670,14 +676,14 @@ export default function ClassLeaderPortionsPage() {
                             </h3>
                             <span
                               className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                subjectStatus === 'back'
+                                weeklyStatus.status === 'back'
                                   ? 'bg-destructive/10 text-destructive'
-                                  : subjectStatus === 'ahead'
+                                  : weeklyStatus.status === 'ahead'
                                   ? 'bg-emerald-500/10 text-emerald-600'
                                   : 'bg-primary/10 text-primary'
                               }`}
                             >
-                              {statusLabel(subjectStatus, subjectDiff)}
+                              {statusLabel(weeklyStatus.status, weeklyStatus.diff)}
                             </span>
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground font-medium">

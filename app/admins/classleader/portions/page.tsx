@@ -11,6 +11,9 @@ import { Label } from '@/components/ui/label';
 import {
   BookOpen,
   CalendarDays,
+  ChevronDown,
+  ChevronUp,
+  Clock,
   Edit,
   Plus,
   Save,
@@ -26,7 +29,9 @@ import {
   buildWorkingWeeks,
   displayDate,
   getAcademicYearBase,
+  getDefaultSemester,
   getPortionStatus,
+  getRemainingWorkingDays,
   getSemesterDates,
   n,
   statusLabel,
@@ -72,7 +77,8 @@ function getBatch(details: any) {
 export default function ClassLeaderPortionsPage() {
   const { user, details, role, loading: userLoading } = useUserData();
   const batch = getBatch(details);
-  const [semester, setSemester] = useState<Semester>('SEM-1');
+  const [semester, setSemester] = useState<Semester>(() => getDefaultSemester());
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [progressRows, setProgressRows] = useState<Progress[]>([]);
@@ -184,6 +190,10 @@ export default function ClassLeaderPortionsPage() {
     [semester, excluded, academicYear]
   );
   const workingDays = weeks.reduce((total, week) => total + week.workingDates.length, 0);
+  const remainingWorkingDays = useMemo(
+    () => getRemainingWorkingDays(semesterDates, excluded),
+    [semesterDates, excluded]
+  );
   const selectedSubject = subjects.find((subject) => subject.id === selectedSubjectId) || null;
   const progressMap = useMemo(() => {
     const map: Record<string, Progress> = {};
@@ -493,70 +503,123 @@ export default function ClassLeaderPortionsPage() {
         <p className="text-muted-foreground mt-1">{batch || 'Class'} portion planning and weekly progress tracking.</p>
       </div>
 
-      {/* Semester Tabs */}
-      <div className="flex gap-2 p-1 bg-muted rounded-xl w-fit">
-        {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => (
-          <button
-            key={sem}
-            onClick={() => setSemester(sem)}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-              semester === sem
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {sem}
-          </button>
-        ))}
+      {/* Semester Switcher & Days Left Highlight */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 p-1.5 bg-muted/60 rounded-2xl border border-border/50">
+          {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => (
+            <button
+              key={sem}
+              onClick={() => setSemester(sem)}
+              className={`px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                semester === sem
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {sem === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
+            </button>
+          ))}
+        </div>
+
+        {/* Days Left Highlight Card */}
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-primary/10 border border-amber-500/25 rounded-2xl shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-extrabold text-foreground font-heading">
+                {remainingWorkingDays} Days Left
+              </span>
+              <span className="text-xs text-muted-foreground font-medium">
+                / {workingDays} working days
+              </span>
+            </div>
+            <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+              Remaining in {semester === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left column: Calendar & Subjects */}
         <div className="xl:col-span-7 space-y-6">
-          {/* Calendar Card */}
-          <Card className="border border-border/50 shadow-md">
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-5 w-5 text-primary" />
-                <CardTitle className="text-lg font-bold font-heading">Global Working Calendar</CardTitle>
-              </div>
-              <CardDescription className="text-xs">
-                Tap dates to toggle non-working/programme days. Selected dates are excluded from working calculations.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="flex items-center justify-between p-3 bg-primary/5 rounded-xl border border-primary/10">
-                <span className="text-sm font-bold text-foreground">Total Working Days</span>
-                <span className="text-lg font-extrabold text-primary font-heading">{workingDays} Days</span>
-              </div>
-
-              {SEMESTER_MONTHS[semester].map((month) => {
-                const monthDates = semesterDates.filter((date) => date.monthLabel === month.label);
-                return (
-                  <div key={`${semester}-${month.label}`} className="space-y-2">
-                    <h4 className="text-xs font-bold text-muted-foreground/90 uppercase tracking-wider px-1">{month.label}</h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {monthDates.map((date) => {
-                        const isOff = excluded.has(date.value);
-                        return (
-                          <button
-                            key={date.value}
-                            onClick={() => toggleExcludedDate(date.value)}
-                            className={`h-9 w-9 text-xs font-semibold rounded-lg border flex items-center justify-center transition-all ${
-                              isOff
-                                ? 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/15'
-                                : 'bg-card text-foreground border-border/50 hover:bg-accent'
-                            }`}
-                          >
-                            {date.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+          {/* Calendar Card (Collapsible Dropdown) */}
+          <Card className="border border-border/50 shadow-md overflow-hidden transition-all">
+            <button
+              type="button"
+              onClick={() => setCalendarOpen(!calendarOpen)}
+              className="w-full text-left p-4 flex items-center justify-between hover:bg-muted/40 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold font-heading text-foreground">Academic Calendar</h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                      {workingDays} Days ({remainingWorkingDays} Left)
+                    </span>
                   </div>
-                );
-              })}
-            </CardContent>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {calendarOpen
+                      ? 'Tap to collapse calendar'
+                      : 'Tap to view and toggle non-working/programme days'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pr-1">
+                <span className="text-xs font-semibold text-primary hidden sm:inline">
+                  {calendarOpen ? 'Hide' : 'Show'}
+                </span>
+                {calendarOpen ? (
+                  <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                )}
+              </div>
+            </button>
+
+            {calendarOpen && (
+              <CardContent className="pt-2 pb-5 space-y-4 border-t border-border/50 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-xl border border-primary/10">
+                  <span className="text-sm font-bold text-foreground">Total Working Days</span>
+                  <div className="text-right">
+                    <span className="text-lg font-extrabold text-primary font-heading">{workingDays} Days</span>
+                    <span className="text-xs text-muted-foreground block">({remainingWorkingDays} remaining)</span>
+                  </div>
+                </div>
+
+                {SEMESTER_MONTHS[semester].map((month) => {
+                  const monthDates = semesterDates.filter((date) => date.monthLabel === month.label);
+                  return (
+                    <div key={`${semester}-${month.label}`} className="space-y-2">
+                      <h4 className="text-xs font-bold text-muted-foreground/90 uppercase tracking-wider px-1">{month.label}</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {monthDates.map((date) => {
+                          const isOff = excluded.has(date.value);
+                          return (
+                            <button
+                              key={date.value}
+                              onClick={() => toggleExcludedDate(date.value)}
+                              className={`h-9 w-9 text-xs font-semibold rounded-lg border flex items-center justify-center transition-all ${
+                                isOff
+                                  ? 'bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/15'
+                                  : 'bg-card text-foreground border-border/50 hover:bg-accent'
+                              }`}
+                            >
+                              {date.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            )}
           </Card>
 
           {/* Subjects Card */}
@@ -591,7 +654,9 @@ export default function ClassLeaderPortionsPage() {
                       ? weeks.filter((w) => recordedWeekKeys.has(w.key)).reduce((sum, w) => sum + (w.workingDates.length * pagesPerDay), 0)
                       : 0;
 
-                    const subjectStatus = getPortionStatus(totalActualPages, expectedSoFar > 0 ? expectedSoFar : n(subject.total_pages));
+                    const expTarget = expectedSoFar > 0 ? expectedSoFar : n(subject.total_pages);
+                    const subjectStatus = getPortionStatus(totalActualPages, expTarget);
+                    const subjectDiff = totalActualPages - expTarget;
 
                     return (
                       <div
@@ -612,7 +677,7 @@ export default function ClassLeaderPortionsPage() {
                                   : 'bg-primary/10 text-primary'
                               }`}
                             >
-                              {statusLabel(subjectStatus)}
+                              {statusLabel(subjectStatus, subjectDiff)}
                             </span>
                           </div>
                           <div className="mt-3 space-y-1 text-xs text-muted-foreground font-medium">
@@ -687,20 +752,60 @@ export default function ClassLeaderPortionsPage() {
                     <div className="bg-muted/40 rounded-2xl p-4 border space-y-3">
                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest px-1">Month-wise Summary</h4>
                       <div className="space-y-2">
-                        {monthSummaries.map((month) => (
-                          <div key={month.label} className="flex justify-between text-xs font-semibold py-1 border-b border-muted last:border-b-0">
-                            <span className="text-muted-foreground">{month.label} ({month.workingDays} Days)</span>
-                            <span className="text-foreground">
-                              Pd: <span className="font-bold">{month.actualPeriod}/{month.expectedPeriod}</span> | Pg: <span className="font-bold">{month.actualPages}/{month.expectedPages.toFixed(2)}</span>
-                            </span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between text-xs font-extrabold pt-2 text-primary">
-                          <span>Semester Total ({workingDays} Working Days)</span>
-                          <span>
-                            Pd: {semSummary.actualPeriod}/{semSummary.expectedPeriod} | Pg: {semSummary.actualPages}/{semSummary.expectedPages.toFixed(2)}
-                          </span>
-                        </div>
+                        {monthSummaries.map((month) => {
+                          const mStatus = getPortionStatus(month.actualPages, month.expectedPages);
+                          const mDiff = month.actualPages - month.expectedPages;
+                          return (
+                            <div key={month.label} className="flex items-center justify-between text-xs font-semibold py-1 border-b border-muted last:border-b-0">
+                              <span className="text-muted-foreground">{month.label} ({month.workingDays} Days)</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-foreground">
+                                  Pd: <span className="font-bold">{month.actualPeriod}/{month.expectedPeriod}</span> | Pg: <span className="font-bold">{month.actualPages}/{month.expectedPages.toFixed(1)}</span>
+                                </span>
+                                {month.actualPages > 0 && (
+                                  <span
+                                    className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                                      mStatus === 'back'
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : mStatus === 'ahead'
+                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                        : 'bg-primary/10 text-primary'
+                                    }`}
+                                  >
+                                    {statusLabel(mStatus, mDiff)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {(() => {
+                          const sStatus = getPortionStatus(semSummary.actualPages, semSummary.expectedPages);
+                          const sDiff = semSummary.actualPages - semSummary.expectedPages;
+                          return (
+                            <div className="flex items-center justify-between text-xs font-extrabold pt-2 text-primary">
+                              <span>Semester Total ({workingDays} Working Days)</span>
+                              <div className="flex items-center gap-2">
+                                <span>
+                                  Pd: {semSummary.actualPeriod}/{semSummary.expectedPeriod} | Pg: {semSummary.actualPages}/{semSummary.expectedPages.toFixed(1)}
+                                </span>
+                                {semSummary.actualPages > 0 && (
+                                  <span
+                                    className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full ${
+                                      sStatus === 'back'
+                                        ? 'bg-destructive/10 text-destructive'
+                                        : sStatus === 'ahead'
+                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                        : 'bg-primary/10 text-primary'
+                                    }`}
+                                  >
+                                    {statusLabel(sStatus, sDiff)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -709,7 +814,9 @@ export default function ClassLeaderPortionsPage() {
                       {weeks.map((week) => {
                         const row = progressMap[week.key];
                         const alloc = weekAllocations[week.key] || { expectedPeriod: 0, expectedPages: 0 };
-                        const pageStatus = getPortionStatus(n(row?.pages_taken), alloc.expectedPages);
+                        const actPages = n(row?.pages_taken);
+                        const pageStatus = getPortionStatus(actPages, alloc.expectedPages);
+                        const weekDiff = actPages - alloc.expectedPages;
 
                         return (
                           <div
@@ -729,7 +836,7 @@ export default function ClassLeaderPortionsPage() {
                                     : 'bg-primary/10 text-primary'
                                 }`}
                               >
-                                {statusLabel(pageStatus)}
+                                {statusLabel(pageStatus, weekDiff)}
                               </span>
                             </div>
                             <span className="block text-[11px] text-muted-foreground font-semibold">

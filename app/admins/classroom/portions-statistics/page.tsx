@@ -33,7 +33,10 @@ import {
   fetchClassOptions,
   findMatchingClass,
   getAcademicYearBase,
+  getDefaultSemester,
   getPortionStatus,
+  getRemainingWorkingDays,
+  getSemesterDates,
   n,
   statusLabel,
 } from '@/lib/portionUtils';
@@ -70,7 +73,7 @@ export default function PortionsStatisticsPage() {
   const [activeClass, setActiveClass] = useState<string>('');
   const [classesLoading, setClassesLoading] = useState(true);
 
-  const [semester, setSemester] = useState<Semester>('SEM-1');
+  const [semester, setSemester] = useState<Semester>(() => getDefaultSemester());
   const [excluded, setExcluded] = useState<Set<string>>(new Set());
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [allProgress, setAllProgress] = useState<Progress[]>([]);
@@ -178,9 +181,18 @@ export default function PortionsStatisticsPage() {
   }, [classesLoading, activeClass, loadData]);
 
   // Working weeks calculation
+  const semesterDates = useMemo(
+    () => getSemesterDates(semester, academicYear),
+    [semester, academicYear]
+  );
   const weeks = useMemo(
     () => buildWorkingWeeks(semester, excluded, academicYear),
     [semester, excluded, academicYear]
+  );
+  const workingDays = weeks.reduce((total, week) => total + week.workingDates.length, 0);
+  const remainingWorkingDays = useMemo(
+    () => getRemainingWorkingDays(semesterDates, excluded),
+    [semesterDates, excluded]
   );
 
   const progressMap = useMemo(() => {
@@ -344,25 +356,40 @@ export default function PortionsStatisticsPage() {
         </Card>
       )}
 
-      {/* Semester Switcher Tabs */}
-      <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-xl w-fit border border-border">
-        {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => {
-          const isActive = semester === sem;
-          return (
-            <button
-              key={sem}
-              type="button"
-              onClick={() => setSemester(sem)}
-              className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                isActive
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {sem === 'SEM-1' ? 'SEM 1' : 'SEM 2'}
-            </button>
-          );
-        })}
+      {/* Semester Switcher Tabs & Days Left Highlight */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/50 rounded-xl border border-border">
+          {(['SEM-1', 'SEM-2'] as Semester[]).map((sem) => {
+            const isActive = semester === sem;
+            return (
+              <button
+                key={sem}
+                type="button"
+                onClick={() => setSemester(sem)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  isActive
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {sem === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Days Left Highlight */}
+        <div className="flex items-center gap-2.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500/10 to-primary/10 border border-amber-500/20 rounded-xl text-xs">
+          <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <div>
+            <span className="font-extrabold text-foreground">
+              {remainingWorkingDays} Days Left
+            </span>{' '}
+            <span className="text-muted-foreground text-[11px]">
+              ({workingDays} working days in {semester === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)'})
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Summary Metrics */}
@@ -434,6 +461,9 @@ export default function PortionsStatisticsPage() {
             const subjectStatus = lastRow
               ? getPortionStatus(lastRow.sem.actPg, lastRow.sem.expPg)
               : 'same';
+            const subjectDiff = lastRow
+              ? lastRow.sem.actPg - lastRow.sem.expPg
+              : 0;
 
             const displayTitle = subject.teacher_name?.trim()
               ? `${subject.subject_name} - ${subject.teacher_name.trim()}`
@@ -477,7 +507,7 @@ export default function PortionsStatisticsPage() {
                           : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20'
                       }`}
                     >
-                      {statusLabel(subjectStatus)}
+                      {statusLabel(subjectStatus, subjectDiff)}
                     </Badge>
 
                     {isOpen ? (
@@ -494,6 +524,7 @@ export default function PortionsStatisticsPage() {
                     <div className="space-y-3 pt-3">
                       {rows.map((row) => {
                         const pageStatus = getPortionStatus(row.actPg, row.expPg);
+                        const monthDiff = row.actPg - row.expPg;
 
                         return (
                           <div
@@ -512,7 +543,7 @@ export default function PortionsStatisticsPage() {
                                     : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                                 }`}
                               >
-                                {statusLabel(pageStatus)}
+                                {statusLabel(pageStatus, monthDiff)}
                               </Badge>
                             </div>
 
@@ -528,6 +559,10 @@ export default function PortionsStatisticsPage() {
                               {row.monthWeeks.map((week: any) => {
                                 const rec = progressMap[subject.id]?.[week.key];
                                 const wAlloc = row.weekAllocations[week.key] || { expP: 0, expPg: 0 };
+                                const wActPg = n(rec?.pages_taken);
+                                const wExpPg = wAlloc.expPg;
+                                const wDiff = wActPg - wExpPg;
+                                const wStatus = getPortionStatus(wActPg, wExpPg);
 
                                 return (
                                   <div
@@ -537,8 +572,23 @@ export default function PortionsStatisticsPage() {
                                     <span className="font-medium text-foreground">
                                       WK-{week.weekNo} ({week.workingDates.length}d):
                                     </span>
-                                    <span>
-                                      P.STS <strong className="text-foreground">{n(rec?.period_taken)}/{wAlloc.expP}</strong> | Pg.STS <strong className="text-primary">{n(rec?.pages_taken)}/{wAlloc.expPg.toFixed(1)}</strong>
+                                    <span className="flex items-center gap-1.5">
+                                      <span>
+                                        P.STS <strong className="text-foreground">{n(rec?.period_taken)}/{wAlloc.expP}</strong> | Pg.STS <strong className="text-primary">{wActPg}/{wExpPg.toFixed(1)}</strong>
+                                      </span>
+                                      {wActPg > 0 && (
+                                        <span
+                                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                            wStatus === 'ahead'
+                                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                              : wStatus === 'back'
+                                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                              : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                          }`}
+                                        >
+                                          {statusLabel(wStatus, wDiff)}
+                                        </span>
+                                      )}
                                     </span>
                                   </div>
                                 );

@@ -2,6 +2,11 @@ import { supabase } from '@/lib/supabaseClient';
 
 export type Semester = 'SEM-1' | 'SEM-2';
 
+export const SEMESTER_LABELS: Record<Semester, string> = {
+  'SEM-1': 'SEM 1 (Nov)',
+  'SEM-2': 'SEM 2 (May)',
+};
+
 export type WeekBlock = {
   key: string;
   monthKey: string;
@@ -131,10 +136,129 @@ export function getPortionStatus(actual: number, expected: number) {
   return 'same';
 }
 
-export function statusLabel(status: string) {
+export function statusLabel(status: string, diffOrActual?: number, expected?: number): string {
+  let diff: number | undefined;
+  if (expected !== undefined && diffOrActual !== undefined) {
+    diff = diffOrActual - expected;
+  } else if (diffOrActual !== undefined) {
+    diff = diffOrActual;
+  }
+
+  if (diff !== undefined && diff !== null) {
+    const absDiff = Math.abs(diff);
+    const formatted = Number(absDiff.toFixed(1)).toString();
+    const unit = formatted === '1' ? 'page' : 'pages';
+    if (status === 'back') return `Behind by ${formatted} ${unit}`;
+    if (status === 'ahead') return `Ahead by ${formatted} ${unit}`;
+    return 'On Track';
+  }
   if (status === 'back') return 'Behind';
   if (status === 'ahead') return 'Ahead';
-  return 'Same';
+  return 'On Track';
+}
+
+export function getDefaultSemester(date = new Date()): Semester {
+  const month = date.getMonth(); // 0 = Jan, 5 = June, 10 = Nov, 11 = Dec
+  if (month === 10) {
+    return date.getDate() > 15 ? 'SEM-2' : 'SEM-1';
+  }
+  if (month >= 5 && month < 10) {
+    return 'SEM-1';
+  }
+  return 'SEM-2';
+}
+
+export function getSemesterDisplayName(semester: Semester): string {
+  return SEMESTER_LABELS[semester] || (semester === 'SEM-1' ? 'SEM 1 (Nov)' : 'SEM 2 (May)');
+}
+
+export type SemesterDaysLeftInfo = {
+  workingDaysLeft: number;
+  calendarDaysLeft: number;
+  totalWorkingDays: number;
+  totalDates: number;
+  isPast: boolean;
+  isFuture: boolean;
+  startDate: string;
+  endDate: string;
+};
+
+export function getSemesterDaysLeft(
+  semester: Semester,
+  excludedDates: Set<string>,
+  academicYear = getAcademicYearBase(),
+  today = new Date()
+): SemesterDaysLeftInfo {
+  const allDates = getSemesterDates(semester, academicYear);
+  if (!allDates.length) {
+    return {
+      workingDaysLeft: 0,
+      calendarDaysLeft: 0,
+      totalWorkingDays: 0,
+      totalDates: 0,
+      isPast: false,
+      isFuture: false,
+      startDate: '',
+      endDate: '',
+    };
+  }
+
+  const todayStr = toDateValue(today);
+  const startDate = allDates[0].value;
+  const endDate = allDates[allDates.length - 1].value;
+  const totalWorkingDays = allDates.filter((d) => !excludedDates.has(d.value)).length;
+
+  if (todayStr > endDate) {
+    return {
+      workingDaysLeft: 0,
+      calendarDaysLeft: 0,
+      totalWorkingDays,
+      totalDates: allDates.length,
+      isPast: true,
+      isFuture: false,
+      startDate,
+      endDate,
+    };
+  }
+
+  if (todayStr < startDate) {
+    return {
+      workingDaysLeft: totalWorkingDays,
+      calendarDaysLeft: allDates.length,
+      totalWorkingDays,
+      totalDates: allDates.length,
+      isPast: false,
+      isFuture: true,
+      startDate,
+      endDate,
+    };
+  }
+
+  const remainingDates = allDates.filter((d) => d.value >= todayStr);
+  const remainingWorkingDates = remainingDates.filter((d) => !excludedDates.has(d.value));
+
+  return {
+    workingDaysLeft: remainingWorkingDates.length,
+    calendarDaysLeft: remainingDates.length,
+    totalWorkingDays,
+    totalDates: allDates.length,
+    isPast: false,
+    isFuture: false,
+    startDate,
+    endDate,
+  };
+}
+
+export function getRemainingWorkingDays(
+  semesterDates: { value: string }[],
+  excludedDates: Set<string>,
+  referenceDate = new Date()
+): number {
+  const year = referenceDate.getFullYear();
+  const month = String(referenceDate.getMonth() + 1).padStart(2, '0');
+  const day = String(referenceDate.getDate()).padStart(2, '0');
+  const refStr = `${year}-${month}-${day}`;
+  return semesterDates.filter((d) => d.value >= refStr && !excludedDates.has(d.value)).length;
 }
 
 export function n(value: any): number {
